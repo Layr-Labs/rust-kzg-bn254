@@ -32,7 +32,6 @@ pub fn montgomery_reduce(z_0: &u64, z_1: &u64, z_2: &u64, z_3: &u64) -> (u64, u6
 	(c, z2) = madd2(m, modulus[3], z3, c);
 	z3 = c;
 
-    
     m = z0.wrapping_mul(inv);
 	c = madd0(m, modulus[0], z0);
 	(c, z0) = madd2(m, modulus[1], z1, c);
@@ -49,7 +48,7 @@ pub fn montgomery_reduce(z_0: &u64, z_1: &u64, z_2: &u64, z_3: &u64) -> (u64, u6
 		(z2, b) = sub_64(z2, modulus[2], b);
 		(z3, _) = sub_64(z3, modulus[3], b);
     }
-
+    
     (z0, z1, z2, z3)
 
 }
@@ -118,10 +117,10 @@ pub fn madd2(a: u64, b: u64, c: u64, d: u64) -> (u64, u64) {
     (hi, lo as u64)
 }
 
-pub const fn sbb(a: u64, b: u64, borrow: u64) -> (u64, u64) {
-    let ret = (a as u128).wrapping_sub((b as u128) + ((borrow >> 63) as u128));
-    (ret as u64, (ret >> 64) as u64)
-}
+// pub const fn sbb(a: u64, b: u64, borrow: u64) -> (u64, u64) {
+//     let ret = (a as u128).wrapping_sub((b as u128) + ((borrow >> 63) as u128));
+//     (ret as u64, (ret >> 64) as u64)
+// }
 
 #[test]
 fn test_montgomery_reduce(){
@@ -130,4 +129,145 @@ fn test_montgomery_reduce(){
 
     let inv = Fq::from(<Fr as PrimeField>::MODULUS).neg_in_place().inverse().unwrap();
     println!("{}", inv.0);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_madd2_no_overflow() {
+        // Case where there is no overflow in multiplication or addition
+        let (hi, lo) = madd2(2, 3, 4, 5);
+        assert_eq!(hi, 0);
+        assert_eq!(lo, 6 + 9); // 2*3 + 4 + 5
+    }
+
+    #[test]
+    fn test_madd2_with_multiplication_overflow() {
+        // Case where multiplication overflows into high bits
+        let (hi, lo) = madd2(u64::MAX, u64::MAX, 0, 0);
+        assert_eq!(hi, u64::MAX - 1);
+        assert_eq!(lo, 1); // (2^64-1)*(2^64-1) = 2^128-2^64+1
+    }
+
+    #[test]
+    fn test_madd2_with_addition_overflow() {
+        // Case where addition overflows
+        let (hi, lo) = madd2(0, 0, u64::MAX, 1);
+        assert_eq!(hi, 1);
+        assert_eq!(lo, 0);
+    }
+
+    // #[test]
+    // fn test_madd2_with_both_overflows() {
+    //     // Case where both multiplication and addition overflow
+    //     let (hi, lo) = madd2(u64::MAX, u64::MAX, u64::MAX, 1);
+    //     assert_eq!(hi, u64::MAX);
+    //     assert_eq!(lo, 0);
+    // }
+
+    #[test]
+    fn test_madd2_edge_case_zero_multiplication() {
+        // Case where multiplication result is zero
+        let (hi, lo) = madd2(0, 0, 123, 456);
+        assert_eq!(hi, 0);
+        assert_eq!(lo, 579);
+    }
+
+    #[test]
+    fn test_madd2_edge_case_zero_addition() {
+        // Case where addition result is zero
+        let (hi, lo) = madd2(123, 456, 0, 0);
+        assert_eq!(hi, 0);
+        assert_eq!(lo, 123 * 456);
+    }
+
+    // #[test]
+    // fn test_madd2_large_numbers() {
+    //     // Case with large numbers to test boundary conditions
+    //     let (hi, lo) = madd2(1 << 32, 1 << 32, u64::MAX - 1, 1);
+    //     assert_eq!(hi, 1);
+    //     assert_eq!(lo, 0);
+    // }
+
+    // #[test]
+    // fn test_madd2_all_ones() {
+    //     // Case where all inputs are ones (u64::MAX)
+    //     let (hi, lo) = madd2(u64::MAX, u64::MAX, u64::MAX, u64::MAX);
+    //     assert_eq!(hi, u64::MAX);
+    //     assert_eq!(lo, u64::MAX - 1);
+    // }
+
+    #[test]
+    fn test_sub_64_no_borrow() {
+        // Case where there is no borrow
+        let (result, borrow_out) = sub_64(10, 5, 0);
+        assert_eq!(result, 5);
+        assert_eq!(borrow_out, 0);
+    }
+
+    #[test]
+    fn test_sub_64_with_borrow() {
+        // Case where there is an initial borrow
+        let (result, borrow_out) = sub_64(10, 5, 1);
+        assert_eq!(result, 4);
+        assert_eq!(borrow_out, 0);
+    }
+
+    #[test]
+    fn test_sub_64_with_borrow_out() {
+        // Case where the subtraction causes a borrow
+        let (result, borrow_out) = sub_64(5, 10, 0);
+        assert_eq!(result, u64::MAX - 4);
+        assert_eq!(borrow_out, 1);
+    }
+
+    #[test]
+    fn test_sub_64_with_initial_borrow_and_borrow_out() {
+        // Case where both the initial borrow and subtraction cause a borrow
+        let (result, borrow_out) = sub_64(5, 10, 1);
+        assert_eq!(result, u64::MAX - 5);
+        assert_eq!(borrow_out, 1);
+    }
+
+    #[test]
+    fn test_sub_64_max_values_no_borrow() {
+        // Case with maximum values but no initial borrow
+        let (result, borrow_out) = sub_64(u64::MAX, u64::MAX, 0);
+        assert_eq!(result, 0);
+        assert_eq!(borrow_out, 0);
+    }
+
+    #[test]
+    fn test_sub_64_max_values_with_borrow() {
+        // Case with maximum values and an initial borrow
+        let (result, borrow_out) = sub_64(u64::MAX, u64::MAX, 1);
+        assert_eq!(result, u64::MAX);
+        assert_eq!(borrow_out, 1);
+    }
+
+    #[test]
+    fn test_sub_64_zero_values() {
+        // Case with zero values
+        let (result, borrow_out) = sub_64(0, 0, 0);
+        assert_eq!(result, 0);
+        assert_eq!(borrow_out, 0);
+    }
+
+    #[test]
+    fn test_sub_64_zero_values_with_borrow() {
+        // Case with zero values and an initial borrow
+        let (result, borrow_out) = sub_64(0, 0, 1);
+        assert_eq!(result, u64::MAX);
+        assert_eq!(borrow_out, 1);
+    }
+
+    #[test]
+    fn test_sub_64_edge_case_overflow() {
+        // Case where subtraction causes an overflow
+        let (result, borrow_out) = sub_64(0, 1, 1);
+        assert_eq!(result, u64::MAX - 1);
+        assert_eq!(borrow_out, 1);
+    }
 }

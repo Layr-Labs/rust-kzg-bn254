@@ -1,5 +1,4 @@
-use std::process::exit;
-use std::{io, os};
+use std::io;
 use std::fs::File;
 use std::io::BufReader;
 use ark_bn254::g1::G1Affine;
@@ -13,7 +12,7 @@ use ark_std::{One, Zero};
 use ark_std::str::FromStr;
 use num_traits::ToPrimitive;
 use crate::blob::Blob;
-use crate::consts::{BYTES_PER_FIELD_ELEMENT, GETTYSBURG_ADDRESS_BYTES};
+use crate::consts::BYTES_PER_FIELD_ELEMENT;
 use crate::errors::KzgError;
 use crate::helpers;
 use crate::polynomial::Polynomial;
@@ -34,6 +33,7 @@ struct Params {
     max_fft_width: u64,
     completed_setup: bool,
 }
+
 
 impl Kzg {
     
@@ -456,7 +456,7 @@ fn test_blob_to_kzg_commitment(){
 #[test]
 fn test_compute_kzg_proof(){
     use rand::Rng;
-
+    use crate::consts::GETTYSBURG_ADDRESS_BYTES;
     let mut kzg = Kzg::setup(
         "src/test-files/g1.point", 
         "src/test-files/g2.point",

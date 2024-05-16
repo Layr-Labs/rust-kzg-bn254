@@ -2,7 +2,7 @@ use ark_bn254::Fr;
 use ark_std::Zero;
 use crate::{ errors::PolynomialError, helpers};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Polynomial {
     elements: Vec<Fr>,
     length_of_padded_blob: usize,
@@ -42,13 +42,6 @@ impl Polynomial {
         helpers::to_byte_array(&self.elements, self.length_of_padded_blob)
     }
 
-    /// Evaluates the polynomial at a given point using Horner's method.
-    pub fn eval(&self, point: &Fr) -> Fr {
-        self.elements.iter().rev().fold(Fr::zero(), |acc, &coeff| {
-            (acc * point) + &coeff
-        })
-    }
-
     /// Returns a clone of the elements as a `Vec<Fr>`.
     pub fn to_vec(&self) -> Vec<Fr> {
         self.elements.clone()
@@ -60,14 +53,6 @@ impl Polynomial {
         Ok(Polynomial { elements: fr_list, length_of_padded_blob, length_of_padded_blob_as_fr_vector })
     }
 
-    /// Returns the degree of the polynomial.
-    pub fn degree(&self) -> usize {
-        if self.is_empty() {
-            0
-        } else {
-            self.elements.len() - 1
-        }
-    }
 }
 
 #[test]

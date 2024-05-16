@@ -1,12 +1,12 @@
 use std::cmp;
-use ark_bn254::{Fq, Fq2, Fr, G1Affine, G2Affine};
+use ark_bn254::{Fq, Fq2, Fr, G1Affine, G1Projective, G2Affine, G2Projective};
 use ark_ec::AffineRepr;
 
-use ark_ff::{BigInt, BigInteger, Field, LegendreSymbol, PrimeField};
+use ark_ff::{sbb, BigInt, BigInteger, Field, LegendreSymbol, PrimeField, UniformRand};
 use crossbeam_channel::Receiver;
 use ark_std::{str::FromStr, vec::Vec, One, Zero};
 
-use crate::{arith::{self, sbb}, consts::{BYTES_PER_FIELD_ELEMENT, SIZE_OF_G1_AFFINE_COMPRESSED, SIZE_OF_G2_AFFINE_COMPRESSED}, traits::ReadPointFromBytes};
+use crate::{arith, consts::{BYTES_PER_FIELD_ELEMENT, SIZE_OF_G1_AFFINE_COMPRESSED, SIZE_OF_G2_AFFINE_COMPRESSED}, traits::ReadPointFromBytes};
 
 pub fn blob_to_polynomial(blob: &Vec<u8>) -> Vec<Fr>{
     to_fr_array(&blob)
@@ -167,12 +167,17 @@ pub fn lexicographically_largest(z: &Fq) -> bool {
 
     // First, because self is in Montgomery form we need to reduce it
     let tmp = arith::montgomery_reduce(&z.0.0[0], &z.0.0[1], &z.0.0[2], &z.0.0[3]);
-    let mut borrow: u64;
+    let mut borrow: u64 = 0;
 
-    (_, borrow) = sbb(tmp.0, 0x9E10460B6C3E7EA4, 0);
-    (_, borrow) = sbb(tmp.1, 0xCBC0B548B438E546, borrow);
-    (_, borrow) = sbb(tmp.2, 0xDC2822DB40C0AC2E, borrow);
-    (_, borrow) = sbb(tmp.3, 0x183227397098D014, borrow);
+    // (_, borrow) = sbb(tmp.0, 0x9E10460B6C3E7EA4, 0);
+    // (_, borrow) = sbb(tmp.1, 0xCBC0B548B438E546, borrow);
+    // (_, borrow) = sbb(tmp.2, 0xDC2822DB40C0AC2E, borrow);
+    // (_, borrow) = sbb(tmp.3, 0x183227397098D014, borrow);
+
+    sbb!(tmp.0, 0x9E10460B6C3E7EA4, &mut borrow);
+    sbb!(tmp.1, 0xCBC0B548B438E546, &mut borrow);
+    sbb!(tmp.2, 0xDC2822DB40C0AC2E, &mut borrow);
+    sbb!(tmp.3, 0x183227397098D014, &mut borrow);
 
     // If the element was smaller, the subtraction will underflow
     // producing a borrow value of 0xffff...ffff, otherwise it will
@@ -213,15 +218,8 @@ pub fn read_g2_point_from_bytes_be(g2_bytes_be: &Vec<u8>) -> Result<G2Affine, &s
     let x = Fq2::new(c0, c1);
     let y_squared = x*x*x;
 
-    let twist_c0 = Fq::from(9);
-    let twist_c1 = Fq::from(1);
-
     // this is bTwistCurveCoeff
-    let mut twist_curve_coeff = Fq2::new(twist_c0, twist_c1);
-    twist_curve_coeff = *twist_curve_coeff.inverse_in_place().unwrap();
-
-    twist_curve_coeff.c0 = twist_curve_coeff.c0 * Fq::from(3);
-    twist_curve_coeff.c1 = twist_curve_coeff.c1 * Fq::from(3);
+    let twist_curve_coeff = get_b_twist_curve_coeff();
 
     let added_result = y_squared + twist_curve_coeff;
     if added_result.legendre() == LegendreSymbol::QuadraticNonResidue {
@@ -250,7 +248,7 @@ pub fn read_g2_point_from_bytes_be(g2_bytes_be: &Vec<u8>) -> Result<G2Affine, &s
 
     
     let point = G2Affine::new_unchecked(x, y_sqrt);
-    if !point.is_in_correct_subgroup_assuming_on_curve(){
+    if !point.is_in_correct_subgroup_assuming_on_curve() && is_on_curve_g2(&G2Projective::from(point)){
         return Err("point couldn't be created");
     }
     Ok(point)
@@ -293,7 +291,7 @@ pub fn read_g1_point_from_bytes_be(g1_bytes_be: &Vec<u8>) -> Result<G1Affine, &s
         }
     }
     let point = G1Affine::new_unchecked(x, y_sqrt);
-    if !point.is_in_correct_subgroup_assuming_on_curve(){
+    if !point.is_in_correct_subgroup_assuming_on_curve() && is_on_curve_g1(&G1Projective::from(point)) {
         return Err("point couldn't be created");
     }
     Ok(point)
@@ -311,6 +309,83 @@ where
     }).collect()
 }
 
+fn get_b_twist_curve_coeff() -> Fq2 {
+    
+    let twist_c0 = Fq::from(9);
+    let twist_c1 = Fq::from(1);
+
+    // this is bTwistCurveCoeff
+    let mut twist_curve_coeff = Fq2::new(twist_c0, twist_c1);
+    twist_curve_coeff = *twist_curve_coeff.inverse_in_place().unwrap();
+
+    twist_curve_coeff.c0 = twist_curve_coeff.c0 * Fq::from(3);
+    twist_curve_coeff.c1 = twist_curve_coeff.c1 * Fq::from(3);
+    twist_curve_coeff
+}
+
+pub fn is_on_curve_g1(g1: &G1Projective) -> bool {
+    let b_curve_coeff: Fq = Fq::from_str("3").unwrap();
+
+    let mut left = g1.y;
+    left.square_in_place();
+
+    let mut right = g1.x;
+    right.square_in_place();
+    right *= &g1.x;
+
+    let mut tmp = g1.z;
+    tmp.square_in_place();
+    tmp.square_in_place();
+    tmp *= &g1.z;
+    tmp *= &g1.z;
+    tmp *= b_curve_coeff;
+    right += &tmp;
+    left == right
+}
+
+pub fn is_on_curve_g2(g2: &G2Projective) -> bool {
+    let mut left = g2.y;
+    left.square_in_place();
+
+    let mut right = g2.x;
+    right.square_in_place();
+    right *= &g2.x;
+
+    let mut tmp = g2.z;
+    tmp.square_in_place();
+    tmp.square_in_place();
+    tmp *= &g2.z;
+    tmp *= &g2.z;
+    tmp *= &get_b_twist_curve_coeff();
+    right += &tmp;
+    left == right
+}
+
+#[test]
+fn test_g1_is_on_curve(){
+    use rand::thread_rng;
+    let rng = &mut thread_rng();
+    for _ in 0..1000{
+        let point = G1Affine::rand(rng);
+        assert_eq!(is_on_curve_g1(&G1Projective::from(point)), true);
+        let mut not_on_curve = point;
+        not_on_curve.x += Fq::one();
+        assert_eq!(is_on_curve_g1(&G1Projective::from(not_on_curve)), false);
+    }
+}
+
+#[test]
+fn test_g2_is_on_curve(){
+    use rand::thread_rng;
+    let rng = &mut thread_rng();
+    for _ in 0..1000{
+        let point = G2Affine::rand(rng);
+        assert_eq!(is_on_curve_g2(&G2Projective::from(point)), true);
+        let mut not_on_curve = point;
+        not_on_curve.x += Fq2::one();
+        assert_eq!(is_on_curve_g2(&G2Projective::from(not_on_curve)), false);
+    }
+}
 // Loads data from files. This data was generated by gnark and is DA compatible.
 // Tests deserialization of data and equivalence.
 #[test]
@@ -417,3 +492,57 @@ fn test_convert_by_padding_empty_byte(){
     assert_eq!(unpadded_data, long_string, "testing adding padding");
 
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_is_zeroed_all_zeroes() {
+        // Case where the first byte and the buffer are all zeroes
+        let first_byte = 0;
+        let buf = vec![0, 0, 0, 0, 0];
+        assert!(is_zeroed(first_byte, buf), "Expected true for all zeroes");
+    }
+
+    #[test]
+    fn test_is_zeroed_first_byte_non_zero() {
+        // Case where the first byte is non-zero
+        let first_byte = 1;
+        let buf = vec![0, 0, 0, 0, 0];
+        assert!(!is_zeroed(first_byte, buf), "Expected false when the first byte is non-zero");
+    }
+
+    #[test]
+    fn test_is_zeroed_buffer_non_zero() {
+        // Case where the buffer contains non-zero elements
+        let first_byte = 0;
+        let buf = vec![0, 0, 1, 0, 0];
+        assert!(!is_zeroed(first_byte, buf), "Expected false when the buffer contains non-zero elements");
+    }
+
+    #[test]
+    fn test_is_zeroed_first_byte_and_buffer_non_zero() {
+        // Case where both the first byte and buffer contain non-zero elements
+        let first_byte = 1;
+        let buf = vec![0, 1, 0, 0, 0];
+        assert!(!is_zeroed(first_byte, buf), "Expected false when both the first byte and buffer contain non-zero elements");
+    }
+
+    #[test]
+    fn test_is_zeroed_empty_buffer() {
+        // Case where the buffer is empty but the first byte is zero
+        let first_byte = 0;
+        let buf: Vec<u8> = Vec::new();
+        assert!(is_zeroed(first_byte, buf), "Expected true for an empty buffer with a zero first byte");
+    }
+
+    #[test]
+    fn test_is_zeroed_empty_buffer_non_zero_first_byte() {
+        // Case where the buffer is empty and the first byte is non-zero
+        let first_byte = 1;
+        let buf: Vec<u8> = Vec::new();
+        assert!(!is_zeroed(first_byte, buf), "Expected false for an empty buffer with a non-zero first byte");
+    }
+}
+

@@ -73,6 +73,17 @@ impl Blob {
 }
 
 #[test]
+fn test_already_padded(){
+    let mut blob = Blob::from_bytes_and_pad("hi".as_bytes());
+    let mut result = blob.pad_data();
+    assert_eq!(result, Err(BlobError::AlreadyPaddedError));
+    blob.remove_padding().unwrap();
+    result = blob.remove_padding();
+    assert_eq!(result, Err(BlobError::NotPaddedError));
+    assert_eq!(blob.to_polynomial(), Err(BlobError::NotPaddedError));
+}
+
+#[test]
 fn test_convert_by_padding_empty_byte(){
 
     use crate::consts::GETTYSBURG_ADDRESS_BYTES;

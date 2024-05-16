@@ -1,6 +1,6 @@
 use std::{error::Error, fmt};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum BlobError {
     NotPaddedError,
     AlreadyPaddedError,
@@ -17,7 +17,7 @@ impl fmt::Display for BlobError {
 
 impl Error for BlobError {}
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum PolynomialError {
     SerializationFromStringError,
     CommitError(String),
