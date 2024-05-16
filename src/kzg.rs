@@ -1,4 +1,5 @@
-use std::io;
+use std::process::exit;
+use std::{io, os};
 use std::fs::File;
 use std::io::BufReader;
 use ark_bn254::g1::G1Affine;
@@ -16,6 +17,7 @@ use crate::consts::{BYTES_PER_FIELD_ELEMENT, GETTYSBURG_ADDRESS_BYTES};
 use crate::errors::KzgError;
 use crate::helpers;
 use crate::polynomial::Polynomial;
+use crate::traits::ReadPointFromBytes;
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 
 pub struct Kzg {
@@ -35,11 +37,18 @@ struct Params {
 
 impl Kzg {
     
-    pub fn setup(path_to_g1_points: &str, path_to_g2_points: &str, srs_order: u32) -> Result<Self, KzgError> {
+    pub fn setup(path_to_g1_points: &str, path_to_g2_points: &str, g2_power_of2_path: &str, srs_order: u32) -> Result<Self, KzgError> {
 
         let g1_points = Self::parallel_read_g1_points(path_to_g1_points.to_owned(), srs_order).map_err(|e| KzgError::SerializationError(e.to_string()))?;
-        let g2_points = Self::parallel_read_g2_points(path_to_g2_points.to_owned(), srs_order).map_err(|e| KzgError::SerializationError(e.to_string()))?;
-
+        let mut g2_points: Vec<G2Affine> = vec![];
+        if !path_to_g2_points.is_empty() {
+            g2_points = Self::parallel_read_g2_points(path_to_g2_points.to_owned(), srs_order).map_err(|e| KzgError::SerializationError(e.to_string()))?;
+        } else if !g2_power_of2_path.is_empty() {
+            g2_points = Self::read_g2_point_on_power_of_2(&g2_power_of2_path)?;
+        } else {
+            return Err(KzgError::GenericError("both g2 point files are empty, need the proper file specified".to_string()));
+        }
+        
         Ok(Self{
             g1: g1_points,
             g2: g2_points,
@@ -53,6 +62,24 @@ impl Kzg {
             expanded_roots_of_unity: vec![]
         })
 
+    }
+
+    pub fn read_g2_point_on_power_of_2(g2_power_of2_path: &str) -> Result<Vec<G2Affine>, KzgError>{
+
+        let mut file = File::open(g2_power_of2_path).unwrap();
+
+        // Calculate the start position in bytes and seek to that position
+        // Read in 64-byte chunks
+        let mut chunks = Vec::new();
+        let mut buffer = [0u8; 64];
+        loop {
+            let bytes_read = file.read(&mut buffer).unwrap();
+            if bytes_read == 0 {
+                break; // End of file reached
+            }
+            chunks.push(G2Affine::read_point_from_bytes_be(&buffer[..bytes_read].to_vec()).unwrap());
+        }
+        Ok(chunks)
     }
 
     /// data_setup_custom is a helper function
@@ -416,6 +443,7 @@ fn test_blob_to_kzg_commitment(){
     let kzg = Kzg::setup(
         "src/test-files/g1.point", 
         "src/test-files/g2.point",
+        "src/test-files/g2.point.powerOf2",
         3000
     ).unwrap();
 
@@ -432,6 +460,7 @@ fn test_compute_kzg_proof(){
     let mut kzg = Kzg::setup(
         "src/test-files/g1.point", 
         "src/test-files/g2.point",
+        "src/test-files/g2.point.powerOf2",
         3000
     ).unwrap();
 
@@ -441,12 +470,15 @@ fn test_compute_kzg_proof(){
     for _ in 0..10 {
         let index = rand::thread_rng().gen_range(0..input_poly.len());
         kzg.data_setup_custom(4, input.len().try_into().unwrap()).unwrap();
+        let rand_index = rand::thread_rng().gen_range(0..kzg.expanded_roots_of_unity.len());
+
         let commitment = kzg.commit(&input_poly.clone(), true).unwrap();
         let proof = kzg.compute_kzg_proof_with_roots_of_unity(&input_poly, index.try_into().unwrap()).unwrap();
         let value_fr = input_poly.get_at_index(index).unwrap();
         let z_fr = kzg.get_nth_root_of_unity(index).unwrap();
         let pairing_result = kzg.verify_kzg_proof(commitment, proof, value_fr.clone(), z_fr.clone());
         assert_eq!(pairing_result, true);
+        assert_eq!(kzg.verify_kzg_proof(commitment, proof, value_fr.clone(),  kzg.get_nth_root_of_unity(rand_index).unwrap().clone()), false)
     }
    
 
@@ -462,6 +494,7 @@ fn test_compute_kzg_proof_output_from_da(){
     let mut kzg = Kzg::setup(
         "src/test-files/g1.point", 
         "src/test-files/g2.point",
+        "src/test-files/g2.point.powerOf2",
         3000
     ).unwrap();
 
@@ -629,6 +662,7 @@ fn test_g1_ifft(){
     let kzg = Kzg::setup(
         "src/test-files/g1.point", 
         "src/test-files/g2.point",
+        "src/test-files/g2.point.powerOf2",
         3000
     ).unwrap();
 
@@ -661,6 +695,7 @@ fn test_read_g1_point_from_bytes_be(){
     let kzg = Kzg::setup(
         "src/test-files/g1.point", 
         "src/test-files/g2.point",
+        "src/test-files/g2.point.powerOf2",
         3000
     ).unwrap();
 
@@ -696,6 +731,7 @@ fn test_read_g2_point_from_bytes_be(){
     let kzg = Kzg::setup(
         "src/test-files/g1.point", 
         "src/test-files/g2.point",
+        "src/test-files/g2.point.powerOf2",
         3000
     ).unwrap();
 
@@ -734,6 +770,7 @@ fn test_compute_quotient_eval_on_domain(){
     let kzg = Kzg::setup(
         "src/test-files/g1.point", 
         "src/test-files/g2.point",
+        "src/test-files/g2.point.powerOf2",
         3000
     ).unwrap();
 
