@@ -1,8 +1,7 @@
-use ark_bn254::{g1::G1Affine, g2::G2Affine, Fq, Fq2};
+use ark_bn254::{g1::G1Affine, g2::G2Affine};
 use ark_ec::AffineRepr;
 use std::io;
-
-use crate::new_helpers as helpers;
+use crate::helpers;
 
 pub trait ReadPointFromBytes: AffineRepr {
     fn read_point_from_bytes_be(bytes: &[u8]) -> io::Result<Self>;

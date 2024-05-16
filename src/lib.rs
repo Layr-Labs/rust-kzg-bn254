@@ -1,10 +1,8 @@
-mod kzg;
-mod polynomial;
-mod blob;
-mod new_helpers;
-mod helpers;
-mod gnark;
-pub mod consts;
+pub mod kzg;
+pub mod polynomial;
+pub mod blob;
+pub mod helpers;
+mod consts;
 mod arith;
-mod errors;
+pub mod errors;
 mod traits;

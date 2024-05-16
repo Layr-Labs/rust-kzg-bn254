@@ -1,6 +1,6 @@
-use ark_bn254::{Fq, Fr};
-use ark_ff::{BigInt, Field, PrimeField};
-use ark_std::{ops::Mul};
+use ark_bn254::Fq;
+use ark_ff::PrimeField;
+
 
 pub fn montgomery_reduce(z_0: &u64, z_1: &u64, z_2: &u64, z_3: &u64) -> (u64, u64, u64, u64) {
     
@@ -12,33 +12,33 @@ pub fn montgomery_reduce(z_0: &u64, z_1: &u64, z_2: &u64, z_3: &u64) -> (u64, u6
     let modulus = <Fq as PrimeField>::MODULUS.0;
 
     let mut m: u64 = z0.wrapping_mul(inv);
-	let mut C = madd0(m, modulus[0], z0);
-	(C, z0) = madd2(m, modulus[1], z1, C);
-	(C, z1) = madd2(m, modulus[2], z2, C);
-	(C, z2) = madd2(m, modulus[3], z3, C);
-	z3 = C;
+	let mut c = madd0(m, modulus[0], z0);
+	(c, z0) = madd2(m, modulus[1], z1, c);
+	(c, z1) = madd2(m, modulus[2], z2, c);
+	(c, z2) = madd2(m, modulus[3], z3, c);
+	z3 = c;
 
     m = z0.wrapping_mul(inv);
-	C = madd0(m, modulus[0], z0);
-	(C, z0) = madd2(m, modulus[1], z1, C);
-	(C, z1) = madd2(m, modulus[2], z2, C);
-	(C, z2) = madd2(m, modulus[3], z3, C);
-	z3 = C;
+	c = madd0(m, modulus[0], z0);
+	(c, z0) = madd2(m, modulus[1], z1, c);
+	(c, z1) = madd2(m, modulus[2], z2, c);
+	(c, z2) = madd2(m, modulus[3], z3, c);
+	z3 = c;
 
     m = z0.wrapping_mul(inv);
-	C = madd0(m, modulus[0], z0);
-	(C, z0) = madd2(m, modulus[1], z1, C);
-	(C, z1) = madd2(m, modulus[2], z2, C);
-	(C, z2) = madd2(m, modulus[3], z3, C);
-	z3 = C;
+	c = madd0(m, modulus[0], z0);
+	(c, z0) = madd2(m, modulus[1], z1, c);
+	(c, z1) = madd2(m, modulus[2], z2, c);
+	(c, z2) = madd2(m, modulus[3], z3, c);
+	z3 = c;
 
     
     m = z0.wrapping_mul(inv);
-	C = madd0(m, modulus[0], z0);
-	(C, z0) = madd2(m, modulus[1], z1, C);
-	(C, z1) = madd2(m, modulus[2], z2, C);
-	(C, z2) = madd2(m, modulus[3], z3, C);
-	z3 = C;
+	c = madd0(m, modulus[0], z0);
+	(c, z0) = madd2(m, modulus[1], z1, c);
+	(c, z1) = madd2(m, modulus[2], z2, c);
+	(c, z2) = madd2(m, modulus[3], z3, c);
+	z3 = c;
 
     let is_smaller_than_modulus = z3 < modulus[3] || (z3 == modulus[3] && (z2 < modulus[2] || (z2 == modulus[2] && (z1 < modulus[1] || (z1 == modulus[1] && (z0 < modulus[0]))))));
 
@@ -56,8 +56,8 @@ pub fn montgomery_reduce(z_0: &u64, z_1: &u64, z_2: &u64, z_3: &u64) -> (u64, u6
 
 fn sub_64(x: u64, y: u64, borrow: u64) -> (u64, u64) {
     // Perform the subtraction with the initial borrow
-    let (mut diff, borrow_out1) = x.overflowing_sub(y);
-    let (diff, borrow_out2) = diff.overflowing_sub(borrow);
+    let (diff, _borrow_out1) = x.overflowing_sub(y);
+    let (diff, _borrow_out2) = diff.overflowing_sub(borrow);
 
     // Calculate the final borrow out using bitwise operations
     // This replicates the bit logic in the original Go function
@@ -70,7 +70,7 @@ fn sub_64(x: u64, y: u64, borrow: u64) -> (u64, u64) {
 pub fn madd0(a: u64, b: u64, c: u64) -> u64 {
     let mut hi: u64;
     let mut lo: u128; // Using u128 to handle overflow from multiplication
-    let mut carry: u64;
+    let carry: u64;
 
     // Perform the multiplication
     lo = (a as u128) * (b as u128);
@@ -118,8 +118,16 @@ pub fn madd2(a: u64, b: u64, c: u64, d: u64) -> (u64, u64) {
     (hi, lo as u64)
 }
 
+pub const fn sbb(a: u64, b: u64, borrow: u64) -> (u64, u64) {
+    let ret = (a as u128).wrapping_sub((b as u128) + ((borrow >> 63) as u128));
+    (ret as u64, (ret >> 64) as u64)
+}
+
 #[test]
 fn test_montgomery_reduce(){
+    use ark_ff::Field;
+    use ark_bn254::Fr;
+
     let inv = Fq::from(<Fr as PrimeField>::MODULUS).neg_in_place().inverse().unwrap();
     println!("{}", inv.0);
 }

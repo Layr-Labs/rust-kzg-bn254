@@ -1,4 +1,4 @@
-use crate::{consts::GETTYSBURG_ADDRESS_BYTES, errors::BlobError, new_helpers as helpers, polynomial::Polynomial};
+use crate::{errors::BlobError, helpers, polynomial::Polynomial};
 
 
 /// A blob which is DA spec aligned.
@@ -67,13 +67,16 @@ impl Blob {
             Err(BlobError::NotPaddedError)
         } else {
             let fr_vec = helpers::to_fr_array(&self.blob_data);
-            Ok(Polynomial::new(fr_vec, self.length_after_padding))
+            Ok(Polynomial::new(&fr_vec, self.length_after_padding))
         }
     }
 }
 
 #[test]
 fn test_convert_by_padding_empty_byte(){
+
+    use crate::consts::GETTYSBURG_ADDRESS_BYTES;
+
     let mut blob = Blob::from_bytes_and_pad("hi".as_bytes());
     assert_eq!(blob.get_blob_data(), vec![0, 104, 105], "testing adding padding");
     assert_eq!(blob.is_padded(), true, "has to be padded");
@@ -97,6 +100,7 @@ fn test_convert_by_padding_empty_byte(){
 #[test]
 fn test_new_blob_creation(){
 
+    use crate::consts::GETTYSBURG_ADDRESS_BYTES;
     let blob_from = Blob::from_bytes_and_pad(GETTYSBURG_ADDRESS_BYTES);
     let mut blob_raw = Blob::new(GETTYSBURG_ADDRESS_BYTES.to_vec());
 
