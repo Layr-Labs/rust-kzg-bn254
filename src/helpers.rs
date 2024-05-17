@@ -2,7 +2,7 @@ use std::cmp;
 use ark_bn254::{Fq, Fq2, Fr, G1Affine, G1Projective, G2Affine, G2Projective};
 use ark_ec::AffineRepr;
 
-use ark_ff::{sbb, BigInt, BigInteger, Field, LegendreSymbol, PrimeField, UniformRand};
+use ark_ff::{sbb, BigInt, BigInteger, Field, LegendreSymbol, PrimeField};
 use crossbeam_channel::Receiver;
 use ark_std::{str::FromStr, vec::Vec, One, Zero};
 
@@ -364,6 +364,8 @@ pub fn is_on_curve_g2(g2: &G2Projective) -> bool {
 #[test]
 fn test_g1_is_on_curve(){
     use rand::thread_rng;
+    use ark_ff::UniformRand;
+
     let rng = &mut thread_rng();
     for _ in 0..1000{
         let point = G1Affine::rand(rng);
@@ -377,6 +379,8 @@ fn test_g1_is_on_curve(){
 #[test]
 fn test_g2_is_on_curve(){
     use rand::thread_rng;
+    use ark_ff::UniformRand;
+
     let rng = &mut thread_rng();
     for _ in 0..1000{
         let point = G2Affine::rand(rng);
