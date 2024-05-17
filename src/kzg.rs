@@ -14,11 +14,12 @@ use num_traits::ToPrimitive;
 use crate::blob::Blob;
 use crate::consts::BYTES_PER_FIELD_ELEMENT;
 use crate::errors::KzgError;
-use crate::helpers;
+use crate::helpers::{self, is_on_curve_g2};
 use crate::polynomial::Polynomial;
 use crate::traits::ReadPointFromBytes;
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 
+#[derive(Debug, PartialEq)]
 pub struct Kzg {
     g1: Vec<G1Affine>,
     g2: Vec<G2Affine>,
@@ -27,6 +28,7 @@ pub struct Kzg {
     expanded_roots_of_unity: Vec<Fr>
 }
 
+#[derive(Debug, PartialEq)]
 struct Params {
     chunk_length: u64,
     num_chunks: u64,
@@ -290,7 +292,7 @@ impl Kzg {
 
     /// commit the actual polynomial with the values setup
     fn commit(&self, polynomial: &Polynomial, in_lagrange: bool) -> Result<G1Affine, KzgError> {
-        if polynomial.is_empty() || polynomial.len() > self.g1.len() {
+        if polynomial.len() > self.g1.len() {
             return Err(KzgError::SerializationError("polynomial length is not correct".to_string()));
         }
     
@@ -435,6 +437,89 @@ impl Kzg {
 }
 
 #[test]
+fn test_commit_errors(){
+
+    let kzg = Kzg::setup(
+        "src/test-files/g1.point", 
+        "src/test-files/g2.point",
+        "src/test-files/g2.point.powerOf2",
+        3000
+    ).unwrap();
+
+    let mut poly = vec![];
+    for _ in 0..4000{
+        poly.push(Fr::one());
+    }
+
+    let polynomial = Polynomial::new(&poly, 2).unwrap();
+    let result = kzg.commit(&polynomial, false);
+    assert_eq!(result, Err(KzgError::SerializationError("polynomial length is not correct".to_string())));
+}
+
+#[test]
+fn test_kzg_setup_errors(){
+
+    let kzg1 = Kzg::setup(
+        "src/test-files/g1.point", 
+        "",
+        "",
+        3000
+    );
+    assert_eq!(kzg1, Err(KzgError::GenericError("both g2 point files are empty, need the proper file specified".to_string())));
+
+    let mut kzg2 = Kzg::setup(
+        "src/test-files/g1.point", 
+        "src/test-files/g2.point",
+        "src/test-files/g2.point.powerOf2",
+        2
+    ).unwrap();
+
+    let result = kzg2.data_setup_mins(4, 4);
+    assert_eq!(result, Err(KzgError::SerializationError("the supplied encoding parameters are not valid with respect to the SRS.".to_string())));
+}
+
+#[test]
+fn test_g2_power_of_2_readin(){
+
+    use std::io::BufRead;
+    use ark_bn254::{Fq, Fq2};
+    use ark_bn254::G2Projective;
+
+    let kzg = Kzg::setup(
+        "src/test-files/g1.point", 
+        "",
+        "src/test-files/g2.point.powerOf2",
+        3000
+    ).unwrap();
+
+    assert_eq!(kzg.get_g2_points().len(), 28);
+
+    let file = File::open("src/test-files/g2.powerOf2.string.txt").unwrap();
+    let reader = BufReader::new(file);
+    let kzg_g2_points = kzg.get_g2_points();
+
+    // Iterate over each line in the file
+    for (i, line_result) in reader.lines().enumerate() {
+        let mut line = line_result.unwrap();  // Retrieve the line, handling potential I/O errors
+        line = line.trim_end().to_string();
+
+        let parts: Vec<&str> = line.split(',').collect();
+        
+        let x_c0 = Fq::from_str(parts[0]).expect("should be fine");
+        let x_c1 = Fq::from_str(parts[1]).expect("should be fine");
+
+        let y_c0 = Fq::from_str(parts[2]).expect("should be fine");
+        let y_c1 = Fq::from_str(parts[3]).expect("should be fine");
+
+        let x = Fq2::new(x_c0, x_c1);
+        let y = Fq2::new(y_c0, y_c1);
+        let point = G2Affine::new_unchecked(x, y);
+        assert_eq!(is_on_curve_g2(&G2Projective::from(point)), true);
+        assert_eq!(point, kzg_g2_points[i]);
+    }
+}
+
+#[test]
 fn test_blob_to_kzg_commitment(){
 
     use crate::consts::GETTYSBURG_ADDRESS_BYTES;
@@ -470,15 +555,21 @@ fn test_compute_kzg_proof(){
     for _ in 0..10 {
         let index = rand::thread_rng().gen_range(0..input_poly.len());
         kzg.data_setup_custom(4, input.len().try_into().unwrap()).unwrap();
-        let rand_index = rand::thread_rng().gen_range(0..kzg.expanded_roots_of_unity.len());
-
+        let mut rand_index = rand::thread_rng().gen_range(0..kzg.expanded_roots_of_unity.len());
+        loop {
+            if index == rand_index{
+                rand_index = rand::thread_rng().gen_range(0..kzg.expanded_roots_of_unity.len());
+            } else {
+                break;
+            }
+        }
         let commitment = kzg.commit(&input_poly.clone(), true).unwrap();
         let proof = kzg.compute_kzg_proof_with_roots_of_unity(&input_poly, index.try_into().unwrap()).unwrap();
         let value_fr = input_poly.get_at_index(index).unwrap();
         let z_fr = kzg.get_nth_root_of_unity(index).unwrap();
         let pairing_result = kzg.verify_kzg_proof(commitment, proof, value_fr.clone(), z_fr.clone());
         assert_eq!(pairing_result, true);
-        assert_eq!(kzg.verify_kzg_proof(commitment, proof, value_fr.clone(),  kzg.get_nth_root_of_unity(rand_index).unwrap().clone()), false)
+        assert_eq!(kzg.verify_kzg_proof(commitment, proof, value_fr.clone(), kzg.get_nth_root_of_unity(rand_index).unwrap().clone()), false)
     }
    
 
@@ -644,7 +735,7 @@ fn test_compute_kzg_proof_output_from_da(){
         let hard_coded_x = Fq::from_str(the_strings_str[1]).expect("should be fine");
         let hard_coded_y = Fq::from_str(the_strings_str[2]).expect("should be fine");
         let gnark_proof = G1Affine::new(hard_coded_x, hard_coded_y);
-        let poly = Polynomial::new(&padded_input_fr_elements, 30);
+        let poly = Polynomial::new(&padded_input_fr_elements, 30).unwrap();
         kzg.data_setup_custom(4, poly.len().try_into().unwrap()).unwrap();
         let result = kzg.compute_kzg_proof(&poly, index, &roots_of_unities).unwrap();
         assert_eq!(gnark_proof, result)

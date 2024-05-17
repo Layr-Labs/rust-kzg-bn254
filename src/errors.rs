@@ -4,6 +4,7 @@ use std::{error::Error, fmt};
 pub enum BlobError {
     NotPaddedError,
     AlreadyPaddedError,
+    GenericError(String),
 }
 
 impl fmt::Display for BlobError {
@@ -11,6 +12,7 @@ impl fmt::Display for BlobError {
         match *self {
             BlobError::NotPaddedError => write!(f, "tried to execute on non padded blob"),
             BlobError::AlreadyPaddedError => write!(f, "tried to execute on already padded blob"),
+            BlobError::GenericError(ref msg) => write!(f, "generic error: {}", msg),
         }
     }
 }
@@ -21,6 +23,7 @@ impl Error for BlobError {}
 pub enum PolynomialError {
     SerializationFromStringError,
     CommitError(String),
+    GenericError(String),
 }
 
 impl fmt::Display for PolynomialError {
@@ -28,13 +31,14 @@ impl fmt::Display for PolynomialError {
         match *self {
             PolynomialError::SerializationFromStringError => write!(f, "couldn't load string to fr vector"),
             PolynomialError::CommitError(ref msg) => write!(f, "Commitment error: {}", msg),
+            PolynomialError::GenericError(ref msg) => write!(f, "generic error: {}", msg),
         }
     }
 }
 
 impl Error for PolynomialError {}
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum KzgError {
     CommitError(String),
     SerializationError(String),

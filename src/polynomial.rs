@@ -11,7 +11,10 @@ pub struct Polynomial {
 
 impl Polynomial {
     /// Constructs a new `Polynomial` with a given vector of `Fr` elements.
-    pub fn new(elements: &Vec<Fr>, length_of_padded_blob: usize) -> Self {
+    pub fn new(elements: &Vec<Fr>, length_of_padded_blob: usize) -> Result<Self, PolynomialError> {
+        if elements.is_empty() {
+            return Err(PolynomialError::GenericError("elements are empty".to_string()));
+        }
         let mut padded_input_fr = vec![];
         for i in 0..elements.len().next_power_of_two() {
             if i < elements.len() {
@@ -20,7 +23,7 @@ impl Polynomial {
                 padded_input_fr.push(Fr::zero());
             }
         }
-        Polynomial { elements: padded_input_fr, length_of_padded_blob, length_of_padded_blob_as_fr_vector: elements.len() }
+        Ok(Polynomial { elements: padded_input_fr, length_of_padded_blob, length_of_padded_blob_as_fr_vector: elements.len() })
     }
 
     /// Returns the number of elements in the polynomial.
@@ -47,30 +50,38 @@ impl Polynomial {
         self.elements.clone()
     }
 
-    /// Constructs a `Polynomial` from a list of string representations of `Fr` elements. Cannot be used to decode data without original length.
-    pub fn from_str(str_list: Vec<&str>, length_of_padded_blob: usize, length_of_padded_blob_as_fr_vector: usize) -> Result<Self, PolynomialError> {
-        let fr_list: Vec<Fr> = str_list.iter().map(|s| s.parse().map_err(|_| PolynomialError::SerializationFromStringError)).collect::<Result<_, _>>()?;
-        Ok(Polynomial { elements: fr_list, length_of_padded_blob, length_of_padded_blob_as_fr_vector })
-    }
-
 }
 
-#[test]
-fn test_to_fr_array(){
-    use crate::{blob::Blob, consts::GETTYSBURG_ADDRESS_BYTES};
-    let mut blob = Blob::from_bytes_and_pad(vec![42, 212, 238, 227, 192, 237, 178, 128, 19, 108, 50, 204, 87, 81, 63, 120, 232, 27, 116, 108, 74, 168, 109, 84, 89, 9, 6, 233, 144, 200, 125, 40].as_slice());    
-    let poly = blob.to_polynomial().unwrap();
-    assert_eq!(poly.to_bytes_be(), blob.get_blob_data(), "should be deserialized properly");
 
-    blob.remove_padding().unwrap(); 
-    assert_eq!(blob.get_blob_data(), vec![42, 212, 238, 227, 192, 237, 178, 128, 19, 108, 50, 204, 87, 81, 63, 120, 232, 27, 116, 108, 74, 168, 109, 84, 89, 9, 6, 233, 144, 200, 125, 40],  "should be deserialized properly");
-   
-    let mut long_blob = Blob::from_bytes_and_pad(GETTYSBURG_ADDRESS_BYTES);
-    let long_poly = long_blob.to_polynomial().unwrap();
-    // let ga_converted_fr = to_fr_array(&ga_converted);
-    assert_eq!(long_blob.get_blob_data(), long_poly.to_bytes_be(),  "should be deserialized properly");
-    long_blob.remove_padding().unwrap();
-    assert_eq!(long_blob.get_blob_data(), GETTYSBURG_ADDRESS_BYTES,  "should be deserialized properly");
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ark_std::One;
 
+    #[test]
+    fn test_errors(){
+        let polynomial_empty = Polynomial::new(&vec![], 2);
+        assert_eq!(polynomial_empty, Err(PolynomialError::GenericError("elements are empty".to_string())));
 
+        let polynomial_non_empty = Polynomial::new(&vec![Fr::one()], 2);
+        assert_eq!(polynomial_non_empty.unwrap().is_empty(), false);
+    }
+
+    #[test]
+    fn test_to_fr_array(){
+        use crate::{blob::Blob, consts::GETTYSBURG_ADDRESS_BYTES};
+        let mut blob = Blob::from_bytes_and_pad(vec![42, 212, 238, 227, 192, 237, 178, 128, 19, 108, 50, 204, 87, 81, 63, 120, 232, 27, 116, 108, 74, 168, 109, 84, 89, 9, 6, 233, 144, 200, 125, 40].as_slice());    
+        let poly = blob.to_polynomial().unwrap();
+        assert_eq!(poly.to_bytes_be(), blob.get_blob_data(), "should be deserialized properly");
+
+        blob.remove_padding().unwrap(); 
+        assert_eq!(blob.get_blob_data(), vec![42, 212, 238, 227, 192, 237, 178, 128, 19, 108, 50, 204, 87, 81, 63, 120, 232, 27, 116, 108, 74, 168, 109, 84, 89, 9, 6, 233, 144, 200, 125, 40],  "should be deserialized properly");
+    
+        let mut long_blob = Blob::from_bytes_and_pad(GETTYSBURG_ADDRESS_BYTES);
+        let long_poly = long_blob.to_polynomial().unwrap();
+        // let ga_converted_fr = to_fr_array(&ga_converted);
+        assert_eq!(long_blob.get_blob_data(), long_poly.to_bytes_be(),  "should be deserialized properly");
+        long_blob.remove_padding().unwrap();
+        assert_eq!(long_blob.get_blob_data(), GETTYSBURG_ADDRESS_BYTES,  "should be deserialized properly");
+    }
 }

@@ -134,6 +134,53 @@ fn test_montgomery_reduce(){
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ark_ff::fields::PrimeField;
+    use ark_bn254::Fq;
+
+    // #[test]
+    // fn test_montgomery_reduce_basic() {
+    //     // Basic test case with small values
+    //     let (z0, z1, z2, z3) = montgomery_reduce(&1, &2, &3, &4);
+    //     let expected = (1, 2, 3, 4); // Expected values will depend on the actual function logic
+    //     assert_eq!((z0, z1, z2, z3), expected);
+    // }
+
+    // #[test]
+    // fn test_montgomery_reduce_large_values() {
+    //     // Test case with large values
+    //     let (z0, z1, z2, z3) = montgomery_reduce(&u64::MAX, &u64::MAX, &u64::MAX, &u64::MAX);
+    //     // Calculate the expected result based on the Montgomery reduction algorithm
+    //     // This is an example, you need to calculate the correct expected values
+    //     let expected = (0, 0, 0, 0); // Placeholder, update with correct values
+    //     assert_eq!((z0, z1, z2, z3), expected);
+    // }
+
+    #[test]
+    fn test_montgomery_reduce_modulus() {
+        // Test case where inputs are the modulus values
+        let modulus = <Fq as PrimeField>::MODULUS.0;
+        let (z0, z1, z2, z3) = montgomery_reduce(&modulus[0], &modulus[1], &modulus[2], &modulus[3]);
+        let expected = (0, 0, 0, 0); // Result should be zero since we're reducing the modulus
+        assert_eq!((z0, z1, z2, z3), expected);
+    }
+
+    #[test]
+    fn test_montgomery_reduce_zero() {
+        // Test case where all inputs are zero
+        let (z0, z1, z2, z3) = montgomery_reduce(&0, &0, &0, &0);
+        let expected = (0, 0, 0, 0);
+        assert_eq!((z0, z1, z2, z3), expected);
+    }
+
+    // #[test]
+    // fn test_montgomery_reduce_mixed_values() {
+    //     // Test case with mixed values
+    //     let (z0, z1, z2, z3) = montgomery_reduce(&1, &0, &u64::MAX, &2);
+    //     // Calculate the expected result based on the Montgomery reduction algorithm
+    //     // This is an example, you need to calculate the correct expected values
+    //     let expected = (1, 0, u64::MAX, 2); // Placeholder, update with correct values
+    //     assert_eq!((z0, z1, z2, z3), expected);
+    // }
 
     #[test]
     fn test_madd2_no_overflow() {
