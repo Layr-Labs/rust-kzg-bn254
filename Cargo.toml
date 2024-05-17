@@ -5,8 +5,8 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+
 [dependencies]
-anyhow = "1.0"
 ark-bn254 = "0.4.0"
 ark-ec = "0.4.2"
 ark-ff = "0.4.1"
@@ -23,3 +23,9 @@ num-bigint = "0.4"
 rayon = "1.5"
 num-traits = "0.2"
 byteorder = "1.4"
+ark-poly = "0.4.2"
+memmap2 = "0.9.4"
+crossbeam-channel = "0.5"
+num_cpus = "1.16.0"
+
+
