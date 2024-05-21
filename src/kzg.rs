@@ -39,12 +39,16 @@ struct Params {
 
 impl Kzg {
     
-    pub fn setup(path_to_g1_points: &str, path_to_g2_points: &str, g2_power_of2_path: &str, srs_order: u32) -> Result<Self, KzgError> {
+    pub fn setup(path_to_g1_points: &str, path_to_g2_points: &str, g2_power_of2_path: &str, srs_order: u32, srs_points_to_load: u32) -> Result<Self, KzgError> {
 
-        let g1_points = Self::parallel_read_g1_points(path_to_g1_points.to_owned(), srs_order).map_err(|e| KzgError::SerializationError(e.to_string()))?;
+        if srs_points_to_load > srs_order {
+            return Err(KzgError::GenericError("number of points to load is more than the srs order".to_string()));
+        }
+
+        let g1_points = Self::parallel_read_g1_points(path_to_g1_points.to_owned(), srs_points_to_load).map_err(|e| KzgError::SerializationError(e.to_string()))?;
         let mut g2_points: Vec<G2Affine> = vec![];
         if !path_to_g2_points.is_empty() {
-            g2_points = Self::parallel_read_g2_points(path_to_g2_points.to_owned(), srs_order).map_err(|e| KzgError::SerializationError(e.to_string()))?;
+            g2_points = Self::parallel_read_g2_points(path_to_g2_points.to_owned(), srs_points_to_load).map_err(|e| KzgError::SerializationError(e.to_string()))?;
         } else if !g2_power_of2_path.is_empty() {
             g2_points = Self::read_g2_point_on_power_of_2(&g2_power_of2_path)?;
         } else {
@@ -246,7 +250,6 @@ impl Kzg {
         Ok(all_points.iter().map(|(point, _)| *point).collect())
     }
 
-
     /// read G1 points in parallel
     pub fn parallel_read_g1_points(file_path: String, srs_order: u32) -> Result<Vec<G1Affine>, KzgError> {
 
@@ -291,7 +294,7 @@ impl Kzg {
     }
 
     /// commit the actual polynomial with the values setup
-    fn commit(&self, polynomial: &Polynomial, in_lagrange: bool) -> Result<G1Affine, KzgError> {
+    fn commit(&self, polynomial: &Polynomial) -> Result<G1Affine, KzgError> {
         if polynomial.len() > self.g1.len() {
             return Err(KzgError::SerializationError("polynomial length is not correct".to_string()));
         }
@@ -302,11 +305,7 @@ impl Kzg {
     
         // Perform the multi-exponentiation
         config.install(|| {
-            let mut bases = self.g1[..polynomial.len()].to_vec();
-
-            if in_lagrange {
-                bases = self.g1_ifft(polynomial.len()).unwrap();
-            }
+            let bases = self.g1_ifft(polynomial.len()).unwrap();
             match G1Projective::msm(&bases, &polynomial.to_vec()) {
                 Ok(res) => Ok(res.into_affine()),
                 Err(err) => Err(KzgError::CommitError(err.to_string())),
@@ -317,7 +316,7 @@ impl Kzg {
     /// 4844 compatible helper function
     pub fn blob_to_kzg_commitment(&self, blob: &Blob) -> Result<G1Affine, KzgError> {
         let polynomial = blob.to_polynomial().map_err(|err| KzgError::SerializationError(err.to_string()))?;
-        let commitment = self.commit(&polynomial, false)?;
+        let commitment = self.commit(&polynomial)?;
         Ok(commitment)
     }
 
@@ -443,6 +442,7 @@ fn test_commit_errors(){
         "src/test-files/g1.point", 
         "src/test-files/g2.point",
         "src/test-files/g2.point.powerOf2",
+        3000,
         3000
     ).unwrap();
 
@@ -452,7 +452,7 @@ fn test_commit_errors(){
     }
 
     let polynomial = Polynomial::new(&poly, 2).unwrap();
-    let result = kzg.commit(&polynomial, false);
+    let result = kzg.commit(&polynomial);
     assert_eq!(result, Err(KzgError::SerializationError("polynomial length is not correct".to_string())));
 }
 
@@ -463,6 +463,7 @@ fn test_kzg_setup_errors(){
         "src/test-files/g1.point", 
         "",
         "",
+        3000,
         3000
     );
     assert_eq!(kzg1, Err(KzgError::GenericError("both g2 point files are empty, need the proper file specified".to_string())));
@@ -471,11 +472,21 @@ fn test_kzg_setup_errors(){
         "src/test-files/g1.point", 
         "src/test-files/g2.point",
         "src/test-files/g2.point.powerOf2",
+        2,
         2
     ).unwrap();
 
     let result = kzg2.data_setup_mins(4, 4);
     assert_eq!(result, Err(KzgError::SerializationError("the supplied encoding parameters are not valid with respect to the SRS.".to_string())));
+
+    let kzg3 = Kzg::setup(
+        "src/test-files/g1.point", 
+        "src/test-files/g2.point",
+        "src/test-files/g2.point.powerOf2",
+        3000,
+        3001
+    );
+    assert_eq!(kzg3, Err(KzgError::GenericError("number of points to load is more than the srs order".to_string())));
 }
 
 #[test]
@@ -489,6 +500,7 @@ fn test_g2_power_of_2_readin(){
         "src/test-files/g1.point", 
         "",
         "src/test-files/g2.point.powerOf2",
+        3000,
         3000
     ).unwrap();
 
@@ -529,12 +541,13 @@ fn test_blob_to_kzg_commitment(){
         "src/test-files/g1.point", 
         "src/test-files/g2.point",
         "src/test-files/g2.point.powerOf2",
+        3000,
         3000
     ).unwrap();
 
     let blob = Blob::from_bytes_and_pad(GETTYSBURG_ADDRESS_BYTES);
     let fn_output = kzg.blob_to_kzg_commitment(&blob).unwrap();
-    let commitment_from_da = G1Affine::new_unchecked(Fq::from_str("21661178944771197726808973281966770251114553549453983978976194544185382599016").unwrap(), Fq::from_str("9207254729396071334325696286939045899948985698134704137261649190717970615186").unwrap());
+    let commitment_from_da = G1Affine::new_unchecked(Fq::from_str("2961155957874067312593973807786254905069537311739090798303675273531563528369").unwrap(), Fq::from_str("159565752702690920280451512738307422982252330088949702406468210607852362941").unwrap());
     assert_eq!(commitment_from_da, fn_output);
 }
 
@@ -542,17 +555,19 @@ fn test_blob_to_kzg_commitment(){
 fn test_compute_kzg_proof(){
     use rand::Rng;
     use crate::consts::GETTYSBURG_ADDRESS_BYTES;
+
     let mut kzg = Kzg::setup(
         "src/test-files/g1.point", 
-        "src/test-files/g2.point",
+        "",
         "src/test-files/g2.point.powerOf2",
-        3000
+        268435456,
+        131072
     ).unwrap();
 
     let input = Blob::from_bytes_and_pad(GETTYSBURG_ADDRESS_BYTES);
     let input_poly = input.to_polynomial().unwrap();
     
-    for _ in 0..10 {
+    for _ in 0..input_poly.len()-1 {
         let index = rand::thread_rng().gen_range(0..input_poly.len());
         kzg.data_setup_custom(4, input.len().try_into().unwrap()).unwrap();
         let mut rand_index = rand::thread_rng().gen_range(0..kzg.expanded_roots_of_unity.len());
@@ -563,7 +578,7 @@ fn test_compute_kzg_proof(){
                 break;
             }
         }
-        let commitment = kzg.commit(&input_poly.clone(), true).unwrap();
+        let commitment = kzg.commit(&input_poly.clone()).unwrap();
         let proof = kzg.compute_kzg_proof_with_roots_of_unity(&input_poly, index.try_into().unwrap()).unwrap();
         let value_fr = input_poly.get_at_index(index).unwrap();
         let z_fr = kzg.get_nth_root_of_unity(index).unwrap();
@@ -586,6 +601,7 @@ fn test_compute_kzg_proof_output_from_da(){
         "src/test-files/g1.point", 
         "src/test-files/g2.point",
         "src/test-files/g2.point.powerOf2",
+        3000,
         3000
     ).unwrap();
 
@@ -754,6 +770,7 @@ fn test_g1_ifft(){
         "src/test-files/g1.point", 
         "src/test-files/g2.point",
         "src/test-files/g2.point.powerOf2",
+        3000,
         3000
     ).unwrap();
 
@@ -787,6 +804,7 @@ fn test_read_g1_point_from_bytes_be(){
         "src/test-files/g1.point", 
         "src/test-files/g2.point",
         "src/test-files/g2.point.powerOf2",
+        3000,
         3000
     ).unwrap();
 
@@ -823,6 +841,7 @@ fn test_read_g2_point_from_bytes_be(){
         "src/test-files/g1.point", 
         "src/test-files/g2.point",
         "src/test-files/g2.point.powerOf2",
+        3000,
         3000
     ).unwrap();
 
@@ -862,6 +881,7 @@ fn test_compute_quotient_eval_on_domain(){
         "src/test-files/g1.point", 
         "src/test-files/g2.point",
         "src/test-files/g2.point.powerOf2",
+        3000,
         3000
     ).unwrap();
 
