@@ -137,23 +137,23 @@ mod tests {
     use ark_ff::fields::PrimeField;
     use ark_bn254::Fq;
 
-    // #[test]
-    // fn test_montgomery_reduce_basic() {
-    //     // Basic test case with small values
-    //     let (z0, z1, z2, z3) = montgomery_reduce(&1, &2, &3, &4);
-    //     let expected = (1, 2, 3, 4); // Expected values will depend on the actual function logic
-    //     assert_eq!((z0, z1, z2, z3), expected);
-    // }
+    #[test]
+    fn test_montgomery_reduce_basic() {
+        // Basic test case with small values
+        let (z0, z1, z2, z3) = montgomery_reduce(&1_u64, &2_u64, &3_u64, &4_u64);
+        let expected = (1015341533287961015, 614227897398722093, 10092218387357075792, 2216689030230384375); // Expected values will depend on the actual function logic
+        assert_eq!((z0, z1, z2, z3), expected);
+    }
 
-    // #[test]
-    // fn test_montgomery_reduce_large_values() {
-    //     // Test case with large values
-    //     let (z0, z1, z2, z3) = montgomery_reduce(&u64::MAX, &u64::MAX, &u64::MAX, &u64::MAX);
-    //     // Calculate the expected result based on the Montgomery reduction algorithm
-    //     // This is an example, you need to calculate the correct expected values
-    //     let expected = (0, 0, 0, 0); // Placeholder, update with correct values
-    //     assert_eq!((z0, z1, z2, z3), expected);
-    // }
+    #[test]
+    fn test_montgomery_reduce_large_values() {
+        // Test case with large values
+        let (z0, z1, z2, z3) = montgomery_reduce(&u64::MAX, &u64::MAX, &u64::MAX, &u64::MAX);
+        // Calculate the expected result based on the Montgomery reduction algorithm
+        // This is an example, you need to calculate the correct expected values
+        let expected = (5664406609643832081, 12421288465352154260, 16783890958096582019, 143333441873369583); // Placeholder, update with correct values
+        assert_eq!((z0, z1, z2, z3), expected);
+    }
 
     #[test]
     fn test_montgomery_reduce_modulus() {
@@ -172,15 +172,15 @@ mod tests {
         assert_eq!((z0, z1, z2, z3), expected);
     }
 
-    // #[test]
-    // fn test_montgomery_reduce_mixed_values() {
-    //     // Test case with mixed values
-    //     let (z0, z1, z2, z3) = montgomery_reduce(&1, &0, &u64::MAX, &2);
-    //     // Calculate the expected result based on the Montgomery reduction algorithm
-    //     // This is an example, you need to calculate the correct expected values
-    //     let expected = (1, 0, u64::MAX, 2); // Placeholder, update with correct values
-    //     assert_eq!((z0, z1, z2, z3), expected);
-    // }
+    #[test]
+    fn test_montgomery_reduce_mixed_values() {
+        // Test case with mixed values
+        let (z0, z1, z2, z3) = montgomery_reduce(&1_u64, &0_u64, &u64::MAX, &2_u64);
+        // Calculate the expected result based on the Montgomery reduction algorithm
+        // This is an example, you need to calculate the correct expected values
+        let expected = (3113359121765060147, 13738305701328143478, 16036157884190814464, 3242762270701651436); // Placeholder, update with correct values
+        assert_eq!((z0, z1, z2, z3), expected);
+    }
 
     #[test]
     fn test_madd2_no_overflow() {
@@ -206,13 +206,13 @@ mod tests {
         assert_eq!(lo, 0);
     }
 
-    // #[test]
-    // fn test_madd2_with_both_overflows() {
-    //     // Case where both multiplication and addition overflow
-    //     let (hi, lo) = madd2(u64::MAX, u64::MAX, u64::MAX, 1);
-    //     assert_eq!(hi, u64::MAX);
-    //     assert_eq!(lo, 0);
-    // }
+    #[test]
+    fn test_madd2_with_both_overflows() {
+        // Case where both multiplication and addition overflow
+        let (hi, lo) = madd2(u64::MAX, u64::MAX, u64::MAX, 1);
+        assert_eq!(hi, u64::MAX);
+        assert_eq!(lo, 1);
+    }
 
     #[test]
     fn test_madd2_edge_case_zero_multiplication() {
@@ -230,21 +230,21 @@ mod tests {
         assert_eq!(lo, 123 * 456);
     }
 
-    // #[test]
-    // fn test_madd2_large_numbers() {
-    //     // Case with large numbers to test boundary conditions
-    //     let (hi, lo) = madd2(1 << 32, 1 << 32, u64::MAX - 1, 1);
-    //     assert_eq!(hi, 1);
-    //     assert_eq!(lo, 0);
-    // }
+    #[test]
+    fn test_madd2_large_numbers() {
+        // Case with large numbers to test boundary conditions
+        let (hi, lo) = madd2(1 << 32, 1 << 32, u64::MAX - 1, 1);
+        assert_eq!(hi, 1);
+        assert_eq!(lo, u64::MAX);
+    }
 
-    // #[test]
-    // fn test_madd2_all_ones() {
-    //     // Case where all inputs are ones (u64::MAX)
-    //     let (hi, lo) = madd2(u64::MAX, u64::MAX, u64::MAX, u64::MAX);
-    //     assert_eq!(hi, u64::MAX);
-    //     assert_eq!(lo, u64::MAX - 1);
-    // }
+    #[test]
+    fn test_madd2_all_ones() {
+        // Case where all inputs are ones (u64::MAX)
+        let (hi, lo) = madd2(u64::MAX, u64::MAX, u64::MAX, u64::MAX);
+        assert_eq!(hi, u64::MAX);
+        assert_eq!(lo, u64::MAX);
+    }
 
     #[test]
     fn test_sub_64_no_borrow() {

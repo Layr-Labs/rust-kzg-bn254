@@ -24,8 +24,6 @@ rayon = "1.5"
 num-traits = "0.2"
 byteorder = "1.4"
 ark-poly = "0.4.2"
-memmap2 = "0.9.4"
 crossbeam-channel = "0.5"
 num_cpus = "1.16.0"
-
 

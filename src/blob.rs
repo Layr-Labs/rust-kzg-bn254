@@ -1,7 +1,7 @@
 use crate::{errors::BlobError, helpers, polynomial::Polynomial};
 
 
-/// A blob which is DA spec aligned.
+/// A blob which is Eigen DA spec aligned.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Blob {
     blob_data: Vec<u8>,

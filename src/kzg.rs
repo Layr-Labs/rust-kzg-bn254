@@ -417,7 +417,7 @@ impl Kzg {
     }
 
     pub fn verify_kzg_proof(&self, commitment: G1Affine, proof: G1Affine, value_fr: Fr, z_fr: Fr) -> bool {
-        let g2_tau = self.g2.get(1).unwrap().clone();
+        let g2_tau = if self.g2.len() > 28 { self.g2.get(1).unwrap().clone() } else { self.g2.get(0).unwrap().clone() };
         let value_g1 = (G1Affine::generator() * value_fr).into_affine();
         let commit_minus_value = (commitment - value_g1).into_affine();
         let z_g2 = (G2Affine::generator() * z_fr).into_affine();
