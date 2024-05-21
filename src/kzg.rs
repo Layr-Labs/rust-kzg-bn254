@@ -558,7 +558,7 @@ fn test_compute_kzg_proof(){
 
     let mut kzg = Kzg::setup(
         "src/test-files/g1.point", 
-        "",
+        "src/test-files/g2.point",
         "src/test-files/g2.point.powerOf2",
         3000,
         3000
@@ -567,8 +567,8 @@ fn test_compute_kzg_proof(){
     let input = Blob::from_bytes_and_pad(GETTYSBURG_ADDRESS_BYTES);
     let input_poly = input.to_polynomial().unwrap();
     
-    for _ in 0..input_poly.len()-1 {
-        let index = rand::thread_rng().gen_range(0..input_poly.len());
+    for index in 0..input_poly.len()-1 {
+        // let index = rand::thread_rng().gen_range(0..input_poly.len());
         kzg.data_setup_custom(4, input.len().try_into().unwrap()).unwrap();
         let mut rand_index = rand::thread_rng().gen_range(0..kzg.expanded_roots_of_unity.len());
         loop {
