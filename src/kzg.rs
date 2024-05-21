@@ -14,7 +14,7 @@ use num_traits::ToPrimitive;
 use crate::blob::Blob;
 use crate::consts::BYTES_PER_FIELD_ELEMENT;
 use crate::errors::KzgError;
-use crate::helpers::{self, is_on_curve_g2};
+use crate::helpers;
 use crate::polynomial::Polynomial;
 use crate::traits::ReadPointFromBytes;
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
@@ -495,6 +495,7 @@ fn test_g2_power_of_2_readin(){
     use std::io::BufRead;
     use ark_bn254::{Fq, Fq2};
     use ark_bn254::G2Projective;
+    use crate::helpers::is_on_curve_g2;
 
     let kzg = Kzg::setup(
         "src/test-files/g1.point", 

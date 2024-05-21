@@ -1,7 +1,6 @@
 use std::cmp;
 use ark_bn254::{Fq, Fq2, Fr, G1Affine, G1Projective, G2Affine, G2Projective};
 use ark_ec::AffineRepr;
-
 use ark_ff::{sbb, BigInt, BigInteger, Field, LegendreSymbol, PrimeField};
 use crossbeam_channel::Receiver;
 use ark_std::{str::FromStr, vec::Vec, One, Zero};
