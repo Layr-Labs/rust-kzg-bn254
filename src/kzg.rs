@@ -560,8 +560,8 @@ fn test_compute_kzg_proof(){
         "src/test-files/g1.point", 
         "",
         "src/test-files/g2.point.powerOf2",
-        268435456,
-        131072
+        3000,
+        3000
     ).unwrap();
 
     let input = Blob::from_bytes_and_pad(GETTYSBURG_ADDRESS_BYTES);
