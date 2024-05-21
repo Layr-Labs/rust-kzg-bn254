@@ -552,6 +552,44 @@ fn test_blob_to_kzg_commitment(){
 }
 
 #[test]
+fn test_compute_kzg_proof_rand(){
+    use rand::Rng;
+
+    let mut kzg = Kzg::setup(
+        "src/test-files/g1.point", 
+        "src/test-files/g2.point",
+        "src/test-files/g2.point.powerOf2",
+        3000,
+        3000
+    ).unwrap();
+
+    let mut rng = rand::thread_rng();
+    let random_blob: Vec<u8> = (0..4095).map(|_| rng.gen_range(32..=126) as u8).collect();
+    let input = Blob::from_bytes_and_pad(&random_blob);
+    let input_poly = input.to_polynomial().unwrap();
+    
+    for index in 0..10 {
+        // let index = rand::thread_rng().gen_range(0..input_poly.len());
+        kzg.data_setup_custom(4, input.len().try_into().unwrap()).unwrap();
+        let mut rand_index = rand::thread_rng().gen_range(0..kzg.expanded_roots_of_unity.len());
+        loop {
+            if index == rand_index{
+                rand_index = rand::thread_rng().gen_range(0..kzg.expanded_roots_of_unity.len());
+            } else {
+                break;
+            }
+        }
+        let commitment = kzg.commit(&input_poly.clone()).unwrap();
+        let proof = kzg.compute_kzg_proof_with_roots_of_unity(&input_poly, index.try_into().unwrap()).unwrap();
+        let value_fr = input_poly.get_at_index(index).unwrap();
+        let z_fr = kzg.get_nth_root_of_unity(index).unwrap();
+        let pairing_result = kzg.verify_kzg_proof(commitment, proof, value_fr.clone(), z_fr.clone());
+        assert_eq!(pairing_result, true);
+        assert_eq!(kzg.verify_kzg_proof(commitment, proof, value_fr.clone(), kzg.get_nth_root_of_unity(rand_index).unwrap().clone()), false)
+    }
+}
+
+#[test]
 fn test_compute_kzg_proof(){
     use rand::Rng;
     use crate::consts::GETTYSBURG_ADDRESS_BYTES;
@@ -586,8 +624,6 @@ fn test_compute_kzg_proof(){
         assert_eq!(pairing_result, true);
         assert_eq!(kzg.verify_kzg_proof(commitment, proof, value_fr.clone(), kzg.get_nth_root_of_unity(rand_index).unwrap().clone()), false)
     }
-   
-
 }
 
 #[test]
