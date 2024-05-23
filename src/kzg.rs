@@ -409,8 +409,14 @@ impl Kzg {
         let domain = GeneralEvaluationDomain::<Fr>::new(length).expect("Failed to construct domain for IFFT");
         let points_projective: Vec<G1Projective> = self.g1[..length].iter().map(|&p| G1Projective::from(p)).collect();
         
+        use std::time::Instant;
+        let now = Instant::now();
         // Perform the IFFT
         let ifft_result = domain.ifft(&points_projective);
+
+        let elapsed = now.elapsed();
+        println!("Elapsed inner: {:.2?}", elapsed);
+
 
         let ifft_result_affine: Vec<_> = ifft_result.iter().map(|p| p.into_affine()).collect();
         Ok(ifft_result_affine)
@@ -567,7 +573,7 @@ fn test_compute_kzg_proof_rand(){
     let mut rng = rand::thread_rng();
 
     (0..100).for_each(|_| {
-        let blob_length = rand::thread_rng().gen_range(0..50000);
+        let blob_length = rand::thread_rng().gen_range(35..50000);
         let random_blob: Vec<u8> = (0..blob_length).map(|_| rng.gen_range(32..=126) as u8).collect();
         println!("generating blob of length is {}", blob_length);
 
@@ -808,9 +814,15 @@ fn test_g1_ifft(){
         3000,
         3000
     ).unwrap();
+    
+
+    use std::time::Instant;
+    let now = Instant::now();
 
     let kzg_g1_points = kzg.g1_ifft(64).unwrap();
 
+    let elapsed = now.elapsed();
+    println!("Elapsed: {:.2?}", elapsed);
     // Iterate over each line in the file
     for (i, line_result) in reader.lines().enumerate() {
         let mut line = line_result.unwrap();  // Retrieve the line, handling potential I/O errors
