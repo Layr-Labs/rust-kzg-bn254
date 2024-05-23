@@ -566,14 +566,14 @@ fn test_compute_kzg_proof_rand(){
 
     let mut rng = rand::thread_rng();
 
-    (0..10).for_each(|_| {
+    (0..100).for_each(|_| {
         let blob_length = rand::thread_rng().gen_range(0..65000);
         let random_blob: Vec<u8> = (0..blob_length).map(|_| rng.gen_range(32..=126) as u8).collect();
         println!("generating blob of length is {}", blob_length);
 
         let input = Blob::from_bytes_and_pad(&random_blob);
         let input_poly = input.to_polynomial().unwrap();
-        kzg.data_setup_custom(4, input.len().try_into().unwrap()).unwrap();
+        kzg.data_setup_custom(1, input.len().try_into().unwrap()).unwrap();
 
         let index = rand::thread_rng().gen_range(0..input_poly.get_length_of_padded_blob_as_fr_vector());
         let commitment = kzg.commit(&input_poly.clone()).unwrap();
