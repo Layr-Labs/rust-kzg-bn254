@@ -26,6 +26,10 @@ impl Polynomial {
         Ok(Polynomial { elements: padded_input_fr, length_of_padded_blob, length_of_padded_blob_as_fr_vector: elements.len() })
     }
 
+    pub fn get_length_of_padded_blob_as_fr_vector(&self) -> usize {
+        self.length_of_padded_blob_as_fr_vector
+    }
+
     /// Returns the number of elements in the polynomial.
     pub fn len(&self) -> usize {
         self.elements.len()
