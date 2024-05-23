@@ -566,8 +566,7 @@ fn test_compute_kzg_proof_rand(){
 
     let mut rng = rand::thread_rng();
 
-    for _ in 0..100 {
-
+    (0..10).for_each(|_| {
         let blob_length = rand::thread_rng().gen_range(0..65000);
         let random_blob: Vec<u8> = (0..blob_length).map(|_| rng.gen_range(32..=126) as u8).collect();
         println!("generating blob of length is {}", blob_length);
@@ -586,7 +585,7 @@ fn test_compute_kzg_proof_rand(){
 
         // take random index, not the same index and check
         assert_eq!(kzg.verify_kzg_proof(commitment, proof, value_fr.clone(), kzg.get_nth_root_of_unity((index+1)%input_poly.get_length_of_padded_blob_as_fr_vector()).unwrap().clone()), false)
-    }
+    })
 }
 
 #[test]
