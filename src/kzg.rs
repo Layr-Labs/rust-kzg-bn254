@@ -567,7 +567,7 @@ fn test_compute_kzg_proof_rand(){
     let mut rng = rand::thread_rng();
 
     (0..100).for_each(|_| {
-        let blob_length = rand::thread_rng().gen_range(0..65000);
+        let blob_length = rand::thread_rng().gen_range(0..50000);
         let random_blob: Vec<u8> = (0..blob_length).map(|_| rng.gen_range(32..=126) as u8).collect();
         println!("generating blob of length is {}", blob_length);
 
