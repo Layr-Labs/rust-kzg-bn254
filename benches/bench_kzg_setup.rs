@@ -16,7 +16,7 @@ fn bench_kzg_setup(c: &mut Criterion) {
 
         b.iter(|| {
             Kzg::setup(
-                "src/test-files/mainnet-data/g1.point", 
+                "src/test-files/mainnet-data/g1.131072.point", 
                 "",
                 "src/test-files/mainnet-data/g2.point.powerOf2",
                 268435456,
