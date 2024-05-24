@@ -27,3 +27,38 @@ ark-poly = "0.4.2"
 crossbeam-channel = "0.5"
 num_cpus = "1.16.0"
 
+[dev-dependencies]
+criterion = "0.5"
+
+[[bench]]
+name = "bench_g1_ifft"
+harness = false
+
+[[bench]]
+name = "bench_kzg_setup"
+harness = false
+
+[profile.bench]
+opt-level = 3
+debug = true
+strip = "none"
+debug-assertions = false
+overflow-checks = false
+lto = false
+panic = 'unwind'
+incremental = false
+codegen-units = 16
+rpath = false
+
+[profile.test]
+opt-level = 3
+debug = true
+strip = "none"
+debug-assertions = false
+overflow-checks = false
+lto = false
+panic = 'unwind'
+incremental = false
+codegen-units = 16
+rpath = false
+

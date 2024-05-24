@@ -409,15 +409,8 @@ impl Kzg {
         let domain = GeneralEvaluationDomain::<Fr>::new(length).expect("Failed to construct domain for IFFT");
         let points_projective: Vec<G1Projective> = self.g1[..length].iter().map(|&p| G1Projective::from(p)).collect();
         
-        use std::time::Instant;
-        let now = Instant::now();
         // Perform the IFFT
         let ifft_result = domain.ifft(&points_projective);
-
-        let elapsed = now.elapsed();
-        println!("Elapsed inner: {:.2?}", elapsed);
-
-
         let ifft_result_affine: Vec<_> = ifft_result.iter().map(|p| p.into_affine()).collect();
         Ok(ifft_result_affine)
     }
@@ -816,13 +809,8 @@ fn test_g1_ifft(){
     ).unwrap();
     
 
-    use std::time::Instant;
-    let now = Instant::now();
-
     let kzg_g1_points = kzg.g1_ifft(64).unwrap();
 
-    let elapsed = now.elapsed();
-    println!("Elapsed: {:.2?}", elapsed);
     // Iterate over each line in the file
     for (i, line_result) in reader.lines().enumerate() {
         let mut line = line_result.unwrap();  // Retrieve the line, handling potential I/O errors
