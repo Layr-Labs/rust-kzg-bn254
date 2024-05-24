@@ -43,6 +43,14 @@ harness = false
 name = "bench_kzg_commit"
 harness = false
 
+[[bench]]
+name = "bench_kzg_proof"
+harness = false
+
+[[bench]]
+name = "bench_kzg_verify"
+harness = false
+
 [profile.bench]
 opt-level = 3
 debug = true
