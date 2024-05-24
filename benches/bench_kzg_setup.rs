@@ -1,5 +1,5 @@
 use std::time::Duration;
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
 use rust_kzg_bn254::kzg::Kzg;
 
 fn bench_kzg_setup(c: &mut Criterion) {
@@ -9,8 +9,18 @@ fn bench_kzg_setup(c: &mut Criterion) {
                 "src/test-files/g1.point", 
                 "src/test-files/g2.point",
                 "src/test-files/g2.point.powerOf2",
-                black_box(3000),
-                black_box(3000)
+                3000,
+                3000
+            ).unwrap()
+        });
+
+        b.iter(|| {
+            Kzg::setup(
+                "src/test-files/mainnet-data/g1.point", 
+                "",
+                "src/test-files/mainnet-data/g2.point.powerOf2",
+                268435456,
+                131072
             ).unwrap()
         });
     });
