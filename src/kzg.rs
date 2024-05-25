@@ -159,6 +159,36 @@ impl Kzg {
         Ok(())
     }
 
+    pub fn calculate_roots_of_unity(&mut self, number_of_evaluations: u64) -> Result<(), KzgError>{
+        let log2_of_evals = number_of_evaluations.div_ceil(32).next_power_of_two()
+            .to_f64()
+            .unwrap()
+            .log2()
+            .to_u8()
+            .unwrap();
+        self.params.max_fft_width = 1_u64 << log2_of_evals;
+
+
+        if number_of_evaluations.div_ceil(32).next_power_of_two() >= self.srs_order {
+            return Err(KzgError::SerializationError(
+                "the supplied encoding parameters are not valid with respect to the SRS."
+                    .to_string(),
+            ));
+        }
+
+        let primitive_roots_of_unity = Self::get_primitive_roots_of_unity();
+        let found_root_of_unity = primitive_roots_of_unity
+            .get(log2_of_evals.to_usize().unwrap())
+            .unwrap();
+        let mut expanded_roots_of_unity = Self::expand_root_of_unity(found_root_of_unity);
+        expanded_roots_of_unity.truncate(expanded_roots_of_unity.len() - 1);
+
+        self.params.completed_setup = true;
+        self.expanded_roots_of_unity = expanded_roots_of_unity;
+
+        Ok(())
+    }
+
     /// helper function to get the
     pub fn get_nth_root_of_unity(&self, i: usize) -> Option<&Fr> {
         self.expanded_roots_of_unity.get(i)
@@ -677,6 +707,27 @@ mod tests {
             assert_eq!(is_on_curve_g2(&G2Projective::from(point)), true);
             assert_eq!(point, kzg_g2_points[i]);
         }
+    }
+
+    #[test]
+    fn test_roots_of_unity_setup() {
+        use rand::Rng;
+        let mut rng = rand::thread_rng();
+
+        let mut kzg_clone1: Kzg = KZG_3000.clone();
+        let mut kzg_clone2: Kzg = KZG_3000.clone();
+
+        (0..10000).for_each(|_| {
+            let blob_length: u64 = rand::thread_rng().gen_range(35..40000);
+            let random_blob: Vec<u8> = (0..blob_length)
+                .map(|_| rng.gen_range(32..=126) as u8)
+                .collect();
+
+                let input = Blob::from_bytes_and_pad(&random_blob);
+            kzg_clone1.data_setup_custom(1, input.len().try_into().unwrap()).unwrap();
+            kzg_clone2.calculate_roots_of_unity(input.get_length_after_padding().try_into().unwrap()).unwrap();
+            assert_eq!(kzg_clone1.expanded_roots_of_unity, kzg_clone1.expanded_roots_of_unity);
+        });
     }
 
     #[test]
