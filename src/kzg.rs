@@ -308,19 +308,13 @@ impl Kzg {
         if polynomial.len() > self.g1.len() {
             return Err(KzgError::SerializationError("polynomial length is not correct".to_string()));
         }
-    
-        // Configure multi-threading
-        let config = rayon::ThreadPoolBuilder::new().num_threads(num_cpus::get()).build().
-        map_err(|err| KzgError::CommitError(err.to_string()))?;
-    
+        
         // Perform the multi-exponentiation
-        config.install(|| {
-            let bases = self.g1_ifft(polynomial.len()).unwrap();
-            match G1Projective::msm(&bases, &polynomial.to_vec()) {
-                Ok(res) => Ok(res.into_affine()),
-                Err(err) => Err(KzgError::CommitError(err.to_string())),
-            }
-        })
+        let bases = self.g1_ifft(polynomial.len()).unwrap();
+        match G1Projective::msm(&bases, &polynomial.to_vec()) {
+            Ok(res) => Ok(res.into_affine()),
+            Err(err) => Err(KzgError::CommitError(err.to_string())),
+        }
     }
 
     /// 4844 compatible helper function
