@@ -14,8 +14,6 @@ ark-serialize = "0.4.2"
 ark-std = "0.4.0"
 hex-literal = "0.4.1"
 sha2 = "0.10.8"
-tracing = { version = "0.1.40", features = ["log"] }
-tracing-subscriber = "0.3.18"
 ureq = "2.9.6"
 num-bigint = "0.4"
 rayon = "1.5"
