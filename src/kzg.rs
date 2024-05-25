@@ -159,8 +159,8 @@ impl Kzg {
         Ok(())
     }
 
-    pub fn calculate_roots_of_unity(&mut self, number_of_evaluations: u64) -> Result<(), KzgError>{
-        let log2_of_evals = number_of_evaluations.div_ceil(32).next_power_of_two()
+    pub fn calculate_roots_of_unity(&mut self, length_of_data_after_padding: u64) -> Result<(), KzgError>{
+        let log2_of_evals = length_of_data_after_padding.div_ceil(32).next_power_of_two()
             .to_f64()
             .unwrap()
             .log2()
@@ -169,7 +169,7 @@ impl Kzg {
         self.params.max_fft_width = 1_u64 << log2_of_evals;
 
 
-        if number_of_evaluations.div_ceil(32).next_power_of_two() >= self.srs_order {
+        if length_of_data_after_padding.div_ceil(BYTES_PER_FIELD_ELEMENT.try_into().unwrap()).next_power_of_two() >= self.srs_order {
             return Err(KzgError::SerializationError(
                 "the supplied encoding parameters are not valid with respect to the SRS."
                     .to_string(),
