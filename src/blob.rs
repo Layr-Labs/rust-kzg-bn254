@@ -18,6 +18,10 @@ impl Blob {
         }
     }
 
+    pub fn get_length_after_padding(&self) -> usize {
+        return self.length_after_padding;
+    }
+
     /// Creates a new `Blob` from the given data.
     pub fn is_padded(&self) -> bool {
         return self.is_padded;
@@ -205,6 +209,7 @@ mod tests {
         blob = Blob::from_bytes_and_pad(GETTYSBURG_ADDRESS_BYTES);
         assert_eq!(blob.get_blob_data(), result, "testing adding padding");
         assert_eq!(blob.is_padded(), true, "has to be padded");
+        assert_eq!(blob.get_length_after_padding(), 1515);
 
         blob.remove_padding().unwrap();
         assert_eq!(blob.is_padded(), false, "cannot be padded");
