@@ -159,8 +159,13 @@ impl Kzg {
         Ok(())
     }
 
-    pub fn calculate_roots_of_unity(&mut self, length_of_data_after_padding: u64) -> Result<(), KzgError>{
-        let log2_of_evals = length_of_data_after_padding.div_ceil(32).next_power_of_two()
+    pub fn calculate_roots_of_unity(
+        &mut self,
+        length_of_data_after_padding: u64,
+    ) -> Result<(), KzgError> {
+        let log2_of_evals = length_of_data_after_padding
+            .div_ceil(32)
+            .next_power_of_two()
             .to_f64()
             .unwrap()
             .log2()
@@ -168,8 +173,11 @@ impl Kzg {
             .unwrap();
         self.params.max_fft_width = 1_u64 << log2_of_evals;
 
-
-        if length_of_data_after_padding.div_ceil(BYTES_PER_FIELD_ELEMENT.try_into().unwrap()).next_power_of_two() >= self.srs_order {
+        if length_of_data_after_padding
+            .div_ceil(BYTES_PER_FIELD_ELEMENT.try_into().unwrap())
+            .next_power_of_two()
+            >= self.srs_order
+        {
             return Err(KzgError::SerializationError(
                 "the supplied encoding parameters are not valid with respect to the SRS."
                     .to_string(),
@@ -723,10 +731,17 @@ mod tests {
                 .map(|_| rng.gen_range(32..=126) as u8)
                 .collect();
 
-                let input = Blob::from_bytes_and_pad(&random_blob);
-            kzg_clone1.data_setup_custom(1, input.len().try_into().unwrap()).unwrap();
-            kzg_clone2.calculate_roots_of_unity(input.get_length_after_padding().try_into().unwrap()).unwrap();
-            assert_eq!(kzg_clone1.expanded_roots_of_unity, kzg_clone1.expanded_roots_of_unity);
+            let input = Blob::from_bytes_and_pad(&random_blob);
+            kzg_clone1
+                .data_setup_custom(1, input.len().try_into().unwrap())
+                .unwrap();
+            kzg_clone2
+                .calculate_roots_of_unity(input.get_length_after_padding().try_into().unwrap())
+                .unwrap();
+            assert_eq!(
+                kzg_clone1.expanded_roots_of_unity,
+                kzg_clone1.expanded_roots_of_unity
+            );
         });
     }
 
