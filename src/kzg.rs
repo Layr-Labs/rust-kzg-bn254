@@ -198,6 +198,12 @@ impl Kzg {
     }
 
     /// helper function to get the
+    // helper function to debug
+    pub fn get_expanded_roots_of_unity(&self) -> &Vec<Fr> { // Adjust the return type as necessary
+            &self.expanded_roots_of_unity
+    }
+
+    /// helper function to get the 
     pub fn get_nth_root_of_unity(&self, i: usize) -> Option<&Fr> {
         self.expanded_roots_of_unity.get(i)
     }
