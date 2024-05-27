@@ -29,7 +29,9 @@ pub enum PolynomialError {
 impl fmt::Display for PolynomialError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
-            PolynomialError::SerializationFromStringError => write!(f, "couldn't load string to fr vector"),
+            PolynomialError::SerializationFromStringError => {
+                write!(f, "couldn't load string to fr vector")
+            }
             PolynomialError::CommitError(ref msg) => write!(f, "Commitment error: {}", msg),
             PolynomialError::GenericError(ref msg) => write!(f, "generic error: {}", msg),
         }
@@ -43,7 +45,7 @@ pub enum KzgError {
     CommitError(String),
     SerializationError(String),
     FftError(String),
-    GenericError(String)
+    GenericError(String),
 }
 
 impl fmt::Display for KzgError {
@@ -104,7 +106,10 @@ mod tests {
     fn test_kzg_error_serialization() {
         let msg = String::from("test serialization error");
         let error = KzgError::SerializationError(msg.clone());
-        assert_eq!(format!("{}", error), format!("Serialization error: {}", msg));
+        assert_eq!(
+            format!("{}", error),
+            format!("Serialization error: {}", msg)
+        );
     }
 
     #[test]
@@ -139,7 +144,10 @@ mod tests {
     #[test]
     fn test_already_padded_error_display() {
         let error = BlobError::AlreadyPaddedError;
-        assert_eq!(format!("{}", error), "tried to execute on already padded blob");
+        assert_eq!(
+            format!("{}", error),
+            "tried to execute on already padded blob"
+        );
     }
 
     #[test]

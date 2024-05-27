@@ -1,9 +1,7 @@
 use ark_bn254::Fq;
 use ark_ff::PrimeField;
 
-
 pub fn montgomery_reduce(z_0: &u64, z_1: &u64, z_2: &u64, z_3: &u64) -> (u64, u64, u64, u64) {
-    
     let mut z0 = z_0.clone();
     let mut z1 = z_1.clone();
     let mut z2 = z_2.clone();
@@ -12,45 +10,48 @@ pub fn montgomery_reduce(z_0: &u64, z_1: &u64, z_2: &u64, z_3: &u64) -> (u64, u6
     let modulus = <Fq as PrimeField>::MODULUS.0;
 
     let mut m: u64 = z0.wrapping_mul(inv);
-	let mut c = madd0(m, modulus[0], z0);
-	(c, z0) = madd2(m, modulus[1], z1, c);
-	(c, z1) = madd2(m, modulus[2], z2, c);
-	(c, z2) = madd2(m, modulus[3], z3, c);
-	z3 = c;
+    let mut c = madd0(m, modulus[0], z0);
+    (c, z0) = madd2(m, modulus[1], z1, c);
+    (c, z1) = madd2(m, modulus[2], z2, c);
+    (c, z2) = madd2(m, modulus[3], z3, c);
+    z3 = c;
 
     m = z0.wrapping_mul(inv);
-	c = madd0(m, modulus[0], z0);
-	(c, z0) = madd2(m, modulus[1], z1, c);
-	(c, z1) = madd2(m, modulus[2], z2, c);
-	(c, z2) = madd2(m, modulus[3], z3, c);
-	z3 = c;
+    c = madd0(m, modulus[0], z0);
+    (c, z0) = madd2(m, modulus[1], z1, c);
+    (c, z1) = madd2(m, modulus[2], z2, c);
+    (c, z2) = madd2(m, modulus[3], z3, c);
+    z3 = c;
 
     m = z0.wrapping_mul(inv);
-	c = madd0(m, modulus[0], z0);
-	(c, z0) = madd2(m, modulus[1], z1, c);
-	(c, z1) = madd2(m, modulus[2], z2, c);
-	(c, z2) = madd2(m, modulus[3], z3, c);
-	z3 = c;
+    c = madd0(m, modulus[0], z0);
+    (c, z0) = madd2(m, modulus[1], z1, c);
+    (c, z1) = madd2(m, modulus[2], z2, c);
+    (c, z2) = madd2(m, modulus[3], z3, c);
+    z3 = c;
 
     m = z0.wrapping_mul(inv);
-	c = madd0(m, modulus[0], z0);
-	(c, z0) = madd2(m, modulus[1], z1, c);
-	(c, z1) = madd2(m, modulus[2], z2, c);
-	(c, z2) = madd2(m, modulus[3], z3, c);
-	z3 = c;
+    c = madd0(m, modulus[0], z0);
+    (c, z0) = madd2(m, modulus[1], z1, c);
+    (c, z1) = madd2(m, modulus[2], z2, c);
+    (c, z2) = madd2(m, modulus[3], z3, c);
+    z3 = c;
 
-    let is_smaller_than_modulus = z3 < modulus[3] || (z3 == modulus[3] && (z2 < modulus[2] || (z2 == modulus[2] && (z1 < modulus[1] || (z1 == modulus[1] && (z0 < modulus[0]))))));
+    let is_smaller_than_modulus = z3 < modulus[3]
+        || (z3 == modulus[3]
+            && (z2 < modulus[2]
+                || (z2 == modulus[2]
+                    && (z1 < modulus[1] || (z1 == modulus[1] && (z0 < modulus[0]))))));
 
     if !is_smaller_than_modulus {
         let mut b;
         (z0, b) = sub_64(z0, modulus[0], 0);
-		(z1, b) = sub_64(z1, modulus[1], b);
-		(z2, b) = sub_64(z2, modulus[2], b);
-		(z3, _) = sub_64(z3, modulus[3], b);
+        (z1, b) = sub_64(z1, modulus[1], b);
+        (z2, b) = sub_64(z2, modulus[2], b);
+        (z3, _) = sub_64(z3, modulus[3], b);
     }
-    
-    (z0, z1, z2, z3)
 
+    (z0, z1, z2, z3)
 }
 
 fn sub_64(x: u64, y: u64, borrow: u64) -> (u64, u64) {
@@ -64,7 +65,6 @@ fn sub_64(x: u64, y: u64, borrow: u64) -> (u64, u64) {
 
     (diff, borrow_out)
 }
-
 
 pub fn madd0(a: u64, b: u64, c: u64) -> u64 {
     let mut hi: u64;
@@ -88,7 +88,7 @@ pub fn madd0(a: u64, b: u64, c: u64) -> u64 {
 
 pub fn madd2(a: u64, b: u64, c: u64, d: u64) -> (u64, u64) {
     let mut hi: u64;
-    let mut lo: u128;  // Using u128 to handle overflow from multiplication
+    let mut lo: u128; // Using u128 to handle overflow from multiplication
     let mut carry: u64;
 
     // Perform the multiplication
@@ -123,25 +123,33 @@ pub fn madd2(a: u64, b: u64, c: u64, d: u64) -> (u64, u64) {
 // }
 
 #[test]
-fn test_montgomery_reduce(){
-    use ark_ff::Field;
+fn test_montgomery_reduce() {
     use ark_bn254::Fr;
+    use ark_ff::Field;
 
-    let inv = Fq::from(<Fr as PrimeField>::MODULUS).neg_in_place().inverse().unwrap();
+    let inv = Fq::from(<Fr as PrimeField>::MODULUS)
+        .neg_in_place()
+        .inverse()
+        .unwrap();
     println!("{}", inv.0);
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ark_ff::fields::PrimeField;
     use ark_bn254::Fq;
+    use ark_ff::fields::PrimeField;
 
     #[test]
     fn test_montgomery_reduce_basic() {
         // Basic test case with small values
         let (z0, z1, z2, z3) = montgomery_reduce(&1_u64, &2_u64, &3_u64, &4_u64);
-        let expected = (1015341533287961015, 614227897398722093, 10092218387357075792, 2216689030230384375); // Expected values will depend on the actual function logic
+        let expected = (
+            1015341533287961015,
+            614227897398722093,
+            10092218387357075792,
+            2216689030230384375,
+        ); // Expected values will depend on the actual function logic
         assert_eq!((z0, z1, z2, z3), expected);
     }
 
@@ -151,7 +159,12 @@ mod tests {
         let (z0, z1, z2, z3) = montgomery_reduce(&u64::MAX, &u64::MAX, &u64::MAX, &u64::MAX);
         // Calculate the expected result based on the Montgomery reduction algorithm
         // This is an example, you need to calculate the correct expected values
-        let expected = (5664406609643832081, 12421288465352154260, 16783890958096582019, 143333441873369583); // Placeholder, update with correct values
+        let expected = (
+            5664406609643832081,
+            12421288465352154260,
+            16783890958096582019,
+            143333441873369583,
+        ); // Placeholder, update with correct values
         assert_eq!((z0, z1, z2, z3), expected);
     }
 
@@ -159,7 +172,8 @@ mod tests {
     fn test_montgomery_reduce_modulus() {
         // Test case where inputs are the modulus values
         let modulus = <Fq as PrimeField>::MODULUS.0;
-        let (z0, z1, z2, z3) = montgomery_reduce(&modulus[0], &modulus[1], &modulus[2], &modulus[3]);
+        let (z0, z1, z2, z3) =
+            montgomery_reduce(&modulus[0], &modulus[1], &modulus[2], &modulus[3]);
         let expected = (0, 0, 0, 0); // Result should be zero since we're reducing the modulus
         assert_eq!((z0, z1, z2, z3), expected);
     }
@@ -178,7 +192,12 @@ mod tests {
         let (z0, z1, z2, z3) = montgomery_reduce(&1_u64, &0_u64, &u64::MAX, &2_u64);
         // Calculate the expected result based on the Montgomery reduction algorithm
         // This is an example, you need to calculate the correct expected values
-        let expected = (3113359121765060147, 13738305701328143478, 16036157884190814464, 3242762270701651436); // Placeholder, update with correct values
+        let expected = (
+            3113359121765060147,
+            13738305701328143478,
+            16036157884190814464,
+            3242762270701651436,
+        ); // Placeholder, update with correct values
         assert_eq!((z0, z1, z2, z3), expected);
     }
 

@@ -18,12 +18,11 @@ num-bigint = "0.4"
 num-traits = "0.2"
 byteorder = "1.4"
 ark-poly = "0.4.2"
-crossbeam-channel = "0.5"
-num_cpus = "1.16.0"
 
 [dev-dependencies]
 criterion = "0.5"
 lazy_static = "1.4"
+rand = "0.8.5"
 
 [[bench]]
 name = "bench_g1_ifft"
