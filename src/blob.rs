@@ -11,8 +11,15 @@ pub struct Blob {
 
 impl Blob {
     /// Creates a new `Blob` from the given data.
-    pub fn new(blob_data: Vec<u8>) -> Self {
-        Blob { blob_data, is_padded: false, length_after_padding: 0 }
+    pub fn new(blob_data: Vec<u8>, is_padded: bool) -> Self {
+        let length_after_padding;
+        if is_padded {
+            length_after_padding = blob_data.len();
+        }
+        else {
+            length_after_padding = 0;
+        }
+        Blob { blob_data, is_padded, length_after_padding }
     }
 
     /// Creates a new `Blob` from the given data.
@@ -118,7 +125,7 @@ mod tests {
 
         use crate::consts::GETTYSBURG_ADDRESS_BYTES;
         let blob_from = Blob::from_bytes_and_pad(GETTYSBURG_ADDRESS_BYTES);
-        let mut blob_raw = Blob::new(GETTYSBURG_ADDRESS_BYTES.to_vec());
+        let mut blob_raw = Blob::new(GETTYSBURG_ADDRESS_BYTES.to_vec(), false);
 
         blob_raw.pad_data().unwrap();
         assert_eq!(blob_raw, blob_from, "testing adding padding");
@@ -126,4 +133,5 @@ mod tests {
         assert_eq!(blob_from.is_padded(), true, "has to be padded");
 
     }
+
 }
