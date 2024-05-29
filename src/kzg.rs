@@ -419,6 +419,25 @@ impl Kzg {
         })
     }
 
+    pub fn commit_to_evaluation_polynomial(&self, polynomial: &Polynomial) -> Result<G1Affine, KzgError> {
+        if polynomial.len() > self.g1.len() {
+            return Err(KzgError::SerializationError("polynomial length is not correct".to_string()));
+        }
+    
+        // Configure multi-threading
+        let config = rayon::ThreadPoolBuilder::new().num_threads(num_cpus::get()).build().
+        map_err(|err| KzgError::CommitError(err.to_string()))?;
+    
+        // Perform the multi-exponentiation
+        config.install(|| {
+            let bases = self.g1[..polynomial.len()].to_vec();
+            match G1Projective::msm(&bases, &polynomial.to_vec()) {
+                Ok(res) => Ok(res.into_affine()),
+                Err(err) => Err(KzgError::CommitError(err.to_string())),
+            }
+        })
+    }
+
     /// 4844 compatible helper function
     pub fn blob_to_kzg_commitment(&self, blob: &Blob) -> Result<G1Affine, KzgError> {
         let polynomial = blob
