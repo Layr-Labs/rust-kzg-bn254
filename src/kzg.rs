@@ -395,7 +395,7 @@ impl Kzg {
     }
 
     /// commit the actual polynomial with the values setup
-    pub fn commit(&self, polynomial: &Polynomial) -> Result<G1Affine, KzgError> {
+    pub fn commit(&self, polynomial: &Polynomial, is_data_polynomial_evaluations: bool) -> Result<G1Affine, KzgError> {
         if polynomial.len() > self.g1.len() {
             return Err(KzgError::SerializationError(
                 "polynomial length is not correct".to_string(),
@@ -410,7 +410,14 @@ impl Kzg {
 
         // Perform the multi-exponentiation
         config.install(|| {
-            let bases = self.g1_ifft(polynomial.len()).unwrap();
+            let bases = if is_data_polynomial_evaluations {
+                // if the blob data is polynomial evaluations then we use the original g1 points
+                self.g1[..polynomial.len()].to_vec()
+            } else {
+                // Use inverse FFT if not
+                self.g1_ifft(polynomial.len())?
+            };
+
             match G1Projective::msm(&bases, &polynomial.to_vec()) {
                 Ok(res) => Ok(res.into_affine()),
                 Err(err) => Err(KzgError::CommitError(err.to_string())),
@@ -418,50 +425,20 @@ impl Kzg {
         })
     }
 
-    pub fn commit_to_evaluation_polynomial(&self, polynomial: &Polynomial) -> Result<G1Affine, KzgError> {
-        if polynomial.len() > self.g1.len() {
-            return Err(KzgError::SerializationError("polynomial length is not correct".to_string()));
-        }
-    
-        // Configure multi-threading
-        let config = rayon::ThreadPoolBuilder::new().num_threads(num_cpus::get()).build().
-        map_err(|err| KzgError::CommitError(err.to_string()))?;
-    
-        // Perform the multi-exponentiation
-        config.install(|| {
-            let bases = self.g1[..polynomial.len()].to_vec();
-            match G1Projective::msm(&bases, &polynomial.to_vec()) {
-                Ok(res) => Ok(res.into_affine()),
-                Err(err) => Err(KzgError::CommitError(err.to_string())),
-            }
-        })
-    }
-
-    /// 4844 compatible helper function
-    pub fn blob_to_kzg_commitment(&self, blob: &Blob) -> Result<G1Affine, KzgError> {
-        let polynomial = blob
-            .to_polynomial()
-            .map_err(|err| KzgError::SerializationError(err.to_string()))?;
-        let commitment = self.commit(&polynomial)?;
+    pub fn blob_to_kzg_commitment(&self, blob: &Blob, is_blob_ifft: bool) -> Result<G1Affine, KzgError> {
+        let polynomial = blob.to_polynomial().map_err(|err| KzgError::SerializationError(err.to_string()))?;
+        let commitment = self.commit(&polynomial, is_blob_ifft)?;
         Ok(commitment)
     }
 
     /// helper function to work with the library and the env of the kzg instance
-    pub fn compute_kzg_proof_with_roots_of_unity(
-        &self,
-        polynomial: &Polynomial,
-        index: u64,
-    ) -> Result<G1Affine, KzgError> {
-        self.compute_kzg_proof(polynomial, index, &self.expanded_roots_of_unity)
+    pub fn compute_kzg_proof_with_roots_of_unity(&self, polynomial: &Polynomial, index: u64, is_data_polynomial_evaluations: bool) -> Result<G1Affine, KzgError>{
+        self.compute_kzg_proof(polynomial, index, &self.expanded_roots_of_unity, is_data_polynomial_evaluations)
     }
 
     /// function to compute the kzg proof given the values.
-    pub fn compute_kzg_proof(
-        &self,
-        polynomial: &Polynomial,
-        index: u64,
-        root_of_unities: &Vec<Fr>,
-    ) -> Result<G1Affine, KzgError> {
+    pub fn compute_kzg_proof(&self, polynomial: &Polynomial, index: u64, root_of_unities: &Vec<Fr>, is_data_polynomial_evaluations: bool) -> Result<G1Affine, KzgError> {
+
         if !self.params.completed_setup {
             return Err(KzgError::GenericError(
                 "setup is not complete, run the data_setup functions".to_string(),
@@ -511,57 +488,15 @@ impl Kzg {
             }
         }
 
-        let g1_lagrange = self.g1_ifft(polynomial.len())?;
-
-        match G1Projective::msm(&g1_lagrange, &quotient_poly) {
-            Ok(res) => Ok(G1Affine::from(res)),
-            Err(err) => Err(KzgError::SerializationError(err.to_string())),
-        }
-    }
-
-    pub fn compute_kzg_proof_with_evaluation_polynomial(&self, polynomial: &Polynomial, index: u64, root_of_unities: &Vec<Fr>) -> Result<G1Affine, KzgError> {
-
-        if !self.params.completed_setup {
-            return Err(KzgError::GenericError("setup is not complete, run the data_setup functions".to_string()));
-        }
-
-        if polynomial.len() != root_of_unities.len() {
-            return Err(KzgError::GenericError("inconsistent length between blob and root of unities".to_string()));
-        }
-    
-        let eval_fr = polynomial.to_vec();
-        let mut poly_shift: Vec<Fr> = Vec::with_capacity(eval_fr.len());
-        let usized_index = if let Some(x) = index.to_usize() {
-            x
+        let bases = if is_data_polynomial_evaluations {
+            // if the blob data is polynomial evaluations then we use the original g1 points
+            self.g1[..polynomial.len()].to_vec()
         } else {
-            return Err(KzgError::SerializationError("index couldn't be converted to usize".to_string()))
+            // Use inverse FFT if not
+            self.g1_ifft(polynomial.len())?
         };
 
-        let value_fr = eval_fr[usized_index];
-        let z_fr = root_of_unities[usized_index];
-    
-        for i in 0..eval_fr.len() {
-            poly_shift.push(eval_fr[i] - value_fr);
-        }
-    
-        let mut denom_poly = Vec::<Fr>::with_capacity(root_of_unities.len());
-        for i in 0..eval_fr.len() {
-            denom_poly.push(root_of_unities[i] - z_fr);
-        }
-    
-        let mut quotient_poly = Vec::<Fr>::with_capacity(root_of_unities.len());
-    
-        for i in 0..root_of_unities.len() {
-            if denom_poly[i].is_zero() {
-                quotient_poly.push(self.compute_quotient_eval_on_domain(z_fr, &eval_fr, value_fr, &root_of_unities));
-            } else {
-                quotient_poly.push(poly_shift[i].div(denom_poly[i]));
-            }
-        }
-        
-        let g1 = self.g1[..polynomial.len()].to_vec();
-
-        match G1Projective::msm(&g1, &quotient_poly) {
+        match G1Projective::msm(&bases, &quotient_poly) {
             Ok(res) => Ok(G1Affine::from(res)),
             Err(err) => Err(KzgError::SerializationError(err.to_string())),
         }
@@ -743,7 +678,7 @@ mod tests {
         }
 
         let polynomial = Polynomial::new(&poly, 2).unwrap();
-        let result = KZG_3000.commit(&polynomial);
+        let result = KZG_3000.commit(&polynomial, false);
         assert_eq!(
             result,
             Err(KzgError::SerializationError(
@@ -871,17 +806,8 @@ mod tests {
         use ark_bn254::Fq;
 
         let blob = Blob::from_bytes_and_pad(GETTYSBURG_ADDRESS_BYTES);
-        let fn_output = KZG_3000.blob_to_kzg_commitment(&blob).unwrap();
-        let commitment_from_da = G1Affine::new_unchecked(
-            Fq::from_str(
-                "2961155957874067312593973807786254905069537311739090798303675273531563528369",
-            )
-            .unwrap(),
-            Fq::from_str(
-                "159565752702690920280451512738307422982252330088949702406468210607852362941",
-            )
-            .unwrap(),
-        );
+        let fn_output = KZG_3000.blob_to_kzg_commitment(&blob, false).unwrap();
+        let commitment_from_da = G1Affine::new_unchecked(Fq::from_str("2961155957874067312593973807786254905069537311739090798303675273531563528369").unwrap(), Fq::from_str("159565752702690920280451512738307422982252330088949702406468210607852362941").unwrap());
         assert_eq!(commitment_from_da, fn_output);
     }
 
@@ -906,10 +832,8 @@ mod tests {
 
             let index = rand::thread_rng()
                 .gen_range(0..input_poly.get_length_of_padded_blob_as_fr_vector());
-            let commitment = kzg.commit(&input_poly.clone()).unwrap();
-            let proof = kzg
-                .compute_kzg_proof_with_roots_of_unity(&input_poly, index.try_into().unwrap())
-                .unwrap();
+            let commitment = kzg.commit(&input_poly.clone(), false).unwrap();
+            let proof = kzg.compute_kzg_proof_with_roots_of_unity(&input_poly, index.try_into().unwrap(), false).unwrap();
             let value_fr = input_poly.get_at_index(index).unwrap();
             let z_fr = kzg.get_nth_root_of_unity(index).unwrap();
             let pairing_result =
@@ -955,10 +879,8 @@ mod tests {
                     break;
                 }
             }
-            let commitment = kzg.commit(&input_poly.clone()).unwrap();
-            let proof = kzg
-                .compute_kzg_proof_with_roots_of_unity(&input_poly, index.try_into().unwrap())
-                .unwrap();
+            let commitment = kzg.commit(&input_poly.clone(), false).unwrap();
+            let proof = kzg.compute_kzg_proof_with_roots_of_unity(&input_poly, index.try_into().unwrap(), false).unwrap();
             let value_fr = input_poly.get_at_index(index).unwrap();
             let z_fr = kzg.get_nth_root_of_unity(index).unwrap();
             let pairing_result =
@@ -1136,7 +1058,7 @@ mod tests {
             kzg.data_setup_custom(4, poly.len().try_into().unwrap())
                 .unwrap();
             let result = kzg
-                .compute_kzg_proof(&poly, index, &roots_of_unities)
+                .compute_kzg_proof(&poly, index, &roots_of_unities, false)
                 .unwrap();
             assert_eq!(gnark_proof, result)
         }

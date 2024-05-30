@@ -10,15 +10,8 @@ pub struct Blob {
 
 impl Blob {
     /// Creates a new `Blob` from the given data.
-    pub fn new(blob_data: Vec<u8>, is_padded: bool) -> Self {
-        let length_after_padding;
-        if is_padded {
-            length_after_padding = blob_data.len();
-        }
-        else {
-            length_after_padding = 0;
-        }
-        Blob { blob_data, is_padded, length_after_padding }
+    pub fn new(blob_data: Vec<u8>) -> Self {
+        Blob { blob_data, is_padded: false, length_after_padding: 0 }
     }
 
     /// Creates a new `Blob` from the given data.
@@ -36,6 +29,21 @@ impl Blob {
             is_padded: true,
             length_after_padding,
         }
+    }
+
+    /// Creates a new `Blob` from the provided byte slice and assumes it's already padded according to DA specs.
+    pub fn from_padded_bytes(input: &[u8]) -> Result<Self, BlobError> {
+        // check to see if bytes are modulo bn254
+        // set_bytes_canonical used in to_fr_array calls from_be_bytes_mod_order
+        // if the bytes passed into set_bytes_canonical are larger than the bn254 field modulo order then the bytes will be modded by the order of the field
+        let length_after_padding = input.len();
+        let fr_vec = helpers::to_fr_array(input);
+        let bytes = helpers::to_byte_array(&fr_vec, length_after_padding);
+        if bytes != input {
+            return Err(BlobError::NotPaddedError);
+        }
+
+        Ok(Blob { blob_data: bytes, is_padded: true, length_after_padding: length_after_padding })
     }
 
     /// Returns the blob data
@@ -223,7 +231,7 @@ mod tests {
     fn test_new_blob_creation() {
         use crate::consts::GETTYSBURG_ADDRESS_BYTES;
         let blob_from = Blob::from_bytes_and_pad(GETTYSBURG_ADDRESS_BYTES);
-        let mut blob_raw = Blob::new(GETTYSBURG_ADDRESS_BYTES.to_vec(), false);
+        let mut blob_raw = Blob::new(GETTYSBURG_ADDRESS_BYTES.to_vec());
 
         blob_raw.pad_data().unwrap();
         assert_eq!(blob_raw, blob_from, "testing adding padding");
