@@ -20,7 +20,7 @@ tracing = { version = "^0.1.30", features = ["log"] }
 tracing-subscriber = "0.3.18"
 ureq = "2.9.6"
 num-bigint = "0.4"
-rayon = "1.5"
+rayon = "^1.5"
 num-traits = "0.2"
 byteorder = "1.4"
 ark-poly = "0.4.2"
@@ -41,6 +41,14 @@ harness = false
 
 [[bench]]
 name = "bench_kzg_commit"
+harness = false
+
+[[bench]]
+name = "bench_kzg_proof"
+harness = false
+
+[[bench]]
+name = "bench_kzg_verify"
 harness = false
 
 [profile.bench]
