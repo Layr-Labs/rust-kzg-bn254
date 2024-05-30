@@ -879,9 +879,9 @@ mod tests {
                     break;
                 }
             }
-            let commitment = kzg.commit(&input_poly.clone(), false).unwrap();
-            let proof = kzg.compute_kzg_proof_with_roots_of_unity(&input_poly, index.try_into().unwrap(), false).unwrap();
-            let value_fr = input_poly.get_at_index(index).unwrap();
+            let commitment = kzg.commit(&input_poly_coefficients.clone(), false).unwrap();
+            let proof = kzg.compute_kzg_proof_with_roots_of_unity(&input_poly_coefficients, index.try_into().unwrap(), false).unwrap();
+            let value_fr = input_poly_coefficients.get_at_index(index).unwrap();
             let z_fr = kzg.get_nth_root_of_unity(index).unwrap();
             let pairing_result =
                 kzg.verify_kzg_proof(commitment, proof, value_fr.clone(), z_fr.clone());
@@ -896,6 +896,30 @@ mod tests {
                 false
             )
         }
+        
+        let mut input_poly_evaluation = input_poly_coefficients.clone();
+        input_poly_evaluation.ifft_on_elements().unwrap();
+
+        for index in 0..input_poly_evaluation.len()-1 {
+            kzg.data_setup_custom(4, input.len().try_into().unwrap()).unwrap();
+            let mut rand_index = rand::thread_rng().gen_range(0..kzg.expanded_roots_of_unity.len());
+            loop {
+                if index == rand_index{
+                    rand_index = rand::thread_rng().gen_range(0..kzg.expanded_roots_of_unity.len());
+                } else {
+                    break;
+                }
+            }
+            let commitment = kzg.commit(&input_poly_evaluation.clone(), false).unwrap();
+            let proof = kzg.compute_kzg_proof_with_roots_of_unity(&input_poly_evaluation, index.try_into().unwrap(), true).unwrap();
+            let value_fr = input_poly_evaluation.get_at_index(index).unwrap();
+            let z_fr = kzg.get_nth_root_of_unity(index).unwrap();
+            let pairing_result = kzg.verify_kzg_proof(commitment, proof, value_fr.clone(), z_fr.clone());
+            assert_eq!(pairing_result, true);
+            assert_eq!(kzg.verify_kzg_proof(commitment, proof, value_fr.clone(), kzg.get_nth_root_of_unity(rand_index).unwrap().clone()), true)
+        }
+
+
     }
 
     #[test]
@@ -1055,11 +1079,8 @@ mod tests {
             let hard_coded_y = Fq::from_str(the_strings_str[2]).expect("should be fine");
             let gnark_proof = G1Affine::new(hard_coded_x, hard_coded_y);
             let poly = Polynomial::new(&padded_input_fr_elements, 30).unwrap();
-            kzg.data_setup_custom(4, poly.len().try_into().unwrap())
-                .unwrap();
-            let result = kzg
-                .compute_kzg_proof(&poly, index, &roots_of_unities, false)
-                .unwrap();
+            kzg.data_setup_custom(4, poly.len().try_into().unwrap()).unwrap();
+            let result = kzg.compute_kzg_proof(&poly, index, &roots_of_unities, false).unwrap();
             assert_eq!(gnark_proof, result)
         }
     }

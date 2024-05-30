@@ -24,6 +24,7 @@ pub enum PolynomialError {
     SerializationFromStringError,
     CommitError(String),
     GenericError(String),
+    FFTError(String),
 }
 
 impl fmt::Display for PolynomialError {
@@ -33,6 +34,7 @@ impl fmt::Display for PolynomialError {
                 write!(f, "couldn't load string to fr vector")
             },
             PolynomialError::CommitError(ref msg) => write!(f, "Commitment error: {}", msg),
+            PolynomialError::FFTError(ref msg) => write!(f, "FFT error: {}", msg),
             PolynomialError::GenericError(ref msg) => write!(f, "generic error: {}", msg),
         }
     }
@@ -83,6 +85,13 @@ mod tests {
         let msg = String::from("test generic error");
         let error = PolynomialError::GenericError(msg.clone());
         assert_eq!(format!("{}", error), format!("generic error: {}", msg));
+    }
+
+    #[test]
+    fn test_polynomial_error_fft() {
+        let msg = String::from("test fft error");
+        let error = PolynomialError::FFTError(msg.clone());
+        assert_eq!(format!("{}", error), format!("FFT error: {}", msg));
     }
 
     #[test]
