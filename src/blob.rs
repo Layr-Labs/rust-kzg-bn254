@@ -11,7 +11,15 @@ pub struct Blob {
 impl Blob {
     /// Creates a new `Blob` from the given data.
     pub fn new(blob_data: Vec<u8>) -> Self {
-        Blob { blob_data, is_padded: false, length_after_padding: 0 }
+        Blob { 
+            blob_data, 
+            is_padded: false, 
+            length_after_padding: 0 
+        }
+    }
+
+    pub fn get_length_after_padding(&self) -> usize {
+        return self.length_after_padding;
     }
 
     /// Creates a new `Blob` from the given data.
