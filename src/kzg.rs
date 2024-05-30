@@ -896,7 +896,7 @@ mod tests {
                 false
             )
         }
-        
+
         let mut input_poly_evaluation = input_poly_coefficients.clone();
         input_poly_evaluation.ifft_on_elements().unwrap();
 
@@ -910,7 +910,7 @@ mod tests {
                     break;
                 }
             }
-            let commitment = kzg.commit(&input_poly_evaluation.clone(), false).unwrap();
+            let commitment = kzg.commit(&input_poly_evaluation.clone(), true).unwrap();
             let proof = kzg.compute_kzg_proof_with_roots_of_unity(&input_poly_evaluation, index.try_into().unwrap(), true).unwrap();
             let value_fr = input_poly_evaluation.get_at_index(index).unwrap();
             let z_fr = kzg.get_nth_root_of_unity(index).unwrap();
