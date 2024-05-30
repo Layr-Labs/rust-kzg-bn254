@@ -230,4 +230,6 @@ mod tests {
         assert_eq!(blob_raw.is_padded(), true, "has to be padded");
         assert_eq!(blob_from.is_padded(), true, "has to be padded");
     }
+
 }
+
