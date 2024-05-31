@@ -63,8 +63,6 @@ mod tests {
 
     #[test]
     fn test_fft_ifft() {
-        use crate::{blob::Blob, consts::GETTYSBURG_ADDRESS_BYTES};
-
         let mut blob = Blob::from_bytes_and_pad(
             vec![
                 42, 212, 238, 227, 192, 237, 178, 128, 19, 108, 50, 204, 87, 81, 63, 120, 232, 27,

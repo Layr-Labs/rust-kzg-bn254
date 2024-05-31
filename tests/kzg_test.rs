@@ -224,7 +224,11 @@ mod tests {
                 .gen_range(0..input_poly.get_length_of_padded_blob_as_fr_vector());
             let commitment = kzg.commit(&input_poly.clone(), false).unwrap();
             let proof = kzg
-                .compute_kzg_proof_with_roots_of_unity(&input_poly, index.try_into().unwrap(), false)
+                .compute_kzg_proof_with_roots_of_unity(
+                    &input_poly,
+                    index.try_into().unwrap(),
+                    false,
+                )
                 .unwrap();
             let value_fr = input_poly.get_at_index(index).unwrap();
             let z_fr = kzg.get_nth_root_of_unity(index).unwrap();
@@ -271,7 +275,11 @@ mod tests {
             }
             let commitment = kzg.commit(&input_poly.clone(), false).unwrap();
             let proof = kzg
-                .compute_kzg_proof_with_roots_of_unity(&input_poly, index.try_into().unwrap(), false)
+                .compute_kzg_proof_with_roots_of_unity(
+                    &input_poly,
+                    index.try_into().unwrap(),
+                    false,
+                )
                 .unwrap();
             let value_fr = input_poly.get_at_index(index).unwrap();
             let z_fr = kzg.get_nth_root_of_unity(index).unwrap();

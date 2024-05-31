@@ -304,7 +304,8 @@ where
     receiver
         .iter()
         .map(|(chunk, position)| {
-            let point = T::read_point_from_bytes_be(&chunk).expect("Failed to read point from bytes");
+            let point =
+                T::read_point_from_bytes_be(&chunk).expect("Failed to read point from bytes");
             (point, position)
         })
         .collect()
