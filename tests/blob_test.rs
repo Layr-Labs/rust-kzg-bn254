@@ -11,7 +11,10 @@ mod tests {
         blob.remove_padding().unwrap();
         result = blob.remove_padding();
         assert_eq!(result, Err(BlobError::NotPaddedError));
-        assert_eq!(blob.to_polynomial(PolynomialFormat::InCoefficientForm), Err(BlobError::NotPaddedError));
+        assert_eq!(
+            blob.to_polynomial(PolynomialFormat::InCoefficientForm),
+            Err(BlobError::NotPaddedError)
+        );
     }
 
     #[test]

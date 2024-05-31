@@ -88,14 +88,14 @@ impl Polynomial {
 
         match form {
             PolynomialFormat::InCoefficientForm => {
-                // Transform from evaluation form to coefficient form using IFFT
-                self.form = PolynomialFormat::InEvaluationForm;
-                self.fft_on_elements(true)
+                // Transform from evaluation form to coefficient form using FFT
+                self.form = form;
+                self.fft_on_elements(false)
             },
             PolynomialFormat::InEvaluationForm => {
-                // Transform from evaluation form to coefficient form using FFT
-                self.form = PolynomialFormat::InCoefficientForm;
-                self.fft_on_elements(false)
+                // Transform from coefficient form to evaluation form using IFFT
+                self.form = form;
+                self.fft_on_elements(true)
             },
         }
     }
