@@ -1,16 +1,16 @@
 use crate::{
-    blob::Blob, consts::BYTES_PER_FIELD_ELEMENT, errors::KzgError, helpers, polynomial::Polynomial,
+    blob::Blob,
+    consts::BYTES_PER_FIELD_ELEMENT,
+    errors::KzgError,
+    helpers,
+    polynomial::{Polynomial, PolynomialFormat},
     traits::ReadPointFromBytes,
 };
 use ark_bn254::{g1::G1Affine, Bn254, Fr, G1Projective, G2Affine};
 use ark_ec::{pairing::Pairing, AffineRepr, CurveGroup, VariableBaseMSM};
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 use ark_serialize::Read;
-use ark_std::{
-    ops::{Div, Mul},
-    str::FromStr,
-    One, Zero,
-};
+use ark_std::{ops::Div, str::FromStr, One, Zero};
 use crossbeam_channel::{bounded, Sender};
 use num_traits::ToPrimitive;
 use std::{fs::File, io, io::BufReader};
@@ -49,7 +49,8 @@ impl Kzg {
         let g1_points =
             Self::parallel_read_g1_points(path_to_g1_points.to_owned(), srs_points_to_load)
                 .map_err(|e| KzgError::SerializationError(e.to_string()))?;
-        let mut g2_points: Vec<G2Affine> = vec![];
+
+        let g2_points: Vec<G2Affine>;
         if !path_to_g2_points.is_empty() {
             g2_points =
                 Self::parallel_read_g2_points(path_to_g2_points.to_owned(), srs_points_to_load)
@@ -400,9 +401,18 @@ impl Kzg {
             .build()
             .map_err(|err| KzgError::CommitError(err.to_string()))?;
 
-        // Perform the multi-exponentiation
         config.install(|| {
-            let bases = self.g1_ifft(polynomial.len()).unwrap();
+            let bases = match polynomial.get_form() {
+                PolynomialFormat::InEvaluationForm => {
+                    // If the polynomial is in evaluation form, use the original g1 points
+                    self.g1[..polynomial.len()].to_vec()
+                },
+                PolynomialFormat::InCoefficientForm => {
+                    // If the polynomial is in coefficient form, use inverse FFT
+                    self.g1_ifft(polynomial.len())?
+                },
+            };
+
             match G1Projective::msm(&bases, &polynomial.to_vec()) {
                 Ok(res) => Ok(res.into_affine()),
                 Err(err) => Err(KzgError::CommitError(err.to_string())),
@@ -410,10 +420,13 @@ impl Kzg {
         })
     }
 
-    /// 4844 compatible helper function
-    pub fn blob_to_kzg_commitment(&self, blob: &Blob) -> Result<G1Affine, KzgError> {
+    pub fn blob_to_kzg_commitment(
+        &self,
+        blob: &Blob,
+        form: PolynomialFormat,
+    ) -> Result<G1Affine, KzgError> {
         let polynomial = blob
-            .to_polynomial()
+            .to_polynomial(form)
             .map_err(|err| KzgError::SerializationError(err.to_string()))?;
         let commitment = self.commit(&polynomial)?;
         Ok(commitment)
@@ -460,13 +473,13 @@ impl Kzg {
         let value_fr = eval_fr[usized_index];
         let z_fr = root_of_unities[usized_index];
 
-        for i in 0..eval_fr.len() {
-            poly_shift.push(eval_fr[i] - value_fr);
+        for fr in &eval_fr {
+            poly_shift.push(*fr - value_fr);
         }
 
         let mut denom_poly = Vec::<Fr>::with_capacity(root_of_unities.len());
-        for i in 0..eval_fr.len() {
-            denom_poly.push(root_of_unities[i] - z_fr);
+        for root_of_unity in root_of_unities.iter().take(eval_fr.len()) {
+            denom_poly.push(*root_of_unity - z_fr);
         }
 
         let mut quotient_poly = Vec::<Fr>::with_capacity(root_of_unities.len());
@@ -484,9 +497,18 @@ impl Kzg {
             }
         }
 
-        let g1_lagrange = self.g1_ifft(polynomial.len())?;
+        let bases = match polynomial.get_form() {
+            PolynomialFormat::InEvaluationForm => {
+                // If the polynomial is in evaluation form, use the original g1 points
+                self.g1[..polynomial.len()].to_vec()
+            },
+            PolynomialFormat::InCoefficientForm => {
+                // If the polynomial is in coefficient form, use inverse FFT
+                self.g1_ifft(polynomial.len())?
+            },
+        };
 
-        match G1Projective::msm(&g1_lagrange, &quotient_poly) {
+        match G1Projective::msm(&bases, &quotient_poly) {
             Ok(res) => Ok(G1Affine::from(res)),
             Err(err) => Err(KzgError::SerializationError(err.to_string())),
         }
@@ -496,15 +518,15 @@ impl Kzg {
     pub fn compute_quotient_eval_on_domain(
         &self,
         z_fr: Fr,
-        eval_fr: &Vec<Fr>,
+        eval_fr: &[Fr],
         value_fr: Fr,
         roots_of_unities: &Vec<Fr>,
     ) -> Fr {
         let mut quotient = Fr::zero();
-        let mut fi = Fr::zero();
-        let mut numerator: Fr = Fr::zero();
-        let mut denominator: Fr = Fr::zero();
-        let mut temp: Fr = Fr::zero();
+        let mut fi: Fr;
+        let mut numerator: Fr;
+        let mut denominator: Fr;
+        let mut temp: Fr;
 
         for i in 0..roots_of_unities.len() {
             let omega_i = roots_of_unities[i];
@@ -512,7 +534,7 @@ impl Kzg {
                 continue;
             }
             fi = eval_fr[i] - value_fr;
-            numerator = fi.mul(omega_i);
+            numerator = fi * omega_i;
             denominator = z_fr - omega_i;
             denominator *= z_fr;
             temp = numerator.div(denominator);
@@ -538,14 +560,14 @@ impl Kzg {
         match GeneralEvaluationDomain::<Fr>::new(length) {
             Some(domain) => {
                 let ifft_result = domain.ifft(&points_projective);
-                let ifft_result_affine: Vec<_> = ifft_result.iter().map(|p| p.into_affine()).collect();
+                let ifft_result_affine: Vec<_> =
+                    ifft_result.iter().map(|p| p.into_affine()).collect();
                 Ok(ifft_result_affine)
             },
             None => Err(KzgError::FftError(
                 "Could not perform IFFT due to domain consturction error".to_string(),
             )),
         }
-        
     }
 
     pub fn verify_kzg_proof(

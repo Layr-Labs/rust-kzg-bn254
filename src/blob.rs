@@ -1,4 +1,8 @@
-use crate::{errors::BlobError, helpers, polynomial::Polynomial};
+use crate::{
+    errors::BlobError,
+    helpers,
+    polynomial::{Polynomial, PolynomialFormat},
+};
 
 /// A blob which is Eigen DA spec aligned.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -39,6 +43,22 @@ impl Blob {
         }
     }
 
+    /// Creates a new `Blob` from the provided byte slice and assumes it's
+    /// already padded according to DA specs.
+    /// WARNING: This function does not check if the bytes are modulo bn254
+    /// if the data has 32 byte segments exceeding the modulo of the field
+    /// then the bytes will be modded by the order of the field and the data
+    /// will be transformed incorrectly
+    pub fn from_padded_bytes_unchecked(input: &[u8]) -> Self {
+        let length_after_padding = input.len();
+
+        Blob {
+            blob_data: input.to_vec(),
+            is_padded: true,
+            length_after_padding,
+        }
+    }
+
     /// Returns the blob data
     pub fn get_blob_data(&self) -> Vec<u8> {
         self.blob_data.clone()
@@ -47,6 +67,11 @@ impl Blob {
     /// Returns the length of the data in the blob.
     pub fn len(&self) -> usize {
         self.blob_data.len()
+    }
+
+    /// Checks if the blob data is empty.
+    pub fn is_empty(&self) -> bool {
+        self.blob_data.is_empty()
     }
 
     /// Pads the blob data in-place if it is not already padded.
@@ -66,7 +91,8 @@ impl Blob {
         if !self.is_padded {
             Err(BlobError::NotPaddedError)
         } else {
-            self.blob_data = helpers::remove_empty_byte_from_padded_bytes(&self.blob_data);
+            self.blob_data =
+                helpers::remove_empty_byte_from_padded_bytes_unchecked(&self.blob_data);
             self.is_padded = false;
             self.length_after_padding = 0;
             Ok(())
@@ -74,12 +100,12 @@ impl Blob {
     }
 
     /// Converts the blob data to a `Polynomial` if the data is padded.
-    pub fn to_polynomial(&self) -> Result<Polynomial, BlobError> {
+    pub fn to_polynomial(&self, form: PolynomialFormat) -> Result<Polynomial, BlobError> {
         if !self.is_padded {
             Err(BlobError::NotPaddedError)
         } else {
             let fr_vec = helpers::to_fr_array(&self.blob_data);
-            let poly = Polynomial::new(&fr_vec, self.length_after_padding)
+            let poly = Polynomial::new(&fr_vec, self.length_after_padding, form)
                 .map_err(|err| BlobError::GenericError(err.to_string()))?;
             Ok(poly)
         }
