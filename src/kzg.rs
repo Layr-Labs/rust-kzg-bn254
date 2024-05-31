@@ -912,7 +912,8 @@ mod tests {
                     true,
                 )
                 .unwrap();
-            let value_fr = input_poly_evaluation.get_at_index(index).unwrap();
+            // because this polynomial is evaluations we want to get the value at the same index of the polynomial that is the coefficients of the polynomial
+            let value_fr = input_poly_coefficients.get_at_index(index).unwrap();
             let z_fr = kzg.get_nth_root_of_unity(index).unwrap();
             let pairing_result =
                 kzg.verify_kzg_proof(commitment, proof, value_fr.clone(), z_fr.clone());
