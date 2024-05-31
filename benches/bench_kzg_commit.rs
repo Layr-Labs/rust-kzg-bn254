@@ -1,4 +1,4 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
 use rand::Rng;
 use rust_kzg_bn254::{blob::Blob, kzg::Kzg};
 use std::time::Duration;

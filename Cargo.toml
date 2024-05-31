@@ -2,7 +2,7 @@
 name = "rust-kzg-bn254"
 version = "0.1.0"
 edition = "2021"
-authors = ["Anup Swamy Veena"]
+authors = ["Anup Swamy Veena", "Teddy Knox"]
 rust-version = "1.73"
 description = "This library offers a set of functions for generating and interacting with bn254 KZG commitments and proofs in rust, with the motivation of supporting fraud and validity proof logic in EigenDA rollup integrations."
 readme = "README.md"

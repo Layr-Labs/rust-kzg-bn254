@@ -16,7 +16,7 @@ mod tests {
         );
 
         let polynomial_non_empty = Polynomial::new(&vec![Fr::one()], 2);
-        assert_eq!(polynomial_non_empty.unwrap().is_empty(), false);
+        assert!(!polynomial_non_empty.unwrap().is_empty());
     }
 
     #[test]

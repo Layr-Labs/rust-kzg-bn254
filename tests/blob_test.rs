@@ -22,7 +22,7 @@ mod tests {
             vec![0, 104, 105],
             "testing adding padding"
         );
-        assert_eq!(blob.is_padded(), true, "has to be padded");
+        assert!(blob.is_padded(), "has to be padded");
 
         blob.remove_padding().unwrap();
         assert_eq!(
@@ -30,7 +30,7 @@ mod tests {
             vec![104, 105],
             "testing removing padding"
         );
-        assert_eq!(blob.is_padded(), false, "cannot be padded");
+        assert!(!blob.is_padded(), "cannot be padded");
 
         let result: Vec<u8> = vec![
             0, 70, 111, 117, 114, 115, 99, 111, 114, 101, 32, 97, 110, 100, 32, 115, 101, 118, 101,
@@ -119,11 +119,11 @@ mod tests {
 
         blob = Blob::from_bytes_and_pad(GETTYSBURG_ADDRESS_BYTES);
         assert_eq!(blob.get_blob_data(), result, "testing adding padding");
-        assert_eq!(blob.is_padded(), true, "has to be padded");
+        assert!(blob.is_padded(), "has to be padded");
         assert_eq!(blob.get_length_after_padding(), 1515);
 
         blob.remove_padding().unwrap();
-        assert_eq!(blob.is_padded(), false, "cannot be padded");
+        assert!(!blob.is_padded(), "cannot be padded");
         assert_eq!(
             blob.get_blob_data(),
             GETTYSBURG_ADDRESS_BYTES,
@@ -138,7 +138,7 @@ mod tests {
 
         blob_raw.pad_data().unwrap();
         assert_eq!(blob_raw, blob_from, "testing adding padding");
-        assert_eq!(blob_raw.is_padded(), true, "has to be padded");
-        assert_eq!(blob_from.is_padded(), true, "has to be padded");
+        assert!(blob_raw.is_padded(), "has to be padded");
+        assert!(blob_from.is_padded(), "has to be padded");
     }
 }

@@ -19,12 +19,12 @@ impl Blob {
     }
 
     pub fn get_length_after_padding(&self) -> usize {
-        return self.length_after_padding;
+        self.length_after_padding
     }
 
     /// Creates a new `Blob` from the given data.
     pub fn is_padded(&self) -> bool {
-        return self.is_padded;
+        self.is_padded
     }
 
     /// Creates a new `Blob` from the provided byte slice and pads it according

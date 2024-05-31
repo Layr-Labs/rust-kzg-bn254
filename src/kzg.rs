@@ -55,7 +55,7 @@ impl Kzg {
                 Self::parallel_read_g2_points(path_to_g2_points.to_owned(), srs_points_to_load)
                     .map_err(|e| KzgError::SerializationError(e.to_string()))?;
         } else if !g2_power_of2_path.is_empty() {
-            g2_points = Self::read_g2_point_on_power_of_2(&g2_power_of2_path)?;
+            g2_points = Self::read_g2_point_on_power_of_2(g2_power_of2_path)?;
         } else {
             return Err(KzgError::GenericError(
                 "both g2 point files are empty, need the proper file specified".to_string(),
@@ -88,8 +88,7 @@ impl Kzg {
             if bytes_read == 0 {
                 break; // End of file reached
             }
-            chunks
-                .push(G2Affine::read_point_from_bytes_be(&buffer[..bytes_read].to_vec()).unwrap());
+            chunks.push(G2Affine::read_point_from_bytes_be(&buffer[..bytes_read]).unwrap());
         }
         Ok(chunks)
     }
@@ -480,7 +479,7 @@ impl Kzg {
                     z_fr,
                     &eval_fr,
                     value_fr,
-                    &root_of_unities,
+                    root_of_unities,
                 ));
             } else {
                 quotient_poly.push(poly_shift[i].div(denom_poly[i]));
@@ -517,9 +516,9 @@ impl Kzg {
             fi = eval_fr[i] - value_fr;
             numerator = fi.mul(omega_i);
             denominator = z_fr - omega_i;
-            denominator = denominator * z_fr;
+            denominator *= z_fr;
             temp = numerator.div(denominator);
-            quotient = quotient + temp;
+            quotient += temp;
         }
         quotient
     }
@@ -554,9 +553,9 @@ impl Kzg {
         z_fr: Fr,
     ) -> bool {
         let g2_tau = if self.g2.len() > 28 {
-            self.g2.get(1).unwrap().clone()
+            *self.g2.get(1).unwrap()
         } else {
-            self.g2.get(0).unwrap().clone()
+            *self.g2.first().unwrap()
         };
         let value_g1 = (G1Affine::generator() * value_fr).into_affine();
         let commit_minus_value = (commitment - value_g1).into_affine();

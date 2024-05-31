@@ -12,7 +12,7 @@ use crate::{
 };
 
 pub fn blob_to_polynomial(blob: &Vec<u8>) -> Vec<Fr> {
-    to_fr_array(&blob)
+    to_fr_array(blob)
 }
 
 pub fn set_bytes_canonical_manual(data: &[u8]) -> Fr {
@@ -83,7 +83,7 @@ pub fn remove_empty_byte_from_padded_bytes(data: &[u8]) -> Vec<u8> {
 }
 
 pub fn set_bytes_canonical(data: &[u8]) -> Fr {
-    return Fr::from_be_bytes_mod_order(&data);
+    Fr::from_be_bytes_mod_order(data)
 }
 
 pub fn get_num_element(data_len: usize, symbol_size: usize) -> usize {
@@ -244,10 +244,8 @@ pub fn read_g2_point_from_bytes_be(g2_bytes_be: &Vec<u8>) -> Result<G2Affine, &s
         if m_data == m_compressed_smallest {
             y_sqrt.neg_in_place();
         }
-    } else {
-        if m_data == m_compressed_largest {
-            y_sqrt.neg_in_place();
-        }
+    } else if m_data == m_compressed_largest {
+        y_sqrt.neg_in_place();
     }
 
     let point = G2Affine::new_unchecked(x, y_sqrt);
@@ -289,10 +287,8 @@ pub fn read_g1_point_from_bytes_be(g1_bytes_be: &Vec<u8>) -> Result<G1Affine, &s
         if m_data == m_compressed_smallest {
             y_sqrt.neg_in_place();
         }
-    } else {
-        if m_data == m_compressed_largest {
-            y_sqrt.neg_in_place();
-        }
+    } else if m_data == m_compressed_largest {
+        y_sqrt.neg_in_place();
     }
     let point = G1Affine::new_unchecked(x, y_sqrt);
     if !point.is_in_correct_subgroup_assuming_on_curve()
@@ -326,8 +322,8 @@ fn get_b_twist_curve_coeff() -> Fq2 {
     let mut twist_curve_coeff = Fq2::new(twist_c0, twist_c1);
     twist_curve_coeff = *twist_curve_coeff.inverse_in_place().unwrap();
 
-    twist_curve_coeff.c0 = twist_curve_coeff.c0 * Fq::from(3);
-    twist_curve_coeff.c1 = twist_curve_coeff.c1 * Fq::from(3);
+    twist_curve_coeff.c0 *= Fq::from(3);
+    twist_curve_coeff.c1 *= Fq::from(3);
     twist_curve_coeff
 }
 
