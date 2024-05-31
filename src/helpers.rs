@@ -11,7 +11,7 @@ use crate::{
     traits::ReadPointFromBytes,
 };
 
-pub fn blob_to_polynomial(blob: &Vec<u8>) -> Vec<Fr> {
+pub fn blob_to_polynomial(blob: &[u8]) -> Vec<Fr> {
     to_fr_array(blob)
 }
 
@@ -94,15 +94,15 @@ pub fn to_fr_array(data: &[u8]) -> Vec<Fr> {
     let num_ele = get_num_element(data.len(), BYTES_PER_FIELD_ELEMENT);
     let mut eles = vec![Fr::zero(); num_ele]; // Initialize with zero elements
 
-    for i in 0..num_ele {
+    for (i, ele) in eles.iter_mut().enumerate().take(num_ele) { 
         let start = i * BYTES_PER_FIELD_ELEMENT;
         let end = (i + 1) * BYTES_PER_FIELD_ELEMENT;
         if end > data.len() {
             let mut padded = vec![0u8; BYTES_PER_FIELD_ELEMENT];
             padded[..data.len() - start].copy_from_slice(&data[start..]);
-            eles[i] = set_bytes_canonical(&padded);
+            *ele = set_bytes_canonical(&padded);
         } else {
-            eles[i] = set_bytes_canonical(&data[start..end]);
+            *ele = set_bytes_canonical(&data[start..end]);
         }
     }
     eles
@@ -113,8 +113,8 @@ pub fn to_byte_array(data_fr: &[Fr], max_data_size: usize) -> Vec<u8> {
     let data_size = cmp::min(n * BYTES_PER_FIELD_ELEMENT, max_data_size);
     let mut data = vec![0u8; data_size];
 
-    for i in 0..n {
-        let v: Vec<u8> = data_fr[i].into_bigint().to_bytes_be();
+    for (i, fr) in data_fr.iter().enumerate() {
+        let v: Vec<u8> = fr.into_bigint().to_bytes_be();
 
         let start = i * BYTES_PER_FIELD_ELEMENT;
         let end = (i + 1) * BYTES_PER_FIELD_ELEMENT;
@@ -136,8 +136,8 @@ pub fn is_zeroed(first_byte: u8, buf: Vec<u8>) -> bool {
         return false;
     }
 
-    for i in 0..buf.len() {
-        if buf[i] != 0 {
+    for byte in buf.iter() {
+        if *byte != 0 {
             return false;
         }
     }
@@ -147,13 +147,13 @@ pub fn is_zeroed(first_byte: u8, buf: Vec<u8>) -> bool {
 pub fn str_vec_to_fr_vec(input: Vec<&str>) -> Result<Vec<Fr>, &str> {
     let mut output: Vec<Fr> = Vec::<Fr>::with_capacity(input.len());
 
-    for i in 0..input.len() {
-        if input[i] == "-1" {
+    for &input in input.iter() {
+        if input == "-1" {
             let mut test = Fr::one();
             test.neg_in_place();
             output.push(test);
         } else {
-            let fr_data = Fr::from_str(input[i]).expect("could not load string to Fr");
+            let fr_data = Fr::from_str(input).expect("could not load string to Fr");
             output.push(fr_data);
         }
     }
@@ -190,7 +190,7 @@ pub fn lexicographically_largest(z: &Fq) -> bool {
     borrow == 0
 }
 
-pub fn read_g2_point_from_bytes_be(g2_bytes_be: &Vec<u8>) -> Result<G2Affine, &str> {
+pub fn read_g2_point_from_bytes_be(g2_bytes_be: &[u8]) -> Result<G2Affine, &str> {
     if g2_bytes_be.len() != SIZE_OF_G2_AFFINE_COMPRESSED {
         return Err("not enough bytes for g2 point");
     }
@@ -232,13 +232,10 @@ pub fn read_g2_point_from_bytes_be(g2_bytes_be: &Vec<u8>) -> Result<G2Affine, &s
 
     let mut y_sqrt = added_result.sqrt().ok_or("no square root found").unwrap();
 
-    let mut lexicographical_check_result = false;
-
-    if y_sqrt.c1.0.is_zero() {
-        lexicographical_check_result = lexicographically_largest(&y_sqrt.c0);
-    } else {
-        lexicographical_check_result = lexicographically_largest(&y_sqrt.c1);
-    }
+    let lexicographical_check_result = match y_sqrt.c1.0.is_zero() {
+        true => lexicographically_largest(&y_sqrt.c0),
+        false => lexicographically_largest(&y_sqrt.c1),
+    };
 
     if lexicographical_check_result {
         if m_data == m_compressed_smallest {
@@ -257,7 +254,7 @@ pub fn read_g2_point_from_bytes_be(g2_bytes_be: &Vec<u8>) -> Result<G2Affine, &s
     Ok(point)
 }
 
-pub fn read_g1_point_from_bytes_be(g1_bytes_be: &Vec<u8>) -> Result<G1Affine, &str> {
+pub fn read_g1_point_from_bytes_be(g1_bytes_be: &[u8]) -> Result<G1Affine, &str> {
     if g1_bytes_be.len() != SIZE_OF_G1_AFFINE_COMPRESSED {
         return Err("not enough bytes for g1 point");
     }
@@ -303,6 +300,7 @@ pub fn process_chunks<T>(receiver: Receiver<(Vec<u8>, usize)>) -> Vec<(T, usize)
 where
     T: ReadPointFromBytes,
 {
+    #[allow(clippy::unnecessary_filter_map)]
     receiver
         .iter()
         .filter_map(

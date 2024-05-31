@@ -19,7 +19,7 @@ jobs:
     - name: Build
       run: cargo build --verbose
     - name: Clippy Format test
-      run: cargo clippy -- -D warnings
+      run: cargo clippy --all --manifest-path Cargo.toml -- -D warnings
     - name: Run tests
       run: cargo test --verbose
     - name: Run tests with mainnet data

@@ -49,6 +49,11 @@ impl Blob {
         self.blob_data.len()
     }
 
+    /// Returns true if the blob is empty.
+    pub fn is_empty(&self) -> bool {
+        self.blob_data.is_empty()
+    }
+
     /// Pads the blob data in-place if it is not already padded.
     pub fn pad_data(&mut self) -> Result<(), BlobError> {
         if self.is_padded {

@@ -11,7 +11,7 @@ pub struct Polynomial {
 
 impl Polynomial {
     /// Constructs a new `Polynomial` with a given vector of `Fr` elements.
-    pub fn new(elements: &Vec<Fr>, length_of_padded_blob: usize) -> Result<Self, PolynomialError> {
+    pub fn new(elements: &[Fr], length_of_padded_blob: usize) -> Result<Self, PolynomialError> {
         if elements.is_empty() {
             return Err(PolynomialError::GenericError(
                 "elements are empty".to_string(),
