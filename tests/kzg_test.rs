@@ -195,7 +195,7 @@ mod tests {
         use ark_bn254::Fq;
 
         let blob = Blob::from_bytes_and_pad(GETTYSBURG_ADDRESS_BYTES);
-        let fn_output = KZG_3000.blob_to_kzg_commitment(&blob, false).unwrap();
+        let fn_output = KZG_3000.blob_to_kzg_commitment(&blob, PolynomialFormat::InCoefficientForm).unwrap();
         let commitment_from_da = G1Affine::new_unchecked(
             Fq::from_str(
                 "2961155957874067312593973807786254905069537311739090798303675273531563528369",

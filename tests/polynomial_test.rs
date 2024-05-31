@@ -78,10 +78,17 @@ mod tests {
         let mut poly = blob
             .to_polynomial(PolynomialFormat::InCoefficientForm)
             .unwrap();
+
+        // assert form is in coefficient form
+        assert_eq!(poly.get_form(), PolynomialFormat::InCoefficientForm, "should be in coefficient form");
         poly. transform_to_form(PolynomialFormat::InEvaluationForm)
             .unwrap();
+        // assert form is in evaluation form
+        assert_eq!(poly.get_form(), PolynomialFormat::InEvaluationForm, "should be in evaluation form");
         poly. transform_to_form(PolynomialFormat::InCoefficientForm)
             .unwrap();
+        // assert form is in coefficient form
+        assert_eq!(poly.get_form(), PolynomialFormat::InCoefficientForm, "should be in coefficient form");
         assert_eq!(
             poly.to_bytes_be(),
             blob.get_blob_data(),
@@ -92,10 +99,16 @@ mod tests {
         let mut long_poly = long_blob
             .to_polynomial(PolynomialFormat::InCoefficientForm)
             .unwrap();
-        poly. transform_to_form(PolynomialFormat::InEvaluationForm)
+        // assert form is in coefficient form
+        assert_eq!(long_poly.get_form(), PolynomialFormat::InCoefficientForm, "should be in coefficient form");
+        long_poly. transform_to_form(PolynomialFormat::InEvaluationForm)
             .unwrap();
-        poly. transform_to_form(PolynomialFormat::InCoefficientForm)
+        // assert form is in evaluation form
+        assert_eq!(long_poly.get_form(), PolynomialFormat::InEvaluationForm, "should be in evaluation form");
+        long_poly. transform_to_form(PolynomialFormat::InCoefficientForm)
             .unwrap();
+        // assert form is in coefficient form
+        assert_eq!(long_poly.get_form(), PolynomialFormat::InCoefficientForm, "should be in coefficient form");
 
         assert_eq!(
             long_blob.get_blob_data(),

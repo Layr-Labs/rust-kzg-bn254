@@ -89,10 +89,12 @@ impl Polynomial {
         match form {
             PolynomialFormat::InCoefficientForm => {
                 // Transform from evaluation form to coefficient form using IFFT
+                self.form = PolynomialFormat::InEvaluationForm;
                 self.fft_on_elements(true)
             },
             PolynomialFormat::InEvaluationForm => {
-                // Transform from coefficient form to evaluation form using FFT
+                // Transform from evaluation form to coefficient form using FFT
+                self.form = PolynomialFormat::InCoefficientForm;
                 self.fft_on_elements(false)
             },
         }

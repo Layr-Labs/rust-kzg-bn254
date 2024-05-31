@@ -97,7 +97,7 @@ mod tests {
         let error = PolynomialError::FFTError(msg.clone());
         assert_eq!(format!("{}", error), format!("FFT error: {}", msg));
     }
-
+    #[test]
     fn test_polynomial_error_incorrect_form() {
         let msg = String::from("test incorrect form error");
         let error = PolynomialError::IncorrectFormError(msg.clone());
