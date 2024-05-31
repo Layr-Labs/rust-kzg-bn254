@@ -54,7 +54,7 @@ mod tests {
         }
 
         let polynomial = Polynomial::new(&poly, 2).unwrap();
-        let result = KZG_3000.commit(&polynomial);
+        let result = KZG_3000.commit(&polynomial, false);
         assert_eq!(
             result,
             Err(KzgError::SerializationError(
@@ -187,7 +187,7 @@ mod tests {
         use ark_bn254::Fq;
 
         let blob = Blob::from_bytes_and_pad(GETTYSBURG_ADDRESS_BYTES);
-        let fn_output = KZG_3000.blob_to_kzg_commitment(&blob).unwrap();
+        let fn_output = KZG_3000.blob_to_kzg_commitment(&blob, false).unwrap();
         let commitment_from_da = G1Affine::new_unchecked(
             Fq::from_str(
                 "2961155957874067312593973807786254905069537311739090798303675273531563528369",
@@ -222,9 +222,9 @@ mod tests {
 
             let index = rand::thread_rng()
                 .gen_range(0..input_poly.get_length_of_padded_blob_as_fr_vector());
-            let commitment = kzg.commit(&input_poly.clone()).unwrap();
+            let commitment = kzg.commit(&input_poly.clone(), false).unwrap();
             let proof = kzg
-                .compute_kzg_proof_with_roots_of_unity(&input_poly, index.try_into().unwrap())
+                .compute_kzg_proof_with_roots_of_unity(&input_poly, index.try_into().unwrap(), false)
                 .unwrap();
             let value_fr = input_poly.get_at_index(index).unwrap();
             let z_fr = kzg.get_nth_root_of_unity(index).unwrap();
@@ -269,9 +269,9 @@ mod tests {
                     break;
                 }
             }
-            let commitment = kzg.commit(&input_poly.clone()).unwrap();
+            let commitment = kzg.commit(&input_poly.clone(), false).unwrap();
             let proof = kzg
-                .compute_kzg_proof_with_roots_of_unity(&input_poly, index.try_into().unwrap())
+                .compute_kzg_proof_with_roots_of_unity(&input_poly, index.try_into().unwrap(), false)
                 .unwrap();
             let value_fr = input_poly.get_at_index(index).unwrap();
             let z_fr = kzg.get_nth_root_of_unity(index).unwrap();
@@ -449,7 +449,7 @@ mod tests {
             kzg.data_setup_custom(4, poly.len().try_into().unwrap())
                 .unwrap();
             let result = kzg
-                .compute_kzg_proof(&poly, index, &roots_of_unities)
+                .compute_kzg_proof(&poly, index, &roots_of_unities, false)
                 .unwrap();
             assert_eq!(gnark_proof, result)
         }
