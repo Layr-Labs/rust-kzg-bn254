@@ -8,6 +8,10 @@ description = "This library offers a set of functions for generating and interac
 readme = "README.md"
 repository = "https://github.com/Layr-Labs/rust-kzg-bn254"
 license-file = "LICENSE"
+exclude = [
+    "tests/*",
+    "benches/*",
+]
 
 [dependencies]
 ark-bn254 = "0.4.0"
@@ -32,25 +36,46 @@ num_cpus = "^1.16.0"
 criterion = "0.5"
 lazy_static = "1.4"
 
+[[test]]
+name = "kzg"
+path = "tests/kzg_test.rs"
+
+[[test]]
+name = "blob"
+path = "tests/blob_test.rs"
+
+[[test]]
+name = "polynomial"
+path = "tests/polynomial_test.rs"
+
+[[test]]
+name = "helpers"
+path = "tests/helpers_test.rs"
+
 [[bench]]
 name = "bench_g1_ifft"
 harness = false
+path = "benches/bench_g1_ifft.rs"
 
 [[bench]]
 name = "bench_kzg_setup"
 harness = false
+path = "benches/bench_kzg_setup.rs"
 
 [[bench]]
 name = "bench_kzg_commit"
 harness = false
+path = "benches/bench_kzg_commit.rs"
 
 [[bench]]
 name = "bench_kzg_proof"
 harness = false
+path = "benches/bench_kzg_proof.rs"
 
 [[bench]]
 name = "bench_kzg_verify"
 harness = false
+path = "benches/bench_kzg_verify.rs"
 
 [profile.bench]
 opt-level = 3

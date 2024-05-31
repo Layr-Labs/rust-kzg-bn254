@@ -17,9 +17,9 @@ fn generate_powers_of_2(limit: u64) -> Vec<usize> {
 fn bench_g1_ifft(c: &mut Criterion) {
     c.bench_function("bench_g1_ifft", |b| {
         let kzg = Kzg::setup(
-            "src/test-files/mainnet-data/g1.131072.point",
+            "tests/test-files/mainnet-data/g1.131072.point",
             "",
-            "src/test-files/mainnet-data/g2.point.powerOf2",
+            "tests/test-files/mainnet-data/g2.point.powerOf2",
             3000,
             3000,
         )
