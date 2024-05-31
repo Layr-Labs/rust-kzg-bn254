@@ -1,9 +1,13 @@
 use ark_bn254::{Fq, Fq2, Fr, G1Affine, G1Projective, G2Affine, G2Projective};
-use ark_ff::{UniformRand, PrimeField};
-use rust_kzg_bn254::{consts::{BYTES_PER_FIELD_ELEMENT, SIZE_OF_G1_AFFINE_COMPRESSED}, helpers::{blob_to_polynomial, convert_by_padding_empty_byte, get_num_element, is_on_curve_g1, is_on_curve_g2, remove_empty_byte_from_padded_bytes, set_bytes_canonical, set_bytes_canonical_manual, to_byte_array, to_fr_array}};
-use ark_std::{
-    str::FromStr,
-    One,
+use ark_ff::{PrimeField, UniformRand};
+use ark_std::{str::FromStr, One};
+use rust_kzg_bn254::{
+    consts::{BYTES_PER_FIELD_ELEMENT, SIZE_OF_G1_AFFINE_COMPRESSED},
+    helpers::{
+        blob_to_polynomial, convert_by_padding_empty_byte, get_num_element, is_on_curve_g1,
+        is_on_curve_g2, remove_empty_byte_from_padded_bytes, set_bytes_canonical,
+        set_bytes_canonical_manual, to_byte_array, to_fr_array,
+    },
 };
 
 const GETTYSBURG_ADDRESS_BYTES: &[u8] = "Fourscore and seven years ago our fathers brought forth, on this continent, a new nation, conceived in liberty, and dedicated to the proposition that all men are created equal. Now we are engaged in a great civil war, testing whether that nation, or any nation so conceived, and so dedicated, can long endure. We are met on a great battle-field of that war. We have come to dedicate a portion of that field, as a final resting-place for those who here gave their lives, that that nation might live. It is altogether fitting and proper that we should do this. But, in a larger sense, we cannot dedicate, we cannot consecrate—we cannot hallow—this ground. The brave men, living and dead, who struggled here, have consecrated it far above our poor power to add or detract. The world will little note, nor long remember what we say here, but it can never forget what they did here. It is for us the living, rather, to be dedicated here to the unfinished work which they who fought here have thus far so nobly advanced. It is rather for us to be here dedicated to the great task remaining before us—that from these honored dead we take increased devotion to that cause for which they here gave the last full measure of devotion—that we here highly resolve that these dead shall not have died in vain—that this nation, under God, shall have a new birth of freedom, and that government of the people, by the people, for the people, shall not perish from the earth.".as_bytes();
@@ -225,13 +229,15 @@ fn test_convert_by_padding_empty_byte() {
 
     unpadded_data = remove_empty_byte_from_padded_bytes(&padded_data);
 
-    assert_eq!(unpadded_data, GETTYSBURG_ADDRESS_BYTES, "testing adding padding");
+    assert_eq!(
+        unpadded_data, GETTYSBURG_ADDRESS_BYTES,
+        "testing adding padding"
+    );
 }
 
 #[cfg(test)]
 mod tests {
     use rust_kzg_bn254::helpers::{is_zeroed, read_g2_point_from_bytes_be};
-
 
     #[test]
     fn test_is_zeroed_all_zeroes() {

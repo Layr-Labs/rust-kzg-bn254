@@ -1,5 +1,3 @@
-
-
 #[cfg(test)]
 mod tests {
     use ark_bn254::Fr;
