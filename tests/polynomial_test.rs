@@ -155,7 +155,7 @@ mod tests {
         assert_eq!(
             poly.transform_to_form(PolynomialFormat::InEvaluationForm),
             Err(PolynomialError::IncorrectFormError(
-                "Incorrect form error: Polynomial is already in the given form".to_string()
+                "Polynomial is already in the given form".to_string()
             )),
             "should throw an error"
         );
@@ -165,7 +165,7 @@ mod tests {
         assert_eq!(
             poly.transform_to_form(PolynomialFormat::InCoefficientForm),
             Err(PolynomialError::IncorrectFormError(
-                "Incorrect form error: Polynomial is already in the given form".to_string()
+                "Polynomial is already in the given form".to_string()
             )),
             "should throw an error"
         );
