@@ -7,7 +7,7 @@ mod tests {
 
     #[test]
     fn test_errors() {
-        let polynomial_empty = Polynomial::new(&vec![], 2);
+        let polynomial_empty = Polynomial::new(&vec![], 2, PolynomialFormat::InCoefficientForm);
         assert_eq!(
             polynomial_empty,
             Err(PolynomialError::GenericError(
@@ -15,7 +15,8 @@ mod tests {
             ))
         );
 
-        let polynomial_non_empty = Polynomial::new(&vec![Fr::one()], 2);
+        let polynomial_non_empty =
+            Polynomial::new(&vec![Fr::one()], 2, PolynomialFormat::InCoefficientForm);
         assert!(!polynomial_non_empty.unwrap().is_empty());
     }
 
@@ -28,7 +29,9 @@ mod tests {
             ]
             .as_slice(),
         );
-        let poly = blob.to_polynomial().unwrap();
+        let poly = blob
+            .to_polynomial(PolynomialFormat::InCoefficientForm)
+            .unwrap();
         assert_eq!(
             poly.to_bytes_be(),
             blob.get_blob_data(),
@@ -46,7 +49,9 @@ mod tests {
         );
 
         let mut long_blob = Blob::from_bytes_and_pad(GETTYSBURG_ADDRESS_BYTES);
-        let long_poly = long_blob.to_polynomial().unwrap();
+        let long_poly = long_blob
+            .to_polynomial(PolynomialFormat::InCoefficientForm)
+            .unwrap();
         // let ga_converted_fr = to_fr_array(&ga_converted);
         assert_eq!(
             long_blob.get_blob_data(),
@@ -62,7 +67,7 @@ mod tests {
     }
 
     #[test]
-    fn test_fft_ifft() {
+    fn test_transform_form() {
         let mut blob = Blob::from_bytes_and_pad(
             vec![
                 42, 212, 238, 227, 192, 237, 178, 128, 19, 108, 50, 204, 87, 81, 63, 120, 232, 27,
@@ -70,9 +75,13 @@ mod tests {
             ]
             .as_slice(),
         );
-        let mut poly = blob.to_polynomial().unwrap();
-        poly.fft_on_elements(false).unwrap();
-        poly.fft_on_elements(true).unwrap();
+        let mut poly = blob
+            .to_polynomial(PolynomialFormat::InCoefficientForm)
+            .unwrap();
+        poly.transform_form(PolynomialFormat::InEvaluationForm)
+            .unwrap();
+        poly.transform_form(PolynomialFormat::InCoefficientForm)
+            .unwrap();
         assert_eq!(
             poly.to_bytes_be(),
             blob.get_blob_data(),
@@ -80,14 +89,41 @@ mod tests {
         );
 
         let mut long_blob = Blob::from_bytes_and_pad(GETTYSBURG_ADDRESS_BYTES);
-        let mut long_poly = long_blob.to_polynomial().unwrap();
-        long_poly.fft_on_elements(false).unwrap();
-        long_poly.fft_on_elements(true).unwrap();
+        let mut long_poly = long_blob
+            .to_polynomial(PolynomialFormat::InCoefficientForm)
+            .unwrap();
+        poly.transform_form(PolynomialFormat::InEvaluationForm)
+            .unwrap();
+        poly.transform_form(PolynomialFormat::InCoefficientForm)
+            .unwrap();
 
         assert_eq!(
             long_blob.get_blob_data(),
             long_poly.to_bytes_be(),
             "start and finish bytes should be the same"
+        );
+    }
+
+    #[test]
+    fn test_transform_form_errors() {
+        let mut poly =
+            Polynomial::new(&vec![Fr::one()], 2, PolynomialFormat::InEvaluationForm).unwrap();
+        assert_eq!(
+            poly.transform_form(PolynomialFormat::InEvaluationForm),
+            Err(PolynomialError::IncorrectFormError(
+                "Incorrect form error: Polynomial is already in the given form".to_string()
+            )),
+            "should throw an error"
+        );
+
+        let mut poly =
+            Polynomial::new(&vec![Fr::one()], 2, PolynomialFormat::InCoefficientForm).unwrap();
+        assert_eq!(
+            poly.transform_form(PolynomialFormat::InCoefficientForm),
+            Err(PolynomialError::IncorrectFormError(
+                "Incorrect form error: Polynomial is already in the given form".to_string()
+            )),
+            "should throw an error"
         );
     }
 }

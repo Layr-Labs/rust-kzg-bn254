@@ -3,16 +3,27 @@ use ark_bn254::Fr;
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 use ark_std::Zero;
 
+#[derive(Clone, Debug, PartialEq, Copy)]
+pub enum PolynomialFormat {
+    InCoefficientForm,
+    InEvaluationForm,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct Polynomial {
     elements: Vec<Fr>,
     length_of_padded_blob: usize,
     length_of_padded_blob_as_fr_vector: usize,
+    form: PolynomialFormat,
 }
 
 impl Polynomial {
     /// Constructs a new `Polynomial` with a given vector of `Fr` elements.
-    pub fn new(elements: &Vec<Fr>, length_of_padded_blob: usize) -> Result<Self, PolynomialError> {
+    pub fn new(
+        elements: &Vec<Fr>,
+        length_of_padded_blob: usize,
+        form: PolynomialFormat,
+    ) -> Result<Self, PolynomialError> {
         if elements.is_empty() {
             return Err(PolynomialError::GenericError(
                 "elements are empty".to_string(),
@@ -30,11 +41,17 @@ impl Polynomial {
             elements: padded_input_fr,
             length_of_padded_blob,
             length_of_padded_blob_as_fr_vector: elements.len(),
+            form,
         })
     }
 
     pub fn get_length_of_padded_blob_as_fr_vector(&self) -> usize {
         self.length_of_padded_blob_as_fr_vector
+    }
+
+    /// Returns the form of the polynomial.
+    pub fn get_form(&self) -> PolynomialFormat {
+        self.form
     }
 
     /// Returns the number of elements in the polynomial.
@@ -59,6 +76,26 @@ impl Polynomial {
     /// Returns a clone of the elements as a `Vec<Fr>`.
     pub fn to_vec(&self) -> Vec<Fr> {
         self.elements.clone()
+    }
+
+    /// Helper function to transform the polynomial to the given form.
+    pub fn transform_to_form(&mut self, form: PolynomialFormat) -> Result<(), PolynomialError> {
+        if self.form == form {
+            return Err(PolynomialError::IncorrectFormError(
+                "Polynomial is already in the given form".to_string(),
+            ));
+        }
+
+        match form {
+            PolynomialFormat::InCoefficientForm => {
+                // Transform from evaluation form to coefficient form using IFFT
+                self.fft_on_elements(true)
+            },
+            PolynomialFormat::InEvaluationForm => {
+                // Transform from coefficient form to evaluation form using FFT
+                self.fft_on_elements(false)
+            },
+        }
     }
 
     /// Performs an fft or ifft on the polynomial's elements

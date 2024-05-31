@@ -1,4 +1,8 @@
-use crate::{errors::BlobError, helpers, polynomial::Polynomial};
+use crate::{
+    errors::BlobError,
+    helpers,
+    polynomial::{Polynomial, PolynomialFormat},
+};
 
 /// A blob which is Eigen DA spec aligned.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -100,12 +104,12 @@ impl Blob {
     }
 
     /// Converts the blob data to a `Polynomial` if the data is padded.
-    pub fn to_polynomial(&self) -> Result<Polynomial, BlobError> {
+    pub fn to_polynomial(&self, form: PolynomialFormat) -> Result<Polynomial, BlobError> {
         if !self.is_padded {
             Err(BlobError::NotPaddedError)
         } else {
             let fr_vec = helpers::to_fr_array(&self.blob_data);
-            let poly = Polynomial::new(&fr_vec, self.length_after_padding)
+            let poly = Polynomial::new(&fr_vec, self.length_after_padding, form)
                 .map_err(|err| BlobError::GenericError(err.to_string()))?;
             Ok(poly)
         }

@@ -25,6 +25,7 @@ pub enum PolynomialError {
     CommitError(String),
     GenericError(String),
     FFTError(String),
+    IncorrectFormError(String),
 }
 
 impl fmt::Display for PolynomialError {
@@ -36,6 +37,9 @@ impl fmt::Display for PolynomialError {
             PolynomialError::CommitError(ref msg) => write!(f, "Commitment error: {}", msg),
             PolynomialError::FFTError(ref msg) => write!(f, "FFT error: {}", msg),
             PolynomialError::GenericError(ref msg) => write!(f, "generic error: {}", msg),
+            PolynomialError::IncorrectFormError(ref msg) => {
+                write!(f, "Incorrect form error: {}", msg)
+            },
         }
     }
 }
@@ -92,6 +96,15 @@ mod tests {
         let msg = String::from("test fft error");
         let error = PolynomialError::FFTError(msg.clone());
         assert_eq!(format!("{}", error), format!("FFT error: {}", msg));
+    }
+
+    fn test_polynomial_error_incorrect_form() {
+        let msg = String::from("test incorrect form error");
+        let error = PolynomialError::IncorrectFormError(msg.clone());
+        assert_eq!(
+            format!("{}", error),
+            format!("Incorrect form error: {}", msg)
+        );
     }
 
     #[test]

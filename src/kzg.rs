@@ -1,5 +1,9 @@
 use crate::{
-    blob::Blob, consts::BYTES_PER_FIELD_ELEMENT, errors::KzgError, helpers, polynomial::Polynomial,
+    blob::Blob,
+    consts::BYTES_PER_FIELD_ELEMENT,
+    errors::KzgError,
+    helpers,
+    polynomial::{Polynomial, PolynomialFormat},
     traits::ReadPointFromBytes,
 };
 use ark_bn254::{g1::G1Affine, Bn254, Fr, G1Projective, G2Affine};
@@ -384,11 +388,7 @@ impl Kzg {
     }
 
     /// commit the actual polynomial with the values setup
-    pub fn commit(
-        &self,
-        polynomial: &Polynomial,
-        is_data_polynomial_evaluations: bool,
-    ) -> Result<G1Affine, KzgError> {
+    pub fn commit(&self, polynomial: &Polynomial) -> Result<G1Affine, KzgError> {
         if polynomial.len() > self.g1.len() {
             return Err(KzgError::SerializationError(
                 "polynomial length is not correct".to_string(),
@@ -401,14 +401,16 @@ impl Kzg {
             .build()
             .map_err(|err| KzgError::CommitError(err.to_string()))?;
 
-        // Perform the multi-exponentiation
         config.install(|| {
-            let bases = if is_data_polynomial_evaluations {
-                // if the blob data is polynomial evaluations then we use the original g1 points
-                self.g1[..polynomial.len()].to_vec()
-            } else {
-                // Use inverse FFT if not
-                self.g1_ifft(polynomial.len())?
+            let bases = match polynomial.get_form() {
+                PolynomialFormat::InEvaluationForm => {
+                    // If the polynomial is in evaluation form, use the original g1 points
+                    self.g1[..polynomial.len()].to_vec()
+                },
+                PolynomialFormat::InCoefficientForm => {
+                    // If the polynomial is in coefficient form, use inverse FFT
+                    self.g1_ifft(polynomial.len())?
+                },
             };
 
             match G1Projective::msm(&bases, &polynomial.to_vec()) {
@@ -421,12 +423,12 @@ impl Kzg {
     pub fn blob_to_kzg_commitment(
         &self,
         blob: &Blob,
-        is_blob_ifft: bool,
+        form: PolynomialFormat,
     ) -> Result<G1Affine, KzgError> {
         let polynomial = blob
-            .to_polynomial()
+            .to_polynomial(form)
             .map_err(|err| KzgError::SerializationError(err.to_string()))?;
-        let commitment = self.commit(&polynomial, is_blob_ifft)?;
+        let commitment = self.commit(&polynomial)?;
         Ok(commitment)
     }
 
@@ -435,14 +437,8 @@ impl Kzg {
         &self,
         polynomial: &Polynomial,
         index: u64,
-        is_data_polynomial_evaluations: bool,
     ) -> Result<G1Affine, KzgError> {
-        self.compute_kzg_proof(
-            polynomial,
-            index,
-            &self.expanded_roots_of_unity,
-            is_data_polynomial_evaluations,
-        )
+        self.compute_kzg_proof(polynomial, index, &self.expanded_roots_of_unity)
     }
 
     /// function to compute the kzg proof given the values.
@@ -451,7 +447,6 @@ impl Kzg {
         polynomial: &Polynomial,
         index: u64,
         root_of_unities: &Vec<Fr>,
-        is_data_polynomial_evaluations: bool,
     ) -> Result<G1Affine, KzgError> {
         if !self.params.completed_setup {
             return Err(KzgError::GenericError(
@@ -502,12 +497,15 @@ impl Kzg {
             }
         }
 
-        let bases = if is_data_polynomial_evaluations {
-            // if the blob data is polynomial evaluations then we use the original g1 points
-            self.g1[..polynomial.len()].to_vec()
-        } else {
-            // Use inverse FFT if not
-            self.g1_ifft(polynomial.len())?
+        let bases = match polynomial.get_form() {
+            PolynomialFormat::InEvaluationForm => {
+                // If the polynomial is in evaluation form, use the original g1 points
+                self.g1[..polynomial.len()].to_vec()
+            },
+            PolynomialFormat::InCoefficientForm => {
+                // If the polynomial is in coefficient form, use inverse FFT
+                self.g1_ifft(polynomial.len())?
+            },
         };
 
         match G1Projective::msm(&bases, &quotient_poly) {
