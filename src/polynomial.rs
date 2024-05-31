@@ -60,19 +60,10 @@ impl Polynomial {
     pub fn to_vec(&self) -> Vec<Fr> {
         self.elements.clone()
     }
-    pub fn ifft_on_elements(&mut self) -> Result<(), PolynomialError> {
-        let ifft_result = Self::ifft(&self.to_vec());
-        match ifft_result {
-            Ok(ifft_result) => {
-                self.elements = ifft_result;
-                Ok(())
-            },
-            Err(e) => Err(e),
-        }
-    }
 
-    pub fn fft_on_elements(&mut self) -> Result<(), PolynomialError> {
-        let fft_result = Self::fft(&self.to_vec());
+    /// Performs an fft or ifft on the polynomial's elements
+    pub fn fft_on_elements(&mut self, inverse: bool) -> Result<(), PolynomialError> {
+        let fft_result = Self::fft(&self.to_vec(), inverse);
         match fft_result {
             Ok(fft_result) => {
                 self.elements = fft_result;
@@ -82,41 +73,19 @@ impl Polynomial {
         }
     }
 
-    pub fn ifft(vals: &Vec<Fr>) -> Result<Vec<Fr>, PolynomialError> {
+    /// helper function to perform fft or ifft on a vector of Fr
+    pub fn fft(vals: &Vec<Fr>, inverse: bool) -> Result<Vec<Fr>, PolynomialError> {
         let length = vals.len();
-
-        if !length.is_power_of_two() {
-            return Err(PolynomialError::FFTError(format!(
-                "Length of fr vec provided is not a power of 2: {}",
-                vals.len()
-            )));
-        }
 
         match GeneralEvaluationDomain::<Fr>::new(length) {
             Some(domain) => {
-                let result = domain.ifft(vals);
-                Ok(result)
-            },
-            None => Err(PolynomialError::FFTError(
-                "Failed to construct domain for IFFT".to_string(),
-            )),
-        }
-    }
-
-    pub fn fft(vals: &Vec<Fr>) -> Result<Vec<Fr>, PolynomialError> {
-        let length = vals.len();
-
-        if !length.is_power_of_two() {
-            return Err(PolynomialError::FFTError(format!(
-                "Length of fr vec provided is not a power of 2: {}",
-                vals.len()
-            )));
-        }
-
-        match GeneralEvaluationDomain::<Fr>::new(length) {
-            Some(domain) => {
-                let result = domain.fft(vals);
-                Ok(result)
+                if inverse {
+                    let result = domain.ifft(vals);
+                    Ok(result)
+                } else {
+                    let result = domain.fft(vals);
+                    Ok(result)
+                }
             },
             None => Err(PolynomialError::FFTError(
                 "Failed to construct domain for FFT".to_string(),

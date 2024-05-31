@@ -60,4 +60,36 @@ mod tests {
             "should be deserialized properly"
         );
     }
+
+    #[test]
+    fn test_fft_ifft() {
+        use crate::{blob::Blob, consts::GETTYSBURG_ADDRESS_BYTES};
+
+        let mut blob = Blob::from_bytes_and_pad(
+            vec![
+                42, 212, 238, 227, 192, 237, 178, 128, 19, 108, 50, 204, 87, 81, 63, 120, 232, 27,
+                116, 108, 74, 168, 109, 84, 89, 9, 6, 233, 144, 200, 125, 40,
+            ]
+            .as_slice(),
+        );
+        let mut poly = blob.to_polynomial().unwrap();
+        poly.fft_on_elements(false).unwrap();
+        poly.fft_on_elements(true).unwrap();
+        assert_eq!(
+            poly.to_bytes_be(),
+            blob.get_blob_data(),
+            "start and finish bytes should be the same"
+        );
+
+        let mut long_blob = Blob::from_bytes_and_pad(GETTYSBURG_ADDRESS_BYTES);
+        let mut long_poly = long_blob.to_polynomial().unwrap();
+        long_poly.fft_on_elements(false).unwrap();
+        long_poly.fft_on_elements(true).unwrap();
+
+        assert_eq!(
+            long_blob.get_blob_data(),
+            long_poly.to_bytes_be(),
+            "start and finish bytes should be the same"
+        );
+    }
 }
