@@ -360,8 +360,6 @@ impl Kzg {
             .collect();
 
         // Wait for the reader thread to finish
-        // reader_thread.join().expect("Reader thread panicked");
-
         match reader_thread.join() {
             Ok(result) => match result {
                 Ok(_) => {},
@@ -532,17 +530,22 @@ impl Kzg {
             ));
         }
 
-        let domain = GeneralEvaluationDomain::<Fr>::new(length)
-            .expect("Failed to construct domain for IFFT");
         let points_projective: Vec<G1Projective> = self.g1[..length]
             .iter()
             .map(|&p| G1Projective::from(p))
             .collect();
 
-        // Perform the IFFT
-        let ifft_result = domain.ifft(&points_projective);
-        let ifft_result_affine: Vec<_> = ifft_result.iter().map(|p| p.into_affine()).collect();
-        Ok(ifft_result_affine)
+        match GeneralEvaluationDomain::<Fr>::new(length) {
+            Some(domain) => {
+                let ifft_result = domain.ifft(&points_projective);
+                let ifft_result_affine: Vec<_> = ifft_result.iter().map(|p| p.into_affine()).collect();
+                Ok(ifft_result_affine)
+            },
+            None => Err(KzgError::FftError(
+                "Could not perform IFFT due to domain consturction error".to_string(),
+            )),
+        }
+        
     }
 
     pub fn verify_kzg_proof(
