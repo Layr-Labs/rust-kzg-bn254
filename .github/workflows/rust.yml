@@ -18,9 +18,10 @@ jobs:
     - uses: actions/checkout@v4
     - name: Build
       run: cargo build --verbose
+    - name: Clippy Format test
+      run: cargo clippy -- -D warnings
     - name: Run tests
       run: cargo test --verbose
     - name: Run tests with mainnet data
       run: KZG_ENV=mainnet-data cargo test --verbose
-    - name: Format test
-      run: cargo fmt --all -- --check
+    

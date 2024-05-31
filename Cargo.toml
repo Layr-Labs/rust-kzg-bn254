@@ -2,9 +2,16 @@
 name = "rust-kzg-bn254"
 version = "0.1.0"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
+authors = ["Anup Swamy Veena", "Teddy Knox"]
+rust-version = "1.73"
+description = "This library offers a set of functions for generating and interacting with bn254 KZG commitments and proofs in rust, with the motivation of supporting fraud and validity proof logic in EigenDA rollup integrations."
+readme = "README.md"
+repository = "https://github.com/Layr-Labs/rust-kzg-bn254"
+license-file = "LICENSE"
+exclude = [
+    "tests/*",
+    "benches/*",
+]
 
 [dependencies]
 ark-bn254 = "0.4.0"
@@ -31,25 +38,46 @@ num_cpus = "1.13.0"
 criterion = "0.5"
 lazy_static = "1.4"
 
+[[test]]
+name = "kzg"
+path = "tests/kzg_test.rs"
+
+[[test]]
+name = "blob"
+path = "tests/blob_test.rs"
+
+[[test]]
+name = "polynomial"
+path = "tests/polynomial_test.rs"
+
+[[test]]
+name = "helpers"
+path = "tests/helpers_test.rs"
+
 [[bench]]
 name = "bench_g1_ifft"
 harness = false
+path = "benches/bench_g1_ifft.rs"
 
 [[bench]]
 name = "bench_kzg_setup"
 harness = false
+path = "benches/bench_kzg_setup.rs"
 
 [[bench]]
 name = "bench_kzg_commit"
 harness = false
+path = "benches/bench_kzg_commit.rs"
 
 [[bench]]
 name = "bench_kzg_proof"
 harness = false
+path = "benches/bench_kzg_proof.rs"
 
 [[bench]]
 name = "bench_kzg_verify"
 harness = false
+path = "benches/bench_kzg_verify.rs"
 
 [profile.bench]
 opt-level = 3

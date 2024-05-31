@@ -2,10 +2,10 @@ use ark_bn254::Fq;
 use ark_ff::PrimeField;
 
 pub fn montgomery_reduce(z_0: &u64, z_1: &u64, z_2: &u64, z_3: &u64) -> (u64, u64, u64, u64) {
-    let mut z0 = z_0.clone();
-    let mut z1 = z_1.clone();
-    let mut z2 = z_2.clone();
-    let mut z3 = z_3.clone();
+    let mut z0 = *z_0;
+    let mut z1 = *z_1;
+    let mut z2 = *z_2;
+    let mut z3 = *z_3;
     let inv: u64 = 9786893198990664585;
     let modulus = <Fq as PrimeField>::MODULUS.0;
 
@@ -69,16 +69,15 @@ fn sub_64(x: u64, y: u64, borrow: u64) -> (u64, u64) {
 pub fn madd0(a: u64, b: u64, c: u64) -> u64 {
     let mut hi: u64;
     let mut lo: u128; // Using u128 to handle overflow from multiplication
-    let carry: u64;
 
     // Perform the multiplication
     lo = (a as u128) * (b as u128);
     hi = (lo >> 64) as u64; // Extract the high 64 bits
-    lo = lo & 0xFFFFFFFFFFFFFFFF; // Keep only the low 64 bits
+    lo &= 0xFFFFFFFFFFFFFFFF; // Keep only the low 64 bits
 
     // Add c to the low part of the result
     let sum_with_c = (lo as u64).wrapping_add(c);
-    carry = if sum_with_c < lo as u64 { 1 } else { 0 };
+    let carry: u64 = if sum_with_c < lo as u64 { 1 } else { 0 };
 
     // Add the carry to the high part of the result
     hi = hi.wrapping_add(carry);
@@ -94,7 +93,7 @@ pub fn madd2(a: u64, b: u64, c: u64, d: u64) -> (u64, u64) {
     // Perform the multiplication
     lo = (a as u128) * (b as u128);
     hi = (lo >> 64) as u64; // Extract the high 64 bits
-    lo = lo & 0xFFFFFFFFFFFFFFFF; // Keep only the low 64 bits
+    lo &= 0xFFFFFFFFFFFFFFFF; // Keep only the low 64 bits
 
     // Add c and d
     let sum_cd = c.overflowing_add(d);

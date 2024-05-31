@@ -6,9 +6,9 @@ use std::time::Duration;
 fn bench_kzg_verify(c: &mut Criterion) {
     let mut rng = rand::thread_rng();
     let mut kzg = Kzg::setup(
-        "src/test-files/mainnet-data/g1.131072.point",
+        "tests/test-files/mainnet-data/g1.131072.point",
         "",
-        "src/test-files/mainnet-data/g2.point.powerOf2",
+        "tests/test-files/mainnet-data/g2.point.powerOf2",
         268435456,
         131072,
     )
@@ -28,7 +28,7 @@ fn bench_kzg_verify(c: &mut Criterion) {
             .unwrap();
         let value_fr = input_poly.get_at_index(index).unwrap();
         let z_fr = kzg.get_nth_root_of_unity(index).unwrap();
-        b.iter(|| kzg.verify_kzg_proof(commitment, proof, value_fr.clone(), z_fr.clone()));
+        b.iter(|| kzg.verify_kzg_proof(commitment, proof, *value_fr, *z_fr));
     });
 
     c.bench_function("bench_kzg_verify_30000", |b| {
@@ -45,7 +45,7 @@ fn bench_kzg_verify(c: &mut Criterion) {
             .unwrap();
         let value_fr = input_poly.get_at_index(index).unwrap();
         let z_fr = kzg.get_nth_root_of_unity(index).unwrap();
-        b.iter(|| kzg.verify_kzg_proof(commitment, proof, value_fr.clone(), z_fr.clone()));
+        b.iter(|| kzg.verify_kzg_proof(commitment, proof, *value_fr, *z_fr));
     });
 
     c.bench_function("bench_kzg_verify_50000", |b| {
@@ -62,7 +62,7 @@ fn bench_kzg_verify(c: &mut Criterion) {
             .unwrap();
         let value_fr = input_poly.get_at_index(index).unwrap();
         let z_fr = kzg.get_nth_root_of_unity(index).unwrap();
-        b.iter(|| kzg.verify_kzg_proof(commitment, proof, value_fr.clone(), z_fr.clone()));
+        b.iter(|| kzg.verify_kzg_proof(commitment, proof, *value_fr, *z_fr));
     });
 }
 
