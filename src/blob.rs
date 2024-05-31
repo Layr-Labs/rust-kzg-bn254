@@ -45,23 +45,18 @@ impl Blob {
 
     /// Creates a new `Blob` from the provided byte slice and assumes it's
     /// already padded according to DA specs.
-    pub fn from_padded_bytes(input: &[u8]) -> Result<Self, BlobError> {
-        // check to see if bytes are modulo bn254
-        // set_bytes_canonical used in to_fr_array calls from_be_bytes_mod_order
-        // if the bytes passed into set_bytes_canonical are larger than the bn254 field
-        // modulo order then the bytes will be modded by the order of the field
+    /// WARNING: This function does not check if the bytes are modulo bn254
+    /// if the data has 32 byte segments exceeding the modulo of the field
+    /// then the bytes will be modded by the order of the field and the data
+    /// will be transformed incorrectly
+    pub fn from_padded_bytes_unchecked(input: &[u8]) -> Self {
         let length_after_padding = input.len();
-        let fr_vec = helpers::to_fr_array(input);
-        let bytes = helpers::to_byte_array(&fr_vec, length_after_padding);
-        if bytes != input {
-            return Err(BlobError::NotPaddedError);
-        }
 
-        Ok(Blob {
-            blob_data: bytes,
+        Blob {
+            blob_data: input.to_vec(),
             is_padded: true,
             length_after_padding,
-        })
+        }
     }
 
     /// Returns the blob data
@@ -96,7 +91,8 @@ impl Blob {
         if !self.is_padded {
             Err(BlobError::NotPaddedError)
         } else {
-            self.blob_data = helpers::remove_empty_byte_from_padded_bytes(&self.blob_data);
+            self.blob_data =
+                helpers::remove_empty_byte_from_padded_bytes_unchecked(&self.blob_data);
             self.is_padded = false;
             self.length_after_padding = 0;
             Ok(())

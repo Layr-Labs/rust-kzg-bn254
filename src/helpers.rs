@@ -55,7 +55,7 @@ pub fn convert_by_padding_empty_byte(data: &[u8]) -> Vec<u8> {
     valid_data
 }
 
-pub fn remove_empty_byte_from_padded_bytes(data: &[u8]) -> Vec<u8> {
+pub fn remove_empty_byte_from_padded_bytes_unchecked(data: &[u8]) -> Vec<u8> {
     let data_size = data.len();
     let parse_size = BYTES_PER_FIELD_ELEMENT;
     let data_len = (data_size + parse_size - 1) / parse_size;
