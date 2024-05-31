@@ -852,7 +852,7 @@ mod tests {
         let mut kzg = KZG_INSTANCE.clone();
 
         let input = Blob::from_bytes_and_pad(GETTYSBURG_ADDRESS_BYTES);
-        let input_poly = input.to_polynomial().unwrap();
+        let input_poly_coefficients = input.to_polynomial().unwrap();
 
         for index in 0..input_poly.len() - 1 {
             // let index = rand::thread_rng().gen_range(0..input_poly.len());
