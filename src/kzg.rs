@@ -854,7 +854,7 @@ mod tests {
         let input = Blob::from_bytes_and_pad(GETTYSBURG_ADDRESS_BYTES);
         let input_poly_coefficients = input.to_polynomial().unwrap();
 
-        for index in 0..input_poly.len() - 1 {
+        for index in 0..input_poly_coefficients.len() - 1 {
             // let index = rand::thread_rng().gen_range(0..input_poly.len());
             kzg.data_setup_custom(4, input.len().try_into().unwrap())
                 .unwrap();
