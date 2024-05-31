@@ -197,7 +197,7 @@ impl Kzg {
         Ok(())
     }
 
-    /// helper function to get the 
+    /// helper function to get the
     pub fn get_nth_root_of_unity(&self, i: usize) -> Option<&Fr> {
         self.expanded_roots_of_unity.get(i)
     }
@@ -390,7 +390,11 @@ impl Kzg {
     }
 
     /// commit the actual polynomial with the values setup
-    pub fn commit(&self, polynomial: &Polynomial, is_data_polynomial_evaluations: bool) -> Result<G1Affine, KzgError> {
+    pub fn commit(
+        &self,
+        polynomial: &Polynomial,
+        is_data_polynomial_evaluations: bool,
+    ) -> Result<G1Affine, KzgError> {
         if polynomial.len() > self.g1.len() {
             return Err(KzgError::SerializationError(
                 "polynomial length is not correct".to_string(),
@@ -420,20 +424,41 @@ impl Kzg {
         })
     }
 
-    pub fn blob_to_kzg_commitment(&self, blob: &Blob, is_blob_ifft: bool) -> Result<G1Affine, KzgError> {
-        let polynomial = blob.to_polynomial().map_err(|err| KzgError::SerializationError(err.to_string()))?;
+    pub fn blob_to_kzg_commitment(
+        &self,
+        blob: &Blob,
+        is_blob_ifft: bool,
+    ) -> Result<G1Affine, KzgError> {
+        let polynomial = blob
+            .to_polynomial()
+            .map_err(|err| KzgError::SerializationError(err.to_string()))?;
         let commitment = self.commit(&polynomial, is_blob_ifft)?;
         Ok(commitment)
     }
 
     /// helper function to work with the library and the env of the kzg instance
-    pub fn compute_kzg_proof_with_roots_of_unity(&self, polynomial: &Polynomial, index: u64, is_data_polynomial_evaluations: bool) -> Result<G1Affine, KzgError>{
-        self.compute_kzg_proof(polynomial, index, &self.expanded_roots_of_unity, is_data_polynomial_evaluations)
+    pub fn compute_kzg_proof_with_roots_of_unity(
+        &self,
+        polynomial: &Polynomial,
+        index: u64,
+        is_data_polynomial_evaluations: bool,
+    ) -> Result<G1Affine, KzgError> {
+        self.compute_kzg_proof(
+            polynomial,
+            index,
+            &self.expanded_roots_of_unity,
+            is_data_polynomial_evaluations,
+        )
     }
 
     /// function to compute the kzg proof given the values.
-    pub fn compute_kzg_proof(&self, polynomial: &Polynomial, index: u64, root_of_unities: &Vec<Fr>, is_data_polynomial_evaluations: bool) -> Result<G1Affine, KzgError> {
-
+    pub fn compute_kzg_proof(
+        &self,
+        polynomial: &Polynomial,
+        index: u64,
+        root_of_unities: &Vec<Fr>,
+        is_data_polynomial_evaluations: bool,
+    ) -> Result<G1Affine, KzgError> {
         if !self.params.completed_setup {
             return Err(KzgError::GenericError(
                 "setup is not complete, run the data_setup functions".to_string(),
@@ -754,7 +779,16 @@ mod tests {
 
         let blob = Blob::from_bytes_and_pad(GETTYSBURG_ADDRESS_BYTES);
         let fn_output = KZG_3000.blob_to_kzg_commitment(&blob, false).unwrap();
-        let commitment_from_da = G1Affine::new_unchecked(Fq::from_str("2961155957874067312593973807786254905069537311739090798303675273531563528369").unwrap(), Fq::from_str("159565752702690920280451512738307422982252330088949702406468210607852362941").unwrap());
+        let commitment_from_da = G1Affine::new_unchecked(
+            Fq::from_str(
+                "2961155957874067312593973807786254905069537311739090798303675273531563528369",
+            )
+            .unwrap(),
+            Fq::from_str(
+                "159565752702690920280451512738307422982252330088949702406468210607852362941",
+            )
+            .unwrap(),
+        );
         assert_eq!(commitment_from_da, fn_output);
     }
 
@@ -780,7 +814,13 @@ mod tests {
             let index = rand::thread_rng()
                 .gen_range(0..input_poly.get_length_of_padded_blob_as_fr_vector());
             let commitment = kzg.commit(&input_poly.clone(), false).unwrap();
-            let proof = kzg.compute_kzg_proof_with_roots_of_unity(&input_poly, index.try_into().unwrap(), false).unwrap();
+            let proof = kzg
+                .compute_kzg_proof_with_roots_of_unity(
+                    &input_poly,
+                    index.try_into().unwrap(),
+                    false,
+                )
+                .unwrap();
             let value_fr = input_poly.get_at_index(index).unwrap();
             let z_fr = kzg.get_nth_root_of_unity(index).unwrap();
             let pairing_result =
@@ -827,7 +867,13 @@ mod tests {
                 }
             }
             let commitment = kzg.commit(&input_poly_coefficients.clone(), false).unwrap();
-            let proof = kzg.compute_kzg_proof_with_roots_of_unity(&input_poly_coefficients, index.try_into().unwrap(), false).unwrap();
+            let proof = kzg
+                .compute_kzg_proof_with_roots_of_unity(
+                    &input_poly_coefficients,
+                    index.try_into().unwrap(),
+                    false,
+                )
+                .unwrap();
             let value_fr = input_poly_coefficients.get_at_index(index).unwrap();
             let z_fr = kzg.get_nth_root_of_unity(index).unwrap();
             let pairing_result =
@@ -847,26 +893,40 @@ mod tests {
         let mut input_poly_evaluation = input_poly_coefficients.clone();
         input_poly_evaluation.ifft_on_elements().unwrap();
 
-        for index in 0..input_poly_evaluation.len()-1 {
-            kzg.data_setup_custom(4, input.len().try_into().unwrap()).unwrap();
+        for index in 0..input_poly_evaluation.len() - 1 {
+            kzg.data_setup_custom(4, input.len().try_into().unwrap())
+                .unwrap();
             let mut rand_index = rand::thread_rng().gen_range(0..kzg.expanded_roots_of_unity.len());
             loop {
-                if index == rand_index{
+                if index == rand_index {
                     rand_index = rand::thread_rng().gen_range(0..kzg.expanded_roots_of_unity.len());
                 } else {
                     break;
                 }
             }
             let commitment = kzg.commit(&input_poly_evaluation.clone(), true).unwrap();
-            let proof = kzg.compute_kzg_proof_with_roots_of_unity(&input_poly_evaluation, index.try_into().unwrap(), true).unwrap();
+            let proof = kzg
+                .compute_kzg_proof_with_roots_of_unity(
+                    &input_poly_evaluation,
+                    index.try_into().unwrap(),
+                    true,
+                )
+                .unwrap();
             let value_fr = input_poly_evaluation.get_at_index(index).unwrap();
             let z_fr = kzg.get_nth_root_of_unity(index).unwrap();
-            let pairing_result = kzg.verify_kzg_proof(commitment, proof, value_fr.clone(), z_fr.clone());
+            let pairing_result =
+                kzg.verify_kzg_proof(commitment, proof, value_fr.clone(), z_fr.clone());
             assert_eq!(pairing_result, true);
-            assert_eq!(kzg.verify_kzg_proof(commitment, proof, value_fr.clone(), kzg.get_nth_root_of_unity(rand_index).unwrap().clone()), true)
+            assert_eq!(
+                kzg.verify_kzg_proof(
+                    commitment,
+                    proof,
+                    value_fr.clone(),
+                    kzg.get_nth_root_of_unity(rand_index).unwrap().clone()
+                ),
+                true
+            )
         }
-
-
     }
 
     #[test]
@@ -1026,8 +1086,11 @@ mod tests {
             let hard_coded_y = Fq::from_str(the_strings_str[2]).expect("should be fine");
             let gnark_proof = G1Affine::new(hard_coded_x, hard_coded_y);
             let poly = Polynomial::new(&padded_input_fr_elements, 30).unwrap();
-            kzg.data_setup_custom(4, poly.len().try_into().unwrap()).unwrap();
-            let result = kzg.compute_kzg_proof(&poly, index, &roots_of_unities, false).unwrap();
+            kzg.data_setup_custom(4, poly.len().try_into().unwrap())
+                .unwrap();
+            let result = kzg
+                .compute_kzg_proof(&poly, index, &roots_of_unities, false)
+                .unwrap();
             assert_eq!(gnark_proof, result)
         }
     }

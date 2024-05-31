@@ -11,10 +11,10 @@ pub struct Blob {
 impl Blob {
     /// Creates a new `Blob` from the given data.
     pub fn new(blob_data: Vec<u8>) -> Self {
-        Blob { 
-            blob_data, 
-            is_padded: false, 
-            length_after_padding: 0 
+        Blob {
+            blob_data,
+            is_padded: false,
+            length_after_padding: 0,
         }
     }
 
@@ -39,11 +39,13 @@ impl Blob {
         }
     }
 
-    /// Creates a new `Blob` from the provided byte slice and assumes it's already padded according to DA specs.
+    /// Creates a new `Blob` from the provided byte slice and assumes it's
+    /// already padded according to DA specs.
     pub fn from_padded_bytes(input: &[u8]) -> Result<Self, BlobError> {
         // check to see if bytes are modulo bn254
         // set_bytes_canonical used in to_fr_array calls from_be_bytes_mod_order
-        // if the bytes passed into set_bytes_canonical are larger than the bn254 field modulo order then the bytes will be modded by the order of the field
+        // if the bytes passed into set_bytes_canonical are larger than the bn254 field
+        // modulo order then the bytes will be modded by the order of the field
         let length_after_padding = input.len();
         let fr_vec = helpers::to_fr_array(input);
         let bytes = helpers::to_byte_array(&fr_vec, length_after_padding);
@@ -51,7 +53,11 @@ impl Blob {
             return Err(BlobError::NotPaddedError);
         }
 
-        Ok(Blob { blob_data: bytes, is_padded: true, length_after_padding: length_after_padding })
+        Ok(Blob {
+            blob_data: bytes,
+            is_padded: true,
+            length_after_padding,
+        })
     }
 
     /// Returns the blob data
@@ -246,6 +252,4 @@ mod tests {
         assert_eq!(blob_raw.is_padded(), true, "has to be padded");
         assert_eq!(blob_from.is_padded(), true, "has to be padded");
     }
-
 }
-

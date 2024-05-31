@@ -1,7 +1,7 @@
 use crate::{errors::PolynomialError, helpers};
 use ark_bn254::Fr;
-use ark_std::Zero;
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
+use ark_std::Zero;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Polynomial {
@@ -81,38 +81,47 @@ impl Polynomial {
             Err(e) => Err(e),
         }
     }
-    
+
     pub fn ifft(vals: &Vec<Fr>) -> Result<Vec<Fr>, PolynomialError> {
         let length = vals.len();
-    
+
         if !length.is_power_of_two() {
-            return Err(PolynomialError::FFTError(format!("Length of fr vec provided is not a power of 2: {}", vals.len())));
+            return Err(PolynomialError::FFTError(format!(
+                "Length of fr vec provided is not a power of 2: {}",
+                vals.len()
+            )));
         }
-    
+
         match GeneralEvaluationDomain::<Fr>::new(length) {
             Some(domain) => {
                 let result = domain.ifft(vals);
                 Ok(result)
             },
-            None => Err(PolynomialError::FFTError("Failed to construct domain for IFFT".to_string())),
+            None => Err(PolynomialError::FFTError(
+                "Failed to construct domain for IFFT".to_string(),
+            )),
         }
     }
 
     pub fn fft(vals: &Vec<Fr>) -> Result<Vec<Fr>, PolynomialError> {
         let length = vals.len();
-    
+
         if !length.is_power_of_two() {
-            return Err(PolynomialError::FFTError(format!("Length of fr vec provided is not a power of 2: {}", vals.len())));
+            return Err(PolynomialError::FFTError(format!(
+                "Length of fr vec provided is not a power of 2: {}",
+                vals.len()
+            )));
         }
-    
+
         match GeneralEvaluationDomain::<Fr>::new(length) {
             Some(domain) => {
                 let result = domain.fft(vals);
                 Ok(result)
             },
-            None => Err(PolynomialError::FFTError("Failed to construct domain for FFT".to_string())),
+            None => Err(PolynomialError::FFTError(
+                "Failed to construct domain for FFT".to_string(),
+            )),
         }
-        
     }
 }
 
@@ -179,21 +188,34 @@ mod tests {
     }
 
     #[test]
-    fn test_fft_ifft(){
+    fn test_fft_ifft() {
         use crate::{blob::Blob, consts::GETTYSBURG_ADDRESS_BYTES};
 
-        let mut blob = Blob::from_bytes_and_pad(vec![42, 212, 238, 227, 192, 237, 178, 128, 19, 108, 50, 204, 87, 81, 63, 120, 232, 27, 116, 108, 74, 168, 109, 84, 89, 9, 6, 233, 144, 200, 125, 40].as_slice());    
+        let mut blob = Blob::from_bytes_and_pad(
+            vec![
+                42, 212, 238, 227, 192, 237, 178, 128, 19, 108, 50, 204, 87, 81, 63, 120, 232, 27,
+                116, 108, 74, 168, 109, 84, 89, 9, 6, 233, 144, 200, 125, 40,
+            ]
+            .as_slice(),
+        );
         let mut poly = blob.to_polynomial().unwrap();
         poly.fft_on_elements().unwrap();
         poly.ifft_on_elements().unwrap();
-        assert_eq!(poly.to_bytes_be(), blob.get_blob_data(), "start and finish bytes should be the same");
+        assert_eq!(
+            poly.to_bytes_be(),
+            blob.get_blob_data(),
+            "start and finish bytes should be the same"
+        );
 
         let mut long_blob = Blob::from_bytes_and_pad(GETTYSBURG_ADDRESS_BYTES);
         let mut long_poly = long_blob.to_polynomial().unwrap();
         long_poly.fft_on_elements().unwrap();
         long_poly.ifft_on_elements().unwrap();
 
-        assert_eq!(long_blob.get_blob_data(), long_poly.to_bytes_be(),  "start and finish bytes should be the same");
+        assert_eq!(
+            long_blob.get_blob_data(),
+            long_poly.to_bytes_be(),
+            "start and finish bytes should be the same"
+        );
     }
 }
-
