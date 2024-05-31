@@ -5,7 +5,7 @@ use rust_kzg_bn254::{
     consts::{BYTES_PER_FIELD_ELEMENT, SIZE_OF_G1_AFFINE_COMPRESSED},
     helpers::{
         blob_to_polynomial, convert_by_padding_empty_byte, get_num_element, is_on_curve_g1,
-        is_on_curve_g2, remove_empty_byte_from_padded_bytes_unchecked, set_bytes_canonical,
+        is_on_curve_g2, remove_empty_byte_from_padded_bytes, set_bytes_canonical,
         set_bytes_canonical_manual, to_byte_array, to_fr_array,
     },
 };
@@ -140,7 +140,7 @@ fn test_convert_by_padding_empty_byte() {
     let mut padded_data = convert_by_padding_empty_byte("hi".as_bytes());
     assert_eq!(padded_data, vec![0, 104, 105], "testing adding padding");
 
-    let mut unpadded_data = remove_empty_byte_from_padded_bytes_unchecked(&padded_data);
+    let mut unpadded_data = remove_empty_byte_from_padded_bytes(&padded_data);
     assert_eq!(unpadded_data, vec![104, 105], "testing removing padding");
 
     let result: Vec<u8> = vec![
@@ -227,7 +227,7 @@ fn test_convert_by_padding_empty_byte() {
     padded_data = convert_by_padding_empty_byte(GETTYSBURG_ADDRESS_BYTES);
     assert_eq!(padded_data, result, "testing adding padding");
 
-    unpadded_data = remove_empty_byte_from_padded_bytes_unchecked(&padded_data);
+    unpadded_data = remove_empty_byte_from_padded_bytes(&padded_data);
 
     assert_eq!(
         unpadded_data, GETTYSBURG_ADDRESS_BYTES,
