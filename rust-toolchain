@@ -1,5 +1,5 @@
 [toolchain]
-channel = 'nightly-2024-04-29'
+channel = '1.74'
 profile = 'minimal'
 components = ['clippy', 'rustfmt']
-targets = ["x86_64-unknown-linux-gnu", "x86_64-pc-windows-gnu", "wasm32-unknown-unknown"]
+targets = ["x86_64-unknown-linux-gnu", "x86_64-pc-windows-gnu", "wasm32-unknown-unknown", "aarch64-apple-darwin"]

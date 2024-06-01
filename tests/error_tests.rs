@@ -25,6 +25,22 @@ mod tests {
     }
 
     #[test]
+    fn test_polynomial_error_fft() {
+        let msg = String::from("test fft error");
+        let error = PolynomialError::FFTError(msg.clone());
+        assert_eq!(format!("{}", error), format!("FFT error: {}", msg));
+    }
+    #[test]
+    fn test_polynomial_error_incorrect_form() {
+        let msg = String::from("test incorrect form error");
+        let error = PolynomialError::IncorrectFormError(msg.clone());
+        assert_eq!(
+            format!("{}", error),
+            format!("Incorrect form error: {}", msg)
+        );
+    }
+
+    #[test]
     fn test_polynomial_error_equality() {
         let error1 = PolynomialError::SerializationFromStringError;
         let error2 = PolynomialError::SerializationFromStringError;

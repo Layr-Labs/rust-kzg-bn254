@@ -24,6 +24,8 @@ pub enum PolynomialError {
     SerializationFromStringError,
     CommitError(String),
     GenericError(String),
+    FFTError(String),
+    IncorrectFormError(String),
 }
 
 impl fmt::Display for PolynomialError {
@@ -33,7 +35,11 @@ impl fmt::Display for PolynomialError {
                 write!(f, "couldn't load string to fr vector")
             },
             PolynomialError::CommitError(ref msg) => write!(f, "Commitment error: {}", msg),
+            PolynomialError::FFTError(ref msg) => write!(f, "FFT error: {}", msg),
             PolynomialError::GenericError(ref msg) => write!(f, "generic error: {}", msg),
+            PolynomialError::IncorrectFormError(ref msg) => {
+                write!(f, "Incorrect form error: {}", msg)
+            },
         }
     }
 }
