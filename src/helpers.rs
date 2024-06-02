@@ -55,7 +55,7 @@ pub fn convert_by_padding_empty_byte(data: &[u8]) -> Vec<u8> {
     valid_data
 }
 
-pub fn remove_empty_byte_from_padded_bytes(data: &[u8]) -> Vec<u8> {
+pub fn remove_empty_byte_from_padded_bytes_unchecked(data: &[u8]) -> Vec<u8> {
     let data_size = data.len();
     let parse_size = BYTES_PER_FIELD_ELEMENT;
     let data_len = (data_size + parse_size - 1) / parse_size;
@@ -94,15 +94,15 @@ pub fn to_fr_array(data: &[u8]) -> Vec<Fr> {
     let num_ele = get_num_element(data.len(), BYTES_PER_FIELD_ELEMENT);
     let mut eles = vec![Fr::zero(); num_ele]; // Initialize with zero elements
 
-    for (i, ele) in eles.iter_mut().enumerate().take(num_ele) { 
+    for (i, element) in eles.iter_mut().enumerate().take(num_ele) {
         let start = i * BYTES_PER_FIELD_ELEMENT;
         let end = (i + 1) * BYTES_PER_FIELD_ELEMENT;
         if end > data.len() {
             let mut padded = vec![0u8; BYTES_PER_FIELD_ELEMENT];
             padded[..data.len() - start].copy_from_slice(&data[start..]);
-            *ele = set_bytes_canonical(&padded);
+            *element = set_bytes_canonical(&padded);
         } else {
-            *ele = set_bytes_canonical(&data[start..end]);
+            *element = set_bytes_canonical(&data[start..end]);
         }
     }
     eles
@@ -113,8 +113,8 @@ pub fn to_byte_array(data_fr: &[Fr], max_data_size: usize) -> Vec<u8> {
     let data_size = cmp::min(n * BYTES_PER_FIELD_ELEMENT, max_data_size);
     let mut data = vec![0u8; data_size];
 
-    for (i, fr) in data_fr.iter().enumerate() {
-        let v: Vec<u8> = fr.into_bigint().to_bytes_be();
+    for (i, element) in data_fr.iter().enumerate().take(n) {
+        let v: Vec<u8> = element.into_bigint().to_bytes_be();
 
         let start = i * BYTES_PER_FIELD_ELEMENT;
         let end = (i + 1) * BYTES_PER_FIELD_ELEMENT;
@@ -136,7 +136,7 @@ pub fn is_zeroed(first_byte: u8, buf: Vec<u8>) -> bool {
         return false;
     }
 
-    for byte in buf.iter() {
+    for byte in &buf {
         if *byte != 0 {
             return false;
         }
@@ -147,13 +147,13 @@ pub fn is_zeroed(first_byte: u8, buf: Vec<u8>) -> bool {
 pub fn str_vec_to_fr_vec(input: Vec<&str>) -> Result<Vec<Fr>, &str> {
     let mut output: Vec<Fr> = Vec::<Fr>::with_capacity(input.len());
 
-    for &input in input.iter() {
-        if input == "-1" {
+    for element in &input {
+        if *element == "-1" {
             let mut test = Fr::one();
             test.neg_in_place();
             output.push(test);
         } else {
-            let fr_data = Fr::from_str(input).expect("could not load string to Fr");
+            let fr_data = Fr::from_str(element).expect("could not load string to Fr");
             output.push(fr_data);
         }
     }
@@ -232,9 +232,10 @@ pub fn read_g2_point_from_bytes_be(g2_bytes_be: &[u8]) -> Result<G2Affine, &str>
 
     let mut y_sqrt = added_result.sqrt().ok_or("no square root found").unwrap();
 
-    let lexicographical_check_result = match y_sqrt.c1.0.is_zero() {
-        true => lexicographically_largest(&y_sqrt.c0),
-        false => lexicographically_largest(&y_sqrt.c1),
+    let lexicographical_check_result = if y_sqrt.c1.0.is_zero() {
+        lexicographically_largest(&y_sqrt.c0)
+    } else {
+        lexicographically_largest(&y_sqrt.c1)
     };
 
     if lexicographical_check_result {
@@ -303,12 +304,11 @@ where
     #[allow(clippy::unnecessary_filter_map)]
     receiver
         .iter()
-        .filter_map(
-            |(chunk, position)| match T::read_point_from_bytes_be(&chunk) {
-                Ok(point) => Some((point, position)),
-                Err(err) => panic!("{}", err),
-            },
-        )
+        .map(|(chunk, position)| {
+            let point =
+                T::read_point_from_bytes_be(&chunk).expect("Failed to read point from bytes");
+            (point, position)
+        })
         .collect()
 }
 
