@@ -49,16 +49,12 @@ impl Kzg {
         let g1_points =
             Self::parallel_read_g1_points(path_to_g1_points.to_owned(), srs_points_to_load)
                 .map_err(|e| KzgError::SerializationError(e.to_string()))?;
-
-        let g2_points: Vec<G2Affine>;
-        if !path_to_g2_points.is_empty() {
-            g2_points =
-                Self::parallel_read_g2_points(path_to_g2_points.to_owned(), srs_points_to_load)
-                    .map_err(|e| KzgError::SerializationError(e.to_string()))?;
-        } else if !g2_power_of2_path.is_empty() {
-            g2_points = Self::read_g2_point_on_power_of_2(g2_power_of2_path)?;
-        } else {
-            return Err(KzgError::GenericError(
+        
+        let g2_points_result: Result<Vec<G2Affine>, KzgError> = match (path_to_g2_points.is_empty(), g2_power_of2_path.is_empty()) {
+            (false, _) => Self::parallel_read_g2_points(path_to_g2_points.to_owned(), srs_points_to_load)
+                .map_err(|e| KzgError::SerializationError(e.to_string())),
+            (_, false) => Self::read_g2_point_on_power_of_2(g2_power_of2_path),
+            (true, true) => return Err(KzgError::GenericError(
                 "both g2 point files are empty, need the proper file specified".to_string(),
             )),
         };
@@ -525,10 +521,10 @@ impl Kzg {
         roots_of_unities: &[Fr],
     ) -> Fr {
         let mut quotient = Fr::zero();
-        let mut fi: Fr;
-        let mut numerator: Fr;
-        let mut denominator: Fr;
-        let mut temp: Fr;
+        let mut fi: Fr = Fr::zero();
+        let mut numerator: Fr = Fr::zero();
+        let mut denominator: Fr = Fr::zero();
+        let mut temp: Fr = Fr::zero();
 
         roots_of_unities.iter().enumerate().for_each(|(i, omega_i)| {
             if *omega_i == z_fr {
@@ -540,7 +536,6 @@ impl Kzg {
             denominator *= z_fr;
             temp = numerator.div(denominator);
             quotient += temp;
-
         });
 
         quotient
