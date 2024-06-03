@@ -190,7 +190,7 @@ pub fn lexicographically_largest(z: &Fq) -> bool {
     borrow == 0
 }
 
-pub fn read_g2_point_from_bytes_be(g2_bytes_be: &Vec<u8>) -> Result<G2Affine, &str> {
+pub fn read_g2_point_from_bytes_be(g2_bytes_be: &[u8]) -> Result<G2Affine, &str> {
     if g2_bytes_be.len() != SIZE_OF_G2_AFFINE_COMPRESSED {
         return Err("not enough bytes for g2 point");
     }
@@ -255,7 +255,7 @@ pub fn read_g2_point_from_bytes_be(g2_bytes_be: &Vec<u8>) -> Result<G2Affine, &s
     Ok(point)
 }
 
-pub fn read_g1_point_from_bytes_be(g1_bytes_be: &Vec<u8>) -> Result<G1Affine, &str> {
+pub fn read_g1_point_from_bytes_be(g1_bytes_be: &[u8]) -> Result<G1Affine, &str> {
     if g1_bytes_be.len() != SIZE_OF_G1_AFFINE_COMPRESSED {
         return Err("not enough bytes for g1 point");
     }
@@ -301,6 +301,7 @@ pub fn process_chunks<T>(receiver: Receiver<(Vec<u8>, usize)>) -> Vec<(T, usize)
 where
     T: ReadPointFromBytes,
 {
+    #[allow(clippy::unnecessary_filter_map)]
     receiver
         .iter()
         .map(|(chunk, position)| {
