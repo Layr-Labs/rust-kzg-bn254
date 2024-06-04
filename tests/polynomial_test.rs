@@ -72,7 +72,7 @@ mod tests {
 
     #[test]
     fn test_transform_form() {
-        let mut blob = Blob::from_bytes_and_pad(
+        let blob = Blob::from_bytes_and_pad(
             vec![
                 42, 212, 238, 227, 192, 237, 178, 128, 19, 108, 50, 204, 87, 81, 63, 120, 232, 27,
                 116, 108, 74, 168, 109, 84, 89, 9, 6, 233, 144, 200, 125, 40,
@@ -112,7 +112,7 @@ mod tests {
             "start and finish bytes should be the same"
         );
 
-        let mut long_blob = Blob::from_bytes_and_pad(GETTYSBURG_ADDRESS_BYTES);
+        let long_blob = Blob::from_bytes_and_pad(GETTYSBURG_ADDRESS_BYTES);
         let mut long_poly = long_blob
             .to_polynomial(PolynomialFormat::InCoefficientForm)
             .unwrap();
