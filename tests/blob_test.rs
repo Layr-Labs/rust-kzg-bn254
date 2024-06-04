@@ -19,17 +19,17 @@ mod tests {
 
     #[test]
     fn test_is_empty() {
-        let mut blob_empty = Blob::from_bytes_and_pad("".as_bytes());
+        let blob_empty = Blob::from_bytes_and_pad("".as_bytes());
         assert!(blob_empty.is_empty(), "blob should be empty");
 
-        let mut blob = Blob::from_bytes_and_pad("hi".as_bytes());
+        let blob = Blob::from_bytes_and_pad("hi".as_bytes());
         assert!(!blob.is_empty(), "blob should not be empty");
     }
 
     #[test]
     fn test_from_padded_bytes_unchecked() {
-        let mut blob = Blob::from_bytes_and_pad("hi".as_bytes());
-        let mut blob_unchecked = Blob::from_padded_bytes_unchecked(blob.get_blob_data().as_slice());
+        let blob = Blob::from_bytes_and_pad("hi".as_bytes());
+        let blob_unchecked = Blob::from_padded_bytes_unchecked(blob.get_blob_data().as_slice());
 
         assert_eq!(blob, blob_unchecked, "blob should be equal");
     }
