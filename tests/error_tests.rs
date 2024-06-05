@@ -1,8 +1,6 @@
-
 #[cfg(test)]
 mod tests {
     use rust_kzg_bn254::errors::{BlobError, KzgError, PolynomialError};
-
 
     #[test]
     fn test_polynomial_error_serialization_from_string() {
@@ -111,7 +109,6 @@ mod tests {
         let error2 = BlobError::NotPaddedError;
         let error3 = BlobError::AlreadyPaddedError;
         let error4 = BlobError::GenericError("test".to_string());
-
 
         assert_eq!(error1, error2);
         assert_ne!(error1, error3);
