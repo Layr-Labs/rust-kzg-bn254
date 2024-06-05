@@ -49,15 +49,20 @@ impl Kzg {
         let g1_points =
             Self::parallel_read_g1_points(path_to_g1_points.to_owned(), srs_points_to_load)
                 .map_err(|e| KzgError::SerializationError(e.to_string()))?;
-        
-        let g2_points_result: Result<Vec<G2Affine>, KzgError> = match (path_to_g2_points.is_empty(), g2_power_of2_path.is_empty()) {
-            (false, _) => Self::parallel_read_g2_points(path_to_g2_points.to_owned(), srs_points_to_load)
-                .map_err(|e| KzgError::SerializationError(e.to_string())),
-            (_, false) => Self::read_g2_point_on_power_of_2(g2_power_of2_path),
-            (true, true) => return Err(KzgError::GenericError(
-                "both g2 point files are empty, need the proper file specified".to_string(),
-            )),
-        };
+
+        let g2_points_result: Result<Vec<G2Affine>, KzgError> =
+            match (path_to_g2_points.is_empty(), g2_power_of2_path.is_empty()) {
+                (false, _) => {
+                    Self::parallel_read_g2_points(path_to_g2_points.to_owned(), srs_points_to_load)
+                        .map_err(|e| KzgError::SerializationError(e.to_string()))
+                },
+                (_, false) => Self::read_g2_point_on_power_of_2(g2_power_of2_path),
+                (true, true) => {
+                    return Err(KzgError::GenericError(
+                        "both g2 point files are empty, need the proper file specified".to_string(),
+                    ))
+                },
+            };
 
         let g2_points = g2_points_result?;
 
@@ -526,17 +531,20 @@ impl Kzg {
         let mut denominator: Fr = Fr::zero();
         let mut temp: Fr = Fr::zero();
 
-        roots_of_unities.iter().enumerate().for_each(|(i, omega_i)| {
-            if *omega_i == z_fr {
-                return;
-            }
-            fi = eval_fr[i] - value_fr;
-            numerator = fi * omega_i;
-            denominator = z_fr - omega_i;
-            denominator *= z_fr;
-            temp = numerator.div(denominator);
-            quotient += temp;
-        });
+        roots_of_unities
+            .iter()
+            .enumerate()
+            .for_each(|(i, omega_i)| {
+                if *omega_i == z_fr {
+                    return;
+                }
+                fi = eval_fr[i] - value_fr;
+                numerator = fi * omega_i;
+                denominator = z_fr - omega_i;
+                denominator *= z_fr;
+                temp = numerator.div(denominator);
+                quotient += temp;
+            });
 
         quotient
     }

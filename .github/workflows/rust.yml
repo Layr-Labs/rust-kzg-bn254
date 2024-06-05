@@ -24,4 +24,6 @@ jobs:
       run: cargo test --verbose
     - name: Run tests with mainnet data
       run: KZG_ENV=mainnet-data cargo test --verbose
+    - name: Fmt check
+      run: cargo fmt --all -- --check
     
