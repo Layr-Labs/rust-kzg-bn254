@@ -73,6 +73,11 @@ impl Polynomial {
         helpers::to_byte_array(&self.elements, self.length_of_padded_blob)
     }
 
+    /// Returns a reference to the elements as a slice.
+    pub fn as_slice(&self) -> &[Fr] {
+        &self.elements
+    }
+
     /// Returns a clone of the elements as a `Vec<Fr>`.
     pub fn to_vec(&self) -> Vec<Fr> {
         self.elements.clone()
