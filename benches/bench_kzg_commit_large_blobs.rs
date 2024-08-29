@@ -15,7 +15,9 @@ fn bench_kzg_commit(c: &mut Criterion) {
     .unwrap();
 
     c.bench_function("bench_kzg_commit_8mb", |b| {
-        let random_blob: Vec<u8> = (0..8000000).map(|_| rng.gen_range(32..=126) as u8).collect();
+        let random_blob: Vec<u8> = (0..8000000)
+            .map(|_| rng.gen_range(32..=126) as u8)
+            .collect();
         let input = Blob::from_bytes_and_pad(&random_blob);
         let input_poly = input
             .to_polynomial(PolynomialFormat::InCoefficientForm)
@@ -26,7 +28,9 @@ fn bench_kzg_commit(c: &mut Criterion) {
     });
 
     c.bench_function("bench_kzg_commit_16mb", |b| {
-        let random_blob: Vec<u8> = (0..16_252_000).map(|_| rng.gen_range(32..=126) as u8).collect();
+        let random_blob: Vec<u8> = (0..16_252_000)
+            .map(|_| rng.gen_range(32..=126) as u8)
+            .collect();
         let input = Blob::from_bytes_and_pad(&random_blob);
         let input_poly = input
             .to_polynomial(PolynomialFormat::InCoefficientForm)
@@ -35,7 +39,6 @@ fn bench_kzg_commit(c: &mut Criterion) {
             .unwrap();
         b.iter(|| kzg.commit(&input_poly).unwrap());
     });
-
 }
 
 fn criterion_config() -> Criterion {
