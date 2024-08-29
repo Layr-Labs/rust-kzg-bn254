@@ -13,6 +13,7 @@ use ark_serialize::Read;
 use ark_std::{ops::Div, str::FromStr, One, Zero};
 use crossbeam_channel::{bounded, Sender};
 use num_traits::ToPrimitive;
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use std::{fs::File, io, io::BufReader};
 
 #[derive(Debug, PartialEq, Clone)]
@@ -559,7 +560,7 @@ impl Kzg {
         }
 
         let points_projective: Vec<G1Projective> = self.g1[..length]
-            .iter()
+            .par_iter()
             .map(|&p| G1Projective::from(p))
             .collect();
 
@@ -567,7 +568,7 @@ impl Kzg {
             Some(domain) => {
                 let ifft_result = domain.ifft(&points_projective);
                 let ifft_result_affine: Vec<_> =
-                    ifft_result.iter().map(|p| p.into_affine()).collect();
+                    ifft_result.par_iter().map(|p| p.into_affine()).collect();
                 Ok(ifft_result_affine)
             },
             None => Err(KzgError::FftError(
