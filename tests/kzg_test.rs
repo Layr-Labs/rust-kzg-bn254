@@ -2,6 +2,7 @@
 mod tests {
     use ark_bn254::{Fr, G1Affine, G2Affine};
     use lazy_static::lazy_static;
+    use rand::Rng;
     use rust_kzg_bn254::{
         blob::Blob,
         errors::KzgError,
@@ -11,8 +12,8 @@ mod tests {
     };
     use std::{
         env,
-        fs::File,
-        io::{BufRead, BufReader},
+        fs::{self, File},
+        io::{BufRead, BufReader}, path::{Path, PathBuf},
     };
     const GETTYSBURG_ADDRESS_BYTES: &[u8] = "Fourscore and seven years ago our fathers brought forth, on this continent, a new nation, conceived in liberty, and dedicated to the proposition that all men are created equal. Now we are engaged in a great civil war, testing whether that nation, or any nation so conceived, and so dedicated, can long endure. We are met on a great battle-field of that war. We have come to dedicate a portion of that field, as a final resting-place for those who here gave their lives, that that nation might live. It is altogether fitting and proper that we should do this. But, in a larger sense, we cannot dedicate, we cannot consecrate—we cannot hallow—this ground. The brave men, living and dead, who struggled here, have consecrated it far above our poor power to add or detract. The world will little note, nor long remember what we say here, but it can never forget what they did here. It is for us the living, rather, to be dedicated here to the unfinished work which they who fought here have thus far so nobly advanced. It is rather for us to be here dedicated to the great task remaining before us—that from these honored dead we take increased devotion to that cause for which they here gave the last full measure of devotion—that we here highly resolve that these dead shall not have died in vain—that this nation, under God, shall have a new birth of freedom, and that government of the people, by the people, for the people, shall not perish from the earth.".as_bytes();
     use ark_std::{str::FromStr, One};
@@ -26,6 +27,7 @@ mod tests {
                 "tests/test-files/mainnet-data/g2.point.powerOf2",
                 268435456,
                 131072,
+                "".to_owned()
             )
             .unwrap(),
             _ => Kzg::setup(
@@ -34,6 +36,7 @@ mod tests {
                 "tests/test-files/g2.point.powerOf2",
                 3000,
                 3000,
+                "".to_owned()
             )
             .unwrap(),
         }
@@ -47,7 +50,8 @@ mod tests {
             "tests/test-files/g2.point",
             "tests/test-files/g2.point.powerOf2",
             3000,
-            3000
+            3000,
+            "".to_owned()
         )
         .unwrap();
     }
@@ -71,7 +75,7 @@ mod tests {
 
     #[test]
     fn test_kzg_setup_errors() {
-        let kzg1 = Kzg::setup("tests/test-files/g1.point", "", "", 3000, 3000);
+        let kzg1 = Kzg::setup("tests/test-files/g1.point", "", "", 3000, 3000, "".to_owned());
         assert_eq!(
             kzg1,
             Err(KzgError::GenericError(
@@ -85,6 +89,7 @@ mod tests {
             "tests/test-files/g2.point.powerOf2",
             2,
             2,
+            "".to_owned()
         )
         .unwrap();
 
@@ -103,6 +108,7 @@ mod tests {
             "tests/test-files/g2.point.powerOf2",
             3000,
             3001,
+            "".to_owned()
         );
         assert_eq!(
             kzg3,
@@ -124,6 +130,7 @@ mod tests {
             "tests/test-files/g2.point.powerOf2",
             3000,
             3000,
+            "".to_owned()
         )
         .unwrap();
 
@@ -152,6 +159,54 @@ mod tests {
             assert_eq!(is_on_curve_g2(&G2Projective::from(point)), true);
             assert_eq!(point, kzg_g2_points[i]);
         }
+    }
+
+    #[test]
+    fn test_cache_read_and_commitment() {
+
+        let mut rng = rand::thread_rng();
+        let cache_dir = "/tmp";
+        let mut kzg = Kzg::setup(
+            "tests/test-files/mainnet-data/g1.32mb.point",
+            "",
+            "tests/test-files/mainnet-data/g2.point.powerOf2",
+            268435456,
+            524288,
+            cache_dir.to_owned()
+        )
+        .unwrap();
+
+        let tmp_dir = Path::new("/tmp");
+
+        // Iterate over the files in the /tmp directory
+        for entry in fs::read_dir(tmp_dir).unwrap() {
+            let entry = entry.unwrap();
+            let path: PathBuf = entry.path();
+
+            // Check if the entry is a file and ends with .cache
+            if path.is_file() && path.extension().and_then(|ext| ext.to_str()) == Some("cache") {
+                // Delete the file
+                fs::remove_file(&path).unwrap();
+            }
+        }
+        
+        let random_blob: Vec<u8> = (0..8000000)
+            .map(|_| rng.gen_range(32..=126) as u8)
+            .collect();
+        let input = Blob::from_bytes_and_pad(&random_blob);
+        let input_poly = input
+            .to_polynomial(PolynomialFormat::InCoefficientForm)
+            .unwrap();
+        kzg.data_setup_custom(1, input.len().try_into().unwrap())
+            .unwrap();
+
+        let commitment_raw_computed = kzg.commit(&input_poly);
+
+        kzg.initialize_cache(false).unwrap();
+
+        let commitment_cache = kzg.commit(&input_poly);
+
+        assert_eq!(commitment_raw_computed, commitment_cache);
     }
 
     #[test]

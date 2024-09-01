@@ -2,19 +2,23 @@ use crate::{
     blob::Blob,
     consts::BYTES_PER_FIELD_ELEMENT,
     errors::KzgError,
-    helpers,
+    helpers::{self, check_directory},
     polynomial::{Polynomial, PolynomialFormat},
     traits::ReadPointFromBytes,
 };
 use ark_bn254::{g1::G1Affine, Bn254, Fr, G1Projective, G2Affine};
 use ark_ec::{pairing::Pairing, AffineRepr, CurveGroup, VariableBaseMSM};
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
-use ark_serialize::Read;
+use ark_serialize::CanonicalSerialize;
+use ark_serialize::{Read, Write};
 use ark_std::{ops::Div, str::FromStr, One, Zero};
 use crossbeam_channel::{bounded, Sender};
 use num_traits::ToPrimitive;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
-use std::{fs::File, io, io::BufReader};
+use std::{
+    fs::{self, File},
+    io::{self, BufReader},
+};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Kzg {
@@ -23,6 +27,7 @@ pub struct Kzg {
     params: Params,
     srs_order: u64,
     expanded_roots_of_unity: Vec<Fr>,
+    cache_dir: String,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -40,6 +45,7 @@ impl Kzg {
         g2_power_of2_path: &str,
         srs_order: u32,
         srs_points_to_load: u32,
+        cache_dir: String,
     ) -> Result<Self, KzgError> {
         if srs_points_to_load > srs_order {
             return Err(KzgError::GenericError(
@@ -47,16 +53,25 @@ impl Kzg {
             ));
         }
 
+        if !cache_dir.is_empty() {
+            match check_directory(&cache_dir) {
+                Ok(info) => info,
+                Err(err) => return Err(KzgError::GenericError(err)),
+            };
+        }
+
         let g1_points =
-            Self::parallel_read_g1_points(path_to_g1_points.to_owned(), srs_points_to_load)
+            Self::parallel_read_g1_points(path_to_g1_points.to_owned(), srs_points_to_load, false)
                 .map_err(|e| KzgError::SerializationError(e.to_string()))?;
 
         let g2_points_result: Result<Vec<G2Affine>, KzgError> =
             match (path_to_g2_points.is_empty(), g2_power_of2_path.is_empty()) {
-                (false, _) => {
-                    Self::parallel_read_g2_points(path_to_g2_points.to_owned(), srs_points_to_load)
-                        .map_err(|e| KzgError::SerializationError(e.to_string()))
-                },
+                (false, _) => Self::parallel_read_g2_points(
+                    path_to_g2_points.to_owned(),
+                    srs_points_to_load,
+                    false,
+                )
+                .map_err(|e| KzgError::SerializationError(e.to_string())),
                 (_, false) => Self::read_g2_point_on_power_of_2(g2_power_of2_path),
                 (true, true) => {
                     return Err(KzgError::GenericError(
@@ -78,6 +93,7 @@ impl Kzg {
             },
             srs_order: srs_order.into(),
             expanded_roots_of_unity: vec![],
+            cache_dir,
         })
     }
 
@@ -268,9 +284,10 @@ impl Kzg {
     /// read files in chunks with specified length
     fn read_file_chunks(
         file_path: &str,
-        sender: Sender<(Vec<u8>, usize)>,
+        sender: Sender<(Vec<u8>, usize, bool)>,
         point_size: usize,
         num_points: u32,
+        is_native: bool,
     ) -> io::Result<()> {
         let file = File::open(file_path)?;
         let mut reader = BufReader::new(file);
@@ -283,7 +300,7 @@ impl Kzg {
                 break;
             }
             sender
-                .send((buffer[..bytes_read].to_vec(), position))
+                .send((buffer[..bytes_read].to_vec(), position, is_native))
                 .unwrap();
             position += bytes_read;
             buffer.resize(point_size, 0); // Ensure the buffer is always the correct size
@@ -299,13 +316,14 @@ impl Kzg {
     pub fn parallel_read_g2_points(
         file_path: String,
         srs_points_to_load: u32,
+        is_native: bool,
     ) -> Result<Vec<G2Affine>, KzgError> {
-        let (sender, receiver) = bounded::<(Vec<u8>, usize)>(1000);
+        let (sender, receiver) = bounded::<(Vec<u8>, usize, bool)>(1000);
 
         // Spawning the reader thread
         let reader_thread = std::thread::spawn(
             move || -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-                Self::read_file_chunks(&file_path, sender, 64, srs_points_to_load)
+                Self::read_file_chunks(&file_path, sender, 64, srs_points_to_load, is_native)
                     .map_err(|e| -> Box<dyn std::error::Error + Send + Sync> { Box::new(e) })
             },
         );
@@ -340,17 +358,64 @@ impl Kzg {
         Ok(all_points.iter().map(|(point, _)| *point).collect())
     }
 
-    /// read G1 points in parallel
-    pub fn parallel_read_g1_points(
+    pub fn parallel_read_g1_points_native(
         file_path: String,
         srs_points_to_load: u32,
+        is_native: bool,
     ) -> Result<Vec<G1Affine>, KzgError> {
-        let (sender, receiver) = bounded::<(Vec<u8>, usize)>(1000);
+        let (sender, receiver) = bounded::<(Vec<u8>, usize, bool)>(1000);
 
         // Spawning the reader thread
         let reader_thread = std::thread::spawn(
             move || -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-                Self::read_file_chunks(&file_path, sender, 32, srs_points_to_load)
+                Self::read_file_chunks(&file_path, sender, 32, srs_points_to_load, is_native)
+                    .map_err(|e| -> Box<dyn std::error::Error + Send + Sync> { Box::new(e) })
+            },
+        );
+
+        let num_workers = num_cpus::get();
+
+        let workers: Vec<_> = (0..num_workers)
+            .map(|_| {
+                let receiver = receiver.clone();
+                std::thread::spawn(move || helpers::process_chunks::<G1Affine>(receiver))
+            })
+            .collect();
+
+        // Wait for the reader thread to finish
+        match reader_thread.join() {
+            Ok(result) => match result {
+                Ok(_) => {},
+                Err(e) => return Err(KzgError::GenericError(e.to_string())),
+            },
+            Err(_) => return Err(KzgError::GenericError("Thread panicked".to_string())),
+        }
+
+        // Collect and sort results
+        let mut all_points = Vec::new();
+        for worker in workers {
+            let points = worker.join().expect("Worker thread panicked");
+            all_points.extend(points);
+        }
+
+        // Sort by original position to maintain order
+        all_points.sort_by_key(|&(_, position)| position);
+
+        Ok(all_points.iter().map(|(point, _)| *point).collect())
+    }
+
+    /// read G1 points in parallel
+    pub fn parallel_read_g1_points(
+        file_path: String,
+        srs_points_to_load: u32,
+        is_native: bool,
+    ) -> Result<Vec<G1Affine>, KzgError> {
+        let (sender, receiver) = bounded::<(Vec<u8>, usize, bool)>(1000);
+
+        // Spawning the reader thread
+        let reader_thread = std::thread::spawn(
+            move || -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+                Self::read_file_chunks(&file_path, sender, 32, srs_points_to_load, is_native)
                     .map_err(|e| -> Box<dyn std::error::Error + Send + Sync> { Box::new(e) })
             },
         );
@@ -399,29 +464,21 @@ impl Kzg {
             ));
         }
 
-        // Configure multi-threading
-        let config = rayon::ThreadPoolBuilder::new()
-            .num_threads(num_cpus::get())
-            .build()
-            .map_err(|err| KzgError::CommitError(err.to_string()))?;
+        let bases = match polynomial.get_form() {
+            PolynomialFormat::InEvaluationForm => {
+                // If the polynomial is in evaluation form, use the original g1 points
+                self.g1[..polynomial.len()].to_vec()
+            },
+            PolynomialFormat::InCoefficientForm => {
+                // If the polynomial is in coefficient form, use inverse FFT
+                self.g1_ifft(polynomial.len())?
+            },
+        };
 
-        config.install(|| {
-            let bases = match polynomial.get_form() {
-                PolynomialFormat::InEvaluationForm => {
-                    // If the polynomial is in evaluation form, use the original g1 points
-                    self.g1[..polynomial.len()].to_vec()
-                },
-                PolynomialFormat::InCoefficientForm => {
-                    // If the polynomial is in coefficient form, use inverse FFT
-                    self.g1_ifft(polynomial.len())?
-                },
-            };
-
-            match G1Projective::msm(&bases, &polynomial.to_vec()) {
-                Ok(res) => Ok(res.into_affine()),
-                Err(err) => Err(KzgError::CommitError(err.to_string())),
-            }
-        })
+        match G1Projective::msm(&bases, &polynomial.to_vec()) {
+            Ok(res) => Ok(res.into_affine()),
+            Err(err) => Err(KzgError::CommitError(err.to_string())),
+        }
     }
 
     pub fn blob_to_kzg_commitment(
@@ -550,6 +607,46 @@ impl Kzg {
         quotient
     }
 
+    pub fn read_from_cache_if_exists(&self, length: usize) -> Vec<G1Affine> {
+        // check if the cache_dir has the file with the length in it
+        let cache_file = format!("{}/2_pow_{}.cache", self.cache_dir, length);
+
+        match Self::parallel_read_g1_points_native(cache_file, length as u32, true) {
+            Ok(points) => points,
+            Err(_) => Vec::new(),
+        }
+    }
+
+    // computes the IFFT, deserialize it and store it in file format.
+    pub fn initialize_cache(&self, force: bool) -> Result<(), KzgError> {
+        // powers of 2 from 10 to 20
+        for length in 10..20_usize {
+            let in_pow_2 = 2_u32.pow(length as u32);
+            let cache_file = format!("{}/2_pow_{}.cache", self.cache_dir, in_pow_2);
+
+            if fs::metadata(&cache_file).is_ok() && force {
+                // Cache file already exists, delete it if force cache is set
+                fs::remove_file(&cache_file)
+                    .map_err(|err| KzgError::GenericError(err.to_string()))?;
+            }
+
+            let g1_ifft_points = self.g1_ifft(in_pow_2 as usize)?;
+
+            let mut file =
+                File::create(&cache_file).map_err(|err| KzgError::GenericError(err.to_string()))?;
+            for point in g1_ifft_points {
+                let mut serialized_point = vec![];
+                point
+                    .serialize_compressed(&mut serialized_point)
+                    .map_err(|err| KzgError::SerializationError(err.to_string()))?;
+                file.write_all(&serialized_point)
+                    .map_err(|err| KzgError::SerializationError(err.to_string()))?;
+            }
+        }
+
+        Ok(())
+    }
+
     /// function to compute the inverse FFT
     pub fn g1_ifft(&self, length: usize) -> Result<Vec<G1Affine>, KzgError> {
         // is not power of 2
@@ -559,21 +656,26 @@ impl Kzg {
             ));
         }
 
-        let points_projective: Vec<G1Projective> = self.g1[..length]
-            .par_iter()
-            .map(|&p| G1Projective::from(p))
-            .collect();
+        let cached_points = self.read_from_cache_if_exists(length);
+        if cached_points.is_empty() {
+            let points_projective: Vec<G1Projective> = self.g1[..length]
+                .par_iter()
+                .map(|&p| G1Projective::from(p))
+                .collect();
 
-        match GeneralEvaluationDomain::<Fr>::new(length) {
-            Some(domain) => {
-                let ifft_result = domain.ifft(&points_projective);
-                let ifft_result_affine: Vec<_> =
-                    ifft_result.par_iter().map(|p| p.into_affine()).collect();
-                Ok(ifft_result_affine)
-            },
-            None => Err(KzgError::FftError(
-                "Could not perform IFFT due to domain consturction error".to_string(),
-            )),
+            match GeneralEvaluationDomain::<Fr>::new(length) {
+                Some(domain) => {
+                    let ifft_result = domain.ifft(&points_projective);
+                    let ifft_result_affine: Vec<_> =
+                        ifft_result.par_iter().map(|p| p.into_affine()).collect();
+                    Ok(ifft_result_affine)
+                },
+                None => Err(KzgError::FftError(
+                    "Could not perform IFFT due to domain consturction error".to_string(),
+                )),
+            }
+        } else {
+            Ok(cached_points)
         }
     }
 

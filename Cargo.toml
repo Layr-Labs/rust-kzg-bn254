@@ -31,6 +31,7 @@ byteorder = "1.4"
 ark-poly = {version = "0.4.2", features = ["parallel"]}
 crossbeam-channel = "0.5"
 num_cpus = "1.13.0"
+sys-info = "0.9"
 
 [dev-dependencies]
 criterion = "0.5"
@@ -73,6 +74,11 @@ path = "benches/bench_kzg_commit.rs"
 name = "bench_kzg_commit_large_blobs"
 harness = false
 path = "benches/bench_kzg_commit_large_blobs.rs"
+
+[[bench]]
+name = "bench_kzg_ifft_cache"
+harness = false
+path = "benches/bench_kzg_ifft_cache.rs"
 
 [[bench]]
 name = "bench_kzg_proof"

@@ -1,13 +1,22 @@
 use ark_bn254::{Fq, Fq2, Fr, G1Affine, G1Projective, G2Affine, G2Projective};
 use ark_ec::AffineRepr;
 use ark_ff::{sbb, BigInt, BigInteger, Field, LegendreSymbol, PrimeField};
+use ark_serialize::Write;
 use ark_std::{str::FromStr, vec::Vec, One, Zero};
 use crossbeam_channel::Receiver;
-use std::cmp;
+use std::{
+    cmp,
+    fs::{self, OpenOptions},
+    path::Path,
+};
+use sys_info::disk_info;
 
 use crate::{
     arith,
-    consts::{BYTES_PER_FIELD_ELEMENT, SIZE_OF_G1_AFFINE_COMPRESSED, SIZE_OF_G2_AFFINE_COMPRESSED},
+    consts::{
+        BYTES_PER_FIELD_ELEMENT, REQUIRED_FREE_SPACE, SIZE_OF_G1_AFFINE_COMPRESSED,
+        SIZE_OF_G2_AFFINE_COMPRESSED,
+    },
     traits::ReadPointFromBytes,
 };
 
@@ -297,16 +306,21 @@ pub fn read_g1_point_from_bytes_be(g1_bytes_be: &[u8]) -> Result<G1Affine, &str>
     Ok(point)
 }
 
-pub fn process_chunks<T>(receiver: Receiver<(Vec<u8>, usize)>) -> Vec<(T, usize)>
+pub fn process_chunks<T>(receiver: Receiver<(Vec<u8>, usize, bool)>) -> Vec<(T, usize)>
 where
     T: ReadPointFromBytes,
 {
     #[allow(clippy::unnecessary_filter_map)]
     receiver
         .iter()
-        .map(|(chunk, position)| {
-            let point =
-                T::read_point_from_bytes_be(&chunk).expect("Failed to read point from bytes");
+        .map(|(chunk, position, is_native)| {
+            let point: T = if is_native {
+                T::read_point_from_bytes_native_compressed(&chunk)
+                    .expect("Failed to read point from bytes")
+            } else {
+                T::read_point_from_bytes_be(&chunk).expect("Failed to read point from bytes")
+            };
+
             (point, position)
         })
         .collect()
@@ -361,4 +375,44 @@ pub fn is_on_curve_g2(g2: &G2Projective) -> bool {
     tmp *= &get_b_twist_curve_coeff();
     right += &tmp;
     left == right
+}
+
+pub fn check_directory<P: AsRef<Path> + std::fmt::Display>(path: P) -> Result<bool, String> {
+    let test_file_path = path.as_ref().join("cache_dir_write_test.tmp");
+
+    // Try to create and write to a temporary file
+    let result = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .open(&test_file_path)
+        .and_then(|mut file| file.write_all(b"test"));
+
+    // Clean up the test file
+    let _ = fs::remove_file(test_file_path);
+
+    // Return true if writing was successful, otherwise false
+    if result.is_err() {
+        return Err(format!(
+            "directory {} unable to be modified by kzg program",
+            path
+        ));
+    }
+
+    // Get disk information
+    let disk = match disk_info() {
+        Ok(info) => info,
+        Err(_) => return Err(format!("unable to get disk information for path {}", path)),
+    };
+
+    // Calculate available space in the directory's disk
+    let free_space = disk.free * 1024; // Convert from KB to bytes
+
+    if free_space < REQUIRED_FREE_SPACE {
+        return Err(format!(
+            "the cache path {} does not have {} space on disk",
+            path, REQUIRED_FREE_SPACE
+        ));
+    }
+    Ok(true)
 }
