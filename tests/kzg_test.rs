@@ -13,7 +13,8 @@ mod tests {
     use std::{
         env,
         fs::{self, File},
-        io::{BufRead, BufReader}, path::{Path, PathBuf},
+        io::{BufRead, BufReader},
+        path::{Path, PathBuf},
     };
     const GETTYSBURG_ADDRESS_BYTES: &[u8] = "Fourscore and seven years ago our fathers brought forth, on this continent, a new nation, conceived in liberty, and dedicated to the proposition that all men are created equal. Now we are engaged in a great civil war, testing whether that nation, or any nation so conceived, and so dedicated, can long endure. We are met on a great battle-field of that war. We have come to dedicate a portion of that field, as a final resting-place for those who here gave their lives, that that nation might live. It is altogether fitting and proper that we should do this. But, in a larger sense, we cannot dedicate, we cannot consecrate—we cannot hallow—this ground. The brave men, living and dead, who struggled here, have consecrated it far above our poor power to add or detract. The world will little note, nor long remember what we say here, but it can never forget what they did here. It is for us the living, rather, to be dedicated here to the unfinished work which they who fought here have thus far so nobly advanced. It is rather for us to be here dedicated to the great task remaining before us—that from these honored dead we take increased devotion to that cause for which they here gave the last full measure of devotion—that we here highly resolve that these dead shall not have died in vain—that this nation, under God, shall have a new birth of freedom, and that government of the people, by the people, for the people, shall not perish from the earth.".as_bytes();
     use ark_std::{str::FromStr, One};
@@ -27,7 +28,7 @@ mod tests {
                 "tests/test-files/mainnet-data/g2.point.powerOf2",
                 268435456,
                 131072,
-                "".to_owned()
+                "".to_owned(),
             )
             .unwrap(),
             _ => Kzg::setup(
@@ -36,7 +37,7 @@ mod tests {
                 "tests/test-files/g2.point.powerOf2",
                 3000,
                 3000,
-                "".to_owned()
+                "".to_owned(),
             )
             .unwrap(),
         }
@@ -75,7 +76,14 @@ mod tests {
 
     #[test]
     fn test_kzg_setup_errors() {
-        let kzg1 = Kzg::setup("tests/test-files/g1.point", "", "", 3000, 3000, "".to_owned());
+        let kzg1 = Kzg::setup(
+            "tests/test-files/g1.point",
+            "",
+            "",
+            3000,
+            3000,
+            "".to_owned(),
+        );
         assert_eq!(
             kzg1,
             Err(KzgError::GenericError(
@@ -89,7 +97,7 @@ mod tests {
             "tests/test-files/g2.point.powerOf2",
             2,
             2,
-            "".to_owned()
+            "".to_owned(),
         )
         .unwrap();
 
@@ -108,7 +116,7 @@ mod tests {
             "tests/test-files/g2.point.powerOf2",
             3000,
             3001,
-            "".to_owned()
+            "".to_owned(),
         );
         assert_eq!(
             kzg3,
@@ -130,7 +138,7 @@ mod tests {
             "tests/test-files/g2.point.powerOf2",
             3000,
             3000,
-            "".to_owned()
+            "".to_owned(),
         )
         .unwrap();
 
@@ -163,7 +171,6 @@ mod tests {
 
     #[test]
     fn test_cache_read_and_commitment() {
-
         let mut rng = rand::thread_rng();
         let cache_dir = "/tmp";
         let mut kzg = Kzg::setup(
@@ -172,7 +179,7 @@ mod tests {
             "tests/test-files/mainnet-data/g2.point.powerOf2",
             268435456,
             524288,
-            cache_dir.to_owned()
+            cache_dir.to_owned(),
         )
         .unwrap();
 
@@ -189,7 +196,7 @@ mod tests {
                 fs::remove_file(&path).unwrap();
             }
         }
-        
+
         let random_blob: Vec<u8> = (0..8000000)
             .map(|_| rng.gen_range(32..=126) as u8)
             .collect();
@@ -206,7 +213,6 @@ mod tests {
 
         let commitment_cache = kzg.commit(&input_poly).unwrap();
         let commitment_cache_pure_method = Kzg::commit_with_cache(&input_poly, cache_dir).unwrap();
-
 
         assert_eq!(commitment_raw_computed, commitment_cache);
         assert_eq!(commitment_raw_computed, commitment_cache_pure_method);
