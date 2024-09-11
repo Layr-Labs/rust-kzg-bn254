@@ -176,7 +176,7 @@ mod tests {
         )
         .unwrap();
 
-        let tmp_dir = Path::new("/tmp");
+        let tmp_dir = Path::new(cache_dir);
 
         // Iterate over the files in the /tmp directory
         for entry in fs::read_dir(tmp_dir).unwrap() {
@@ -200,13 +200,17 @@ mod tests {
         kzg.data_setup_custom(1, input.len().try_into().unwrap())
             .unwrap();
 
-        let commitment_raw_computed = kzg.commit(&input_poly);
+        let commitment_raw_computed = kzg.commit(&input_poly).unwrap();
 
         kzg.initialize_cache(false).unwrap();
 
-        let commitment_cache = kzg.commit(&input_poly);
+        let commitment_cache = kzg.commit(&input_poly).unwrap();
+        let commitment_cache_pure_method = Kzg::commit_with_cache(&input_poly, cache_dir).unwrap();
+
 
         assert_eq!(commitment_raw_computed, commitment_cache);
+        assert_eq!(commitment_raw_computed, commitment_cache_pure_method);
+        assert_eq!(commitment_cache, commitment_cache_pure_method);
     }
 
     #[test]
