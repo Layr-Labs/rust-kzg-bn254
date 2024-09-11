@@ -1,12 +1,12 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use rand::Rng;
-use rust_kzg_bn254::{blob::Blob, consts::BYTES_PER_FIELD_ELEMENT, errors::KzgError, kzg::Kzg, polynomial::PolynomialFormat};
+use rust_kzg_bn254::{blob::Blob, kzg::Kzg, polynomial::PolynomialFormat};
 use std::time::Duration;
 
 fn bench_kzg_commit_with_cache(c: &mut Criterion) {
     let mut rng = rand::thread_rng();
     let cache_dir = "/tmp";
-    let mut kzg = Kzg::setup(
+    let kzg = Kzg::setup(
         "tests/test-files/mainnet-data/g1.32mb.point",
         "",
         "tests/test-files/mainnet-data/g2.point.powerOf2",
