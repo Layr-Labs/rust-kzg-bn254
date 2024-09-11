@@ -456,6 +456,20 @@ impl Kzg {
         self.g2.to_vec()
     }
 
+    pub fn commit_with_cache(polynomial: &Polynomial, cache_dir: &str) -> Result<G1Affine, KzgError> {
+        let poly_len = polynomial.len();
+
+        let bases = Self::read_from_cache_if_exists(poly_len, &cache_dir);
+        if bases.is_empty() {
+            return Err(KzgError::CommitError("unable to commit using cache.".to_string()));
+        }
+
+        match G1Projective::msm(&bases, &polynomial.to_vec()) {
+            Ok(res) => Ok(res.into_affine()),
+            Err(err) => Err(KzgError::CommitError(err.to_string())),
+        }
+    }
+
     /// commit the actual polynomial with the values setup
     pub fn commit(&self, polynomial: &Polynomial) -> Result<G1Affine, KzgError> {
         if polynomial.len() > self.g1.len() {
@@ -607,13 +621,16 @@ impl Kzg {
         quotient
     }
 
-    pub fn read_from_cache_if_exists(&self, length: usize) -> Vec<G1Affine> {
+    fn read_from_cache_if_exists(length: usize, cache_dir: &str) -> Vec<G1Affine> {
         // check if the cache_dir has the file with the length in it
-        let cache_file = format!("{}/2_pow_{}.cache", self.cache_dir, length);
-
-        match Self::parallel_read_g1_points_native(cache_file, length as u32, true) {
-            Ok(points) => points,
-            Err(_) => Vec::new(),
+        let cache_file = format!("{}/2_pow_{}.cache", cache_dir, length);
+        if !cache_dir.is_empty() && check_directory(&cache_dir).is_ok() && fs::metadata(&cache_file).is_ok() {
+            match Self::parallel_read_g1_points_native(cache_file, length as u32, true) {
+                Ok(points) => return points,
+                Err(_) => return Vec::new(),
+            };
+        } else {
+            return Vec::new();
         }
     }
 
@@ -656,7 +673,7 @@ impl Kzg {
             ));
         }
 
-        let cached_points = self.read_from_cache_if_exists(length);
+        let cached_points = Self::read_from_cache_if_exists(length, &self.cache_dir);
         if cached_points.is_empty() {
             let points_projective: Vec<G1Projective> = self.g1[..length]
                 .par_iter()

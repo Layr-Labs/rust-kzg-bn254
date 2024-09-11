@@ -60,6 +60,12 @@ name = "bench_g1_ifft"
 harness = false
 path = "benches/bench_g1_ifft.rs"
 
+
+[[bench]]
+name = "bench_kzg_commit_with_cache"
+harness = false
+path = "benches/bench_kzg_commit_with_cache.rs"
+
 [[bench]]
 name = "bench_kzg_setup"
 harness = false
