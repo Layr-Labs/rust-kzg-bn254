@@ -25,7 +25,7 @@ fn bench_kzg_commit_with_cache(c: &mut Criterion) {
         let input_poly = input
             .to_polynomial(PolynomialFormat::InCoefficientForm)
             .unwrap();
-        
+
         b.iter(|| Kzg::commit_with_cache(&input_poly, cache_dir).unwrap());
     });
 
@@ -37,7 +37,7 @@ fn bench_kzg_commit_with_cache(c: &mut Criterion) {
         let input_poly = input
             .to_polynomial(PolynomialFormat::InCoefficientForm)
             .unwrap();
-        
+
         b.iter(|| Kzg::commit_with_cache(&input_poly, cache_dir).unwrap());
     });
 }
