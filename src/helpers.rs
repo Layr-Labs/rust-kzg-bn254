@@ -19,6 +19,7 @@ use crate::{
     },
     traits::ReadPointFromBytes,
 };
+use ark_ec::AdditiveGroup;
 
 pub fn blob_to_polynomial(blob: &[u8]) -> Vec<Fr> {
     to_fr_array(blob)

@@ -14,11 +14,11 @@ exclude = [
 ]
 
 [dependencies]
-ark-bn254 = "0.4.0"
-ark-ec = {version = "0.4.2", features = ["parallel"]}
-ark-ff = {version = "0.4.2", features = ["parallel"]}
-ark-serialize = "0.4.2"
-ark-std = {version = "0.4.0", features = ["parallel"]}
+ark-bn254 = "0.5.0-alpha.0"
+ark-ec = {version = "0.5.0-alpha.0", features = ["parallel"]}
+ark-ff = {version = "0.5.0-alpha.0", features = ["parallel"]}
+ark-serialize = "0.5.0-alpha.0"
+ark-std = {version = "0.5.0-alpha.0", features = ["parallel"]}
 directories = "5.0.1"
 hex-literal = "0.4.1"
 rand = "0.8.5"
@@ -28,7 +28,7 @@ num-bigint = "0.4"
 rayon = "^1.5"
 num-traits = "0.2"
 byteorder = "1.4"
-ark-poly = {version = "0.4.2", features = ["parallel"]}
+ark-poly = {version = "0.5.0-alpha.0", features = ["parallel"]}
 crossbeam-channel = "0.5"
 num_cpus = "1.13.0"
 sys-info = "0.9"
