@@ -125,6 +125,7 @@ pub fn madd2(a: u64, b: u64, c: u64, d: u64) -> (u64, u64) {
 fn test_montgomery_reduce() {
     use ark_bn254::Fr;
     use ark_ff::Field;
+    use ark_ec::AdditiveGroup;
 
     let inv = Fq::from(<Fr as PrimeField>::MODULUS)
         .neg_in_place()
