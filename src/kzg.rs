@@ -294,7 +294,8 @@ impl Kzg {
 
         let mut i = 0;
         // We are making one syscall per field element, which is super inefficient.
-        // FIXME: read the entire file into memory and then split it into field elements.
+        // FIXME: Read the entire file (or large segments) into memory and then split it into field elements.
+        // Entire G1 file might be ~8GiB, so might not fit in RAM.
         while let Ok(bytes_read) = reader.read(&mut buffer) {
             if bytes_read == 0 {
                 break;
@@ -622,20 +623,17 @@ impl Kzg {
         let mut denominator: Fr = Fr::zero();
         let mut temp: Fr = Fr::zero();
 
-        roots_of_unity
-            .iter()
-            .enumerate()
-            .for_each(|(i, omega_i)| {
-                if *omega_i == z_fr {
-                    return;
-                }
-                fi = eval_fr[i] - value_fr;
-                numerator = fi * omega_i;
-                denominator = z_fr - omega_i;
-                denominator *= z_fr;
-                temp = numerator.div(denominator);
-                quotient += temp;
-            });
+        roots_of_unity.iter().enumerate().for_each(|(i, omega_i)| {
+            if *omega_i == z_fr {
+                return;
+            }
+            fi = eval_fr[i] - value_fr;
+            numerator = fi * omega_i;
+            denominator = z_fr - omega_i;
+            denominator *= z_fr;
+            temp = numerator.div(denominator);
+            quotient += temp;
+        });
 
         quotient
     }
