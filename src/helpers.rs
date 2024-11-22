@@ -51,13 +51,13 @@ pub fn convert_by_padding_empty_byte(data: &[u8]) -> Vec<u8> {
         let mut end = (i + 1) * parse_size;
         if end > data_size {
             end = data_size;
-            valid_end = put_size * (i + 1);
+            valid_end = end - start + 1 + i * put_size;
         }
 
         // Set the first byte of each chunk to 0
         valid_data[i * BYTES_PER_FIELD_ELEMENT] = 0x00;
         // Copy data from original to new vector, adjusting for the initial zero byte
-        valid_data[i * BYTES_PER_FIELD_ELEMENT + 1..(i + 1) * BYTES_PER_FIELD_ELEMENT]
+        valid_data[i * BYTES_PER_FIELD_ELEMENT + 1..i * BYTES_PER_FIELD_ELEMENT + 1 + end - start]
             .copy_from_slice(&data[start..end]);
     }
 
