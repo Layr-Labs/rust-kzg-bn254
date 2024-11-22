@@ -51,13 +51,13 @@ pub fn convert_by_padding_empty_byte(data: &[u8]) -> Vec<u8> {
         let mut end = (i + 1) * parse_size;
         if end > data_size {
             end = data_size;
-            valid_end = end - start + 1 + i * put_size;
+            valid_end = put_size * (i + 1);
         }
 
         // Set the first byte of each chunk to 0
         valid_data[i * BYTES_PER_FIELD_ELEMENT] = 0x00;
         // Copy data from original to new vector, adjusting for the initial zero byte
-        valid_data[i * BYTES_PER_FIELD_ELEMENT + 1..i * BYTES_PER_FIELD_ELEMENT + 1 + end - start]
+        valid_data[i * BYTES_PER_FIELD_ELEMENT + 1..(i + 1) * BYTES_PER_FIELD_ELEMENT]
             .copy_from_slice(&data[start..end]);
     }
 
@@ -311,7 +311,7 @@ pub fn process_chunks<T>(receiver: Receiver<(Vec<u8>, usize, bool)>) -> Vec<(T, 
 where
     T: ReadPointFromBytes,
 {
-    #[allow(clippy::unnecessary_filter_map)]
+    // TODO: should we use rayon to process this in parallel?
     receiver
         .iter()
         .map(|(chunk, position, is_native)| {
@@ -321,7 +321,6 @@ where
             } else {
                 T::read_point_from_bytes_be(&chunk).expect("Failed to read point from bytes")
             };
-
             (point, position)
         })
         .collect()
@@ -378,7 +377,17 @@ pub fn is_on_curve_g2(g2: &G2Projective) -> bool {
     left == right
 }
 
-pub fn check_directory<P: AsRef<Path> + std::fmt::Display>(path: P) -> Result<bool, String> {
+/// Checks if the directory specified by `path`:
+/// 1. can be written to by creating a temporary file, writing to it, and deleting it.
+/// 2. has [REQUIRED_FREE_SPACE] to store the required amount of data.
+///
+/// # Arguments
+/// * `path` - The directory path to check
+///
+/// # Returns
+/// * `Ok(true)` if directory is writable and has enough space
+/// * `Err(String)` with error description if checks fail
+pub fn check_directory<P: AsRef<Path> + std::fmt::Display>(path: P) -> Result<(), String> {
     let test_file_path = path.as_ref().join("cache_dir_write_test.tmp");
 
     // Try to create and write to a temporary file
@@ -401,6 +410,8 @@ pub fn check_directory<P: AsRef<Path> + std::fmt::Display>(path: P) -> Result<bo
     }
 
     // Get disk information
+    // FIXME: I don't think this works... the directory might actually be on a separate
+    // disk than the default one disk_info looks at.
     let disk = match disk_info() {
         Ok(info) => info,
         Err(_) => return Err(format!("unable to get disk information for path {}", path)),
@@ -415,5 +426,5 @@ pub fn check_directory<P: AsRef<Path> + std::fmt::Display>(path: P) -> Result<bo
             path, REQUIRED_FREE_SPACE
         ));
     }
-    Ok(true)
+    Ok(())
 }
