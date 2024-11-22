@@ -12,6 +12,9 @@ pub enum PolynomialFormat {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Polynomial {
     elements: Vec<Fr>,
+    // TODO: Remove this field, its just a duplicate of length_of_padded_blob_as_fr_vector.
+    // One can easily convert between them by *4 or /4. Also it should be calculated and not passed in,
+    // which is error prone (user might think length is in field elements).
     length_of_padded_blob: usize,
     length_of_padded_blob_as_fr_vector: usize,
     form: PolynomialFormat,
@@ -20,7 +23,7 @@ pub struct Polynomial {
 impl Polynomial {
     /// Constructs a new `Polynomial` with a given vector of `Fr` elements.
     pub fn new(
-        elements: &Vec<Fr>,
+        elements: &[Fr],
         length_of_padded_blob: usize,
         form: PolynomialFormat,
     ) -> Result<Self, PolynomialError> {

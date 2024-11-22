@@ -54,33 +54,30 @@ impl Kzg {
         }
 
         if !cache_dir.is_empty() {
-            match check_directory(&cache_dir) {
-                Ok(info) => info,
-                Err(err) => return Err(KzgError::GenericError(err)),
-            };
+            if let Err(err) = check_directory(&cache_dir) {
+                return Err(KzgError::GenericError(err));
+            }
         }
 
         let g1_points =
             Self::parallel_read_g1_points(path_to_g1_points.to_owned(), srs_points_to_load, false)
                 .map_err(|e| KzgError::SerializationError(e.to_string()))?;
 
-        let g2_points_result: Result<Vec<G2Affine>, KzgError> =
+        let g2_points: Vec<G2Affine> =
             match (path_to_g2_points.is_empty(), g2_power_of2_path.is_empty()) {
                 (false, _) => Self::parallel_read_g2_points(
                     path_to_g2_points.to_owned(),
                     srs_points_to_load,
                     false,
                 )
-                .map_err(|e| KzgError::SerializationError(e.to_string())),
-                (_, false) => Self::read_g2_point_on_power_of_2(g2_power_of2_path),
+                .map_err(|e| KzgError::SerializationError(e.to_string()))?,
+                (_, false) => Self::read_g2_point_on_power_of_2(g2_power_of2_path)?,
                 (true, true) => {
                     return Err(KzgError::GenericError(
                         "both g2 point files are empty, need the proper file specified".to_string(),
                     ))
                 },
             };
-
-        let g2_points = g2_points_result?;
 
         Ok(Self {
             g1: g1_points,
@@ -282,6 +279,7 @@ impl Kzg {
     }
 
     /// read files in chunks with specified length
+    /// TODO: chunks seems misleading here, since we read one field element at a time.
     fn read_file_chunks(
         file_path: &str,
         sender: Sender<(Vec<u8>, usize, bool)>,
@@ -295,6 +293,9 @@ impl Kzg {
         let mut buffer = vec![0u8; point_size];
 
         let mut i = 0;
+        // We are making one syscall per field element, which is super inefficient.
+        // FIXME: Read the entire file (or large segments) into memory and then split it into field elements.
+        // Entire G1 file might be ~8GiB, so might not fit in RAM.
         while let Ok(bytes_read) = reader.read(&mut buffer) {
             if bytes_read == 0 {
                 break;
@@ -358,11 +359,25 @@ impl Kzg {
         Ok(all_points.iter().map(|(point, _)| *point).collect())
     }
 
+    /// read G1 points in parallel, by creating one reader thread, which reads bytes from the file,
+    /// and fans them out to worker threads (one per cpu) which parse the bytes into G1Affine points.
+    /// The worker threads then fan in the parsed points to the main thread, which sorts them by
+    /// their original position in the file to maintain order.
+    ///
+    /// # Arguments
+    /// * `file_path` - The path to the file containing the G1 points
+    /// * `srs_points_to_load` - The number of points to load from the file
+    /// * `is_native` - Whether the points are in native arkworks format or not
+    ///
+    /// # Returns
+    /// * `Ok(Vec<G1Affine>)` - The G1 points read from the file
+    /// * `Err(KzgError)` - An error occurred while reading the file
     pub fn parallel_read_g1_points_native(
         file_path: String,
         srs_points_to_load: u32,
         is_native: bool,
     ) -> Result<Vec<G1Affine>, KzgError> {
+        // Channel contains (bytes, position, is_native) tuples. The position is used to reorder the points after processing them.
         let (sender, receiver) = bounded::<(Vec<u8>, usize, bool)>(1000);
 
         // Spawning the reader thread
@@ -413,7 +428,7 @@ impl Kzg {
         let (sender, receiver) = bounded::<(Vec<u8>, usize, bool)>(1000);
 
         // Spawning the reader thread
-        let reader_thread = std::thread::spawn(
+        let reader_handle = std::thread::spawn(
             move || -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 Self::read_file_chunks(&file_path, sender, 32, srs_points_to_load, is_native)
                     .map_err(|e| -> Box<dyn std::error::Error + Send + Sync> { Box::new(e) })
@@ -422,7 +437,7 @@ impl Kzg {
 
         let num_workers = num_cpus::get();
 
-        let workers: Vec<_> = (0..num_workers)
+        let worker_handles: Vec<_> = (0..num_workers)
             .map(|_| {
                 let receiver = receiver.clone();
                 std::thread::spawn(move || helpers::process_chunks::<G1Affine>(receiver))
@@ -430,7 +445,7 @@ impl Kzg {
             .collect();
 
         // Wait for the reader thread to finish
-        match reader_thread.join() {
+        match reader_handle.join() {
             Ok(result) => match result {
                 Ok(_) => {},
                 Err(e) => return Err(KzgError::GenericError(e.to_string())),
@@ -440,8 +455,8 @@ impl Kzg {
 
         // Collect and sort results
         let mut all_points = Vec::new();
-        for worker in workers {
-            let points = worker.join().expect("Worker thread panicked");
+        for handle in worker_handles {
+            let points = handle.join().expect("Worker thread panicked");
             all_points.extend(points);
         }
 
@@ -600,7 +615,7 @@ impl Kzg {
         z_fr: Fr,
         eval_fr: &[Fr],
         value_fr: Fr,
-        roots_of_unities: &[Fr],
+        roots_of_unity: &[Fr],
     ) -> Fr {
         let mut quotient = Fr::zero();
         let mut fi: Fr = Fr::zero();
@@ -608,20 +623,17 @@ impl Kzg {
         let mut denominator: Fr = Fr::zero();
         let mut temp: Fr = Fr::zero();
 
-        roots_of_unities
-            .iter()
-            .enumerate()
-            .for_each(|(i, omega_i)| {
-                if *omega_i == z_fr {
-                    return;
-                }
-                fi = eval_fr[i] - value_fr;
-                numerator = fi * omega_i;
-                denominator = z_fr - omega_i;
-                denominator *= z_fr;
-                temp = numerator.div(denominator);
-                quotient += temp;
-            });
+        roots_of_unity.iter().enumerate().for_each(|(i, omega_i)| {
+            if *omega_i == z_fr {
+                return;
+            }
+            fi = eval_fr[i] - value_fr;
+            numerator = fi * omega_i;
+            denominator = z_fr - omega_i;
+            denominator *= z_fr;
+            temp = numerator.div(denominator);
+            quotient += temp;
+        });
 
         quotient
     }
