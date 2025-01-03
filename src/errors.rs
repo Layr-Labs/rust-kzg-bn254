@@ -2,16 +2,12 @@ use std::{error::Error, fmt};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum BlobError {
-    NotPaddedError,
-    AlreadyPaddedError,
     GenericError(String),
 }
 
 impl fmt::Display for BlobError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
-            BlobError::NotPaddedError => write!(f, "tried to execute on non padded blob"),
-            BlobError::AlreadyPaddedError => write!(f, "tried to execute on already padded blob"),
             BlobError::GenericError(ref msg) => write!(f, "generic error: {}", msg),
         }
     }
