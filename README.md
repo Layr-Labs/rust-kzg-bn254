@@ -24,13 +24,13 @@ Linting can be triggered via running `cargo clippy --all --manifest-path Cargo.t
 
 ## Quick Start
 
-1. Check the test in `test_compute_kzg_proof` function to see the end to end usage of the library for quick start.
+See the `test_compute_kzg_proof` function in [./tests/kzg_test.rs](./tests/kzg_test.rs#) for an end to end usage of the library.
 
 ## Requirements
 
-1. SRS points required are in the same format as provided by the EigenDA.
-2. Commiting is performed in lagrange format. The required IFFT is done within the function and is not required to be performed separately.
-3. For proof generation, the data is treated as evaluation of polynomial. The required (i)FFT is performed by the compute function and is not required to be performed separately.
+1. SRS points required are in the same format as provided by EigenDA.
+2. Committing is performed in Lagrange format. The required IFFT is done within the function and is not required to be performed separately.
+3. For proof generation, the data is treated as evaluation of polynomial. The required (I)FFT is performed by the compute function and is not required to be performed separately.
 
 ## Function Reference
 

@@ -26,7 +26,7 @@ mod tests {
 
     #[test]
     fn test_to_fr_array() {
-        let mut blob = Blob::from_bytes_and_pad(
+        let blob = Blob::from_raw_data(
             vec![
                 42, 212, 238, 227, 192, 237, 178, 128, 19, 108, 50, 204, 87, 81, 63, 120, 232, 27,
                 116, 108, 74, 168, 109, 84, 89, 9, 6, 233, 144, 200, 125, 40,
@@ -38,13 +38,12 @@ mod tests {
             .unwrap();
         assert_eq!(
             poly.to_bytes_be(),
-            blob.get_blob_data(),
+            blob.data(),
             "should be deserialized properly"
         );
 
-        blob.remove_padding().unwrap();
         assert_eq!(
-            blob.get_blob_data(),
+            blob.to_raw_data(),
             vec![
                 42, 212, 238, 227, 192, 237, 178, 128, 19, 108, 50, 204, 87, 81, 63, 120, 232, 27,
                 116, 108, 74, 168, 109, 84, 89, 9, 6, 233, 144, 200, 125, 40
@@ -52,27 +51,21 @@ mod tests {
             "should be deserialized properly"
         );
 
-        let mut long_blob = Blob::from_bytes_and_pad(GETTYSBURG_ADDRESS_BYTES);
+        let long_blob = Blob::from_raw_data(GETTYSBURG_ADDRESS_BYTES);
         let long_poly = long_blob
             .to_polynomial(PolynomialFormat::InCoefficientForm)
             .unwrap();
         // let ga_converted_fr = to_fr_array(&ga_converted);
         assert_eq!(
-            long_blob.get_blob_data(),
-            long_poly.to_bytes_be(),
-            "should be deserialized properly"
-        );
-        long_blob.remove_padding().unwrap();
-        assert_eq!(
-            long_blob.get_blob_data(),
-            GETTYSBURG_ADDRESS_BYTES,
+            long_blob.data(),
+            &long_poly.to_bytes_be(),
             "should be deserialized properly"
         );
     }
 
     #[test]
     fn test_transform_form() {
-        let blob = Blob::from_bytes_and_pad(
+        let blob = Blob::from_raw_data(
             vec![
                 42, 212, 238, 227, 192, 237, 178, 128, 19, 108, 50, 204, 87, 81, 63, 120, 232, 27,
                 116, 108, 74, 168, 109, 84, 89, 9, 6, 233, 144, 200, 125, 40,
@@ -107,12 +100,12 @@ mod tests {
             "should be in coefficient form"
         );
         assert_eq!(
-            poly.to_bytes_be(),
-            blob.get_blob_data(),
+            &poly.to_bytes_be(),
+            blob.data(),
             "start and finish bytes should be the same"
         );
 
-        let long_blob = Blob::from_bytes_and_pad(GETTYSBURG_ADDRESS_BYTES);
+        let long_blob = Blob::from_raw_data(GETTYSBURG_ADDRESS_BYTES);
         let mut long_poly = long_blob
             .to_polynomial(PolynomialFormat::InCoefficientForm)
             .unwrap();
@@ -142,8 +135,8 @@ mod tests {
         );
 
         assert_eq!(
-            long_blob.get_blob_data(),
-            long_poly.to_bytes_be(),
+            long_blob.data(),
+            &long_poly.to_bytes_be(),
             "start and finish bytes should be the same"
         );
     }

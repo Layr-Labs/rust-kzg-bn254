@@ -200,7 +200,7 @@ mod tests {
         let random_blob: Vec<u8> = (0..8000000)
             .map(|_| rng.gen_range(32..=126) as u8)
             .collect();
-        let input = Blob::from_bytes_and_pad(&random_blob);
+        let input = Blob::from_raw_data(&random_blob);
         let input_poly = input
             .to_polynomial(PolynomialFormat::InCoefficientForm)
             .unwrap();
@@ -233,12 +233,12 @@ mod tests {
                 .map(|_| rng.gen_range(32..=126) as u8)
                 .collect();
 
-            let input = Blob::from_bytes_and_pad(&random_blob);
+            let input = Blob::from_raw_data(&random_blob);
             kzg_clone1
                 .data_setup_custom(1, input.len().try_into().unwrap())
                 .unwrap();
             kzg_clone2
-                .calculate_roots_of_unity(input.get_length_after_padding().try_into().unwrap())
+                .calculate_roots_of_unity(input.len().try_into().unwrap())
                 .unwrap();
 
             let polynomial_input = input
@@ -259,7 +259,7 @@ mod tests {
     fn test_blob_to_kzg_commitment() {
         use ark_bn254::Fq;
 
-        let blob = Blob::from_bytes_and_pad(GETTYSBURG_ADDRESS_BYTES);
+        let blob = Blob::from_raw_data(GETTYSBURG_ADDRESS_BYTES);
         let fn_output = KZG_3000
             .blob_to_kzg_commitment(&blob, PolynomialFormat::InCoefficientForm)
             .unwrap();
@@ -290,7 +290,7 @@ mod tests {
                 .collect();
             println!("generating blob of length is {}", blob_length);
 
-            let input = Blob::from_bytes_and_pad(&random_blob);
+            let input = Blob::from_raw_data(&random_blob);
             let input_poly = input
                 .to_polynomial(PolynomialFormat::InCoefficientForm)
                 .unwrap();
@@ -332,7 +332,7 @@ mod tests {
 
         let mut kzg = KZG_INSTANCE.clone();
 
-        let input = Blob::from_bytes_and_pad(GETTYSBURG_ADDRESS_BYTES);
+        let input = Blob::from_raw_data(GETTYSBURG_ADDRESS_BYTES);
         let input_poly = input
             .to_polynomial(PolynomialFormat::InCoefficientForm)
             .unwrap();
