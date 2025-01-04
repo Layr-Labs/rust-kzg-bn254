@@ -140,7 +140,7 @@ impl Kzg {
         params.max_fft_width = 1_u64 << log2_of_evals;
 
         if length_of_data_after_padding
-            .div_ceil(BYTES_PER_FIELD_ELEMENT.try_into().unwrap())
+            .div_ceil(BYTES_PER_FIELD_ELEMENT as u64)
             .next_power_of_two()
             >= srs_order
         {
@@ -152,7 +152,7 @@ impl Kzg {
 
         let primitive_roots_of_unity = Self::get_primitive_roots_of_unity();
         let found_root_of_unity = primitive_roots_of_unity
-            .get(log2_of_evals.to_usize().unwrap())
+            .get(log2_of_evals as usize)
             .unwrap();
         let mut expanded_roots_of_unity = Self::expand_root_of_unity(found_root_of_unity);
         expanded_roots_of_unity.truncate(expanded_roots_of_unity.len() - 1);
@@ -563,7 +563,11 @@ impl Kzg {
     ) -> Result<G1Affine, KzgError> {
         self.compute_kzg_proof(polynomial, index, &self.expanded_roots_of_unity)
     }
+    
 
+    // Need a better name for this. This is used to keep in line with 4844 naming but 
+    // this is a bit misleading since compute_kzg_proof doesn't use it and our current implementation is 
+    // DA specific and has additional params. 
     pub fn compute_kzg_proof_impl(
         &self,
         polynomial: &Polynomial,
@@ -994,6 +998,8 @@ impl Kzg {
         let mut ys = Vec::with_capacity(blobs.len());
 
         // Iterate over each blob to compute its polynomial evaluation
+        // TODO: There are some cache optimizations that can be done here for the roots of unities calculations.
+        //       Also depending on the size of blobs, this can be parallelized for some gains.
         for i in 0..blobs.len() {
             // Convert the blob to its polynomial representation
             let polynomial = blobs[i]
