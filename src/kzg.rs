@@ -3,7 +3,7 @@ use crate::{
     consts::BYTES_PER_FIELD_ELEMENT,
     errors::KzgError,
     helpers,
-    polynomial::{Polynomial, PolynomialFormat},
+    polynomial::{PolynomialCoefForm, PolynomialEvalForm},
     traits::ReadPointFromBytes,
 };
 use ark_bn254::{g1::G1Affine, Bn254, Fr, G1Projective, G2Affine};
@@ -462,55 +462,58 @@ impl Kzg {
     }
 
     /// commit the actual polynomial with the values setup
-    pub fn commit(&self, polynomial: &Polynomial) -> Result<G1Affine, KzgError> {
+    pub fn commit_eval_form(&self, polynomial: &PolynomialEvalForm) -> Result<G1Affine, KzgError> {
         if polynomial.len() > self.g1.len() {
             return Err(KzgError::SerializationError(
                 "polynomial length is not correct".to_string(),
             ));
         }
 
-        let bases = match polynomial.get_form() {
-            PolynomialFormat::InEvaluationForm => {
-                // If the polynomial is in evaluation form, use the original g1 points
-                self.g1[..polynomial.len()].to_vec()
-            },
-            PolynomialFormat::InCoefficientForm => {
-                // If the polynomial is in coefficient form, use inverse FFT
-                self.g1_ifft(polynomial.len())?
-            },
-        };
+        // When the polynomial is in evaluation form, use the original g1 points
+        let bases = self.g1[..polynomial.len()].to_vec();
 
-        match G1Projective::msm(&bases, &polynomial.to_vec()) {
+        match G1Projective::msm(&bases, polynomial.evaluations()) {
             Ok(res) => Ok(res.into_affine()),
             Err(err) => Err(KzgError::CommitError(err.to_string())),
         }
     }
 
-    pub fn blob_to_kzg_commitment(
-        &self,
-        blob: &Blob,
-        form: PolynomialFormat,
-    ) -> Result<G1Affine, KzgError> {
-        let polynomial = blob
-            .to_polynomial(form)
-            .map_err(|err| KzgError::SerializationError(err.to_string()))?;
-        let commitment = self.commit(&polynomial)?;
-        Ok(commitment)
+    /// commit the actual polynomial with the values setup
+    pub fn commit_coef_form(&self, polynomial: &PolynomialCoefForm) -> Result<G1Affine, KzgError> {
+        if polynomial.len() > self.g1.len() {
+            return Err(KzgError::SerializationError(
+                "polynomial length is not correct".to_string(),
+            ));
+        }
+        // When the polynomial is in coefficient form, use inverse FFT on the srs points.
+        // TODO: is this correct? See https://github.com/Layr-Labs/rust-kzg-bn254/issues/20
+        let bases = self.g1_ifft(polynomial.len())?;
+
+        match G1Projective::msm(&bases, polynomial.coeffs()) {
+            Ok(res) => Ok(res.into_affine()),
+            Err(err) => Err(KzgError::CommitError(err.to_string())),
+        }
+    }
+
+    pub fn blob_to_kzg_commitment(&self, blob: &Blob) -> Result<G1Affine, KzgError> {
+        let polynomial = blob.to_polynomial_eval_form();
+        self.commit_eval_form(&polynomial)
     }
 
     /// helper function to work with the library and the env of the kzg instance
     pub fn compute_kzg_proof_with_roots_of_unity(
         &self,
-        polynomial: &Polynomial,
+        polynomial: &PolynomialEvalForm,
         index: u64,
     ) -> Result<G1Affine, KzgError> {
         self.compute_kzg_proof(polynomial, index, &self.expanded_roots_of_unity)
     }
 
     /// function to compute the kzg proof given the values.
+    /// TODO: do we want a separate function for polynomials in evaluation form?
     pub fn compute_kzg_proof(
         &self,
-        polynomial: &Polynomial,
+        polynomial: &PolynomialEvalForm,
         index: u64,
         root_of_unities: &[Fr],
     ) -> Result<G1Affine, KzgError> {
@@ -526,7 +529,7 @@ impl Kzg {
             ));
         }
 
-        let eval_fr = polynomial.to_vec();
+        let eval_fr = polynomial.evaluations();
         let mut poly_shift: Vec<Fr> = Vec::with_capacity(eval_fr.len());
         let usized_index = if let Some(x) = index.to_usize() {
             x
@@ -539,7 +542,7 @@ impl Kzg {
         let value_fr = eval_fr[usized_index];
         let z_fr = root_of_unities[usized_index];
 
-        for fr in &eval_fr {
+        for fr in eval_fr {
             poly_shift.push(*fr - value_fr);
         }
 
@@ -563,16 +566,8 @@ impl Kzg {
             }
         }
 
-        let bases = match polynomial.get_form() {
-            PolynomialFormat::InEvaluationForm => {
-                // If the polynomial is in evaluation form, use the original g1 points
-                self.g1[..polynomial.len()].to_vec()
-            },
-            PolynomialFormat::InCoefficientForm => {
-                // If the polynomial is in coefficient form, use inverse FFT
-                self.g1_ifft(polynomial.len())?
-            },
-        };
+        // Polynomial is in evaluation form, so use the original g1 points
+        let bases = self.g1[..polynomial.len()].to_vec();
 
         match G1Projective::msm(&bases, &quotient_poly) {
             Ok(res) => Ok(G1Affine::from(res)),
