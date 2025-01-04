@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests {
-    use ark_bn254::{Fr, G1Affine, G2Affine};
+    use ark_bn254::{Fq, Fr, G1Affine, G2Affine};
+    use ark_ff::UniformRand;
     use lazy_static::lazy_static;
     use rand::Rng;
     use rust_kzg_bn254::{
@@ -297,8 +298,7 @@ mod tests {
             kzg.data_setup_custom(1, input.len().try_into().unwrap())
                 .unwrap();
 
-            let index = rand::thread_rng()
-                .gen_range(0..input_poly.get_length_of_padded_blob_as_fr_vector());
+            let index = rand::thread_rng().gen_range(0..input_poly.to_vec().len());
             let commitment = kzg.commit(&input_poly.clone()).unwrap();
             let proof = kzg
                 .compute_kzg_proof_with_roots_of_unity(&input_poly, index.try_into().unwrap())
@@ -315,11 +315,9 @@ mod tests {
                     commitment,
                     proof,
                     value_fr.clone(),
-                    kzg.get_nth_root_of_unity(
-                        (index + 1) % input_poly.get_length_of_padded_blob_as_fr_vector()
-                    )
-                    .unwrap()
-                    .clone()
+                    kzg.get_nth_root_of_unity((index + 1) % input_poly.to_vec().len())
+                        .unwrap()
+                        .clone()
                 ),
                 false
             )
@@ -782,5 +780,340 @@ mod tests {
         .expect("yes");
 
         assert_eq!(confirmed_result, result);
+    }
+
+    #[test]
+    fn test_verify_blob_kzg_proof_batch_errors() {
+
+        let mut kzg = KZG_INSTANCE.clone();
+
+        let input = Blob::from_bytes_and_pad(b"randomafweggrrnwgiowrgub2grb4ht824t7935gtu");
+        let input_poly = input
+                .to_polynomial(PolynomialFormat::InCoefficientForm)
+                .unwrap();
+        kzg.data_setup_custom(1, input.len().try_into().unwrap())
+                .unwrap();
+
+        let commitment = kzg.commit(&input_poly.clone()).unwrap();
+        let proof = kzg.compute_blob_kzg_proof(&input, &commitment).unwrap();
+
+        let bad_commitment = G1Affine::new_unchecked(Fq::from_str(
+            "2961155957874067312593973807786254905069537311739090798303675273531563528369",
+        )
+        .unwrap(), Fq::from_str(
+            "2961155957874067312593973807786254905069537311739090798303675273531563528369",
+        )
+        .unwrap());
+
+        let bad_proof = G1Affine::new_unchecked(Fq::from_str(
+            "2961155957874067312593973807786254905069537311739090798303675273531563528369",
+        )
+        .unwrap(), Fq::from_str(
+            "2961155957874067312593973807786254905069537311739090798303675273531563528369",
+        )
+        .unwrap());
+
+        let pairing_result_bad_commitment =
+            Kzg::verify_blob_kzg_proof_batch(&vec![input.clone()], &vec![bad_commitment], &vec![proof], 3000, kzg.get_g2_tau());
+        assert_eq!(pairing_result_bad_commitment, Err(KzgError::CommitmentError(
+            "commitment not on curve".to_string()
+        )));
+
+        let pairing_result_bad_proof =
+            Kzg::verify_blob_kzg_proof_batch(&vec![input], &vec![commitment], &vec![bad_proof], 3000, kzg.get_g2_tau());
+        assert_eq!(pairing_result_bad_proof, Err(KzgError::CommitmentError(
+            "proof not on curve".to_string()
+        )));
+    }
+
+    #[test]
+    fn test_multiple_proof_random_100_blobs() {
+        let mut rng = rand::thread_rng();
+        let mut kzg = KZG_INSTANCE.clone();
+
+        let mut blobs: Vec<Blob> = Vec::new();
+        let mut commitments: Vec<G1Affine> = Vec::new();
+        let mut proofs: Vec<G1Affine> = Vec::new();
+
+        (0..100).for_each(|_| {
+            let blob_length = rand::thread_rng().gen_range(35..50000);
+            let random_blob: Vec<u8> = (0..blob_length)
+                .map(|_| rng.gen_range(32..=126) as u8)
+                .collect();
+            println!("generating blob of length is {}", blob_length);
+
+            let input = Blob::from_bytes_and_pad(&random_blob);
+            let input_poly = input
+                .to_polynomial(PolynomialFormat::InCoefficientForm)
+                .unwrap();
+            kzg.data_setup_custom(1, input.len().try_into().unwrap())
+                .unwrap();
+
+            let commitment = kzg.commit(&input_poly.clone()).unwrap();
+            let proof = kzg.compute_blob_kzg_proof(&input, &commitment).unwrap();
+
+            blobs.push(input);
+            commitments.push(commitment);
+            proofs.push(proof);
+        });
+
+        let mut bad_blobs = blobs.clone();
+        let mut bad_commitments = commitments.clone();
+        let mut bad_proofs = proofs.clone();
+
+        let pairing_result =
+            Kzg::verify_blob_kzg_proof_batch(&blobs, &commitments, &proofs, 3000, kzg.get_g2_tau())
+                .unwrap();
+        assert_eq!(pairing_result, true);
+
+        bad_blobs.pop();
+        bad_blobs.push(Blob::from_bytes_and_pad(b"random"));
+        let pairing_result_bad_blobs = Kzg::verify_blob_kzg_proof_batch(
+            &bad_blobs,
+            &commitments,
+            &proofs,
+            3000,
+            kzg.get_g2_tau(),
+        )
+        .unwrap();
+        assert_eq!(pairing_result_bad_blobs, false);
+
+        bad_commitments.pop();
+        bad_commitments.push(G1Affine::rand(&mut rng));
+        let pairing_result_bad_commitments = Kzg::verify_blob_kzg_proof_batch(
+            &blobs,
+            &bad_commitments,
+            &proofs,
+            3000,
+            kzg.get_g2_tau(),
+        )
+        .unwrap();
+        assert_eq!(pairing_result_bad_commitments, false);
+
+        bad_proofs.pop();
+        bad_proofs.push(G1Affine::rand(&mut rng));
+        let pairing_result_bad_proofs = Kzg::verify_blob_kzg_proof_batch(
+            &blobs,
+            &commitments,
+            &bad_proofs,
+            3000,
+            kzg.get_g2_tau(),
+        )
+        .unwrap();
+        assert_eq!(pairing_result_bad_proofs, false);
+
+        let pairing_result_everything_bad = Kzg::verify_blob_kzg_proof_batch(
+            &bad_blobs,
+            &bad_commitments,
+            &bad_proofs,
+            3000,
+            kzg.get_g2_tau(),
+        )
+        .unwrap();
+        assert_eq!(pairing_result_everything_bad, false);
+    }
+
+    #[test]
+    fn test_compute_multiple_kzg_proof() {
+        let mut kzg = KZG_INSTANCE.clone();
+        let mut kzg2 = KZG_INSTANCE.clone();
+
+        let input1 = Blob::from_bytes_and_pad(GETTYSBURG_ADDRESS_BYTES);
+        kzg.data_setup_custom(4, input1.len().try_into().unwrap())
+            .unwrap();
+
+        let input_poly1 = input1
+            .to_polynomial(PolynomialFormat::InCoefficientForm)
+            .unwrap();
+
+        let commitment1 = kzg.commit(&input_poly1.clone()).unwrap();
+        let proof_1 = kzg.compute_blob_kzg_proof(&input1, &commitment1).unwrap();
+
+        let mut reversed_input: Vec<u8> = vec![0; GETTYSBURG_ADDRESS_BYTES.len()];
+        reversed_input.clone_from_slice(GETTYSBURG_ADDRESS_BYTES);
+        reversed_input.reverse();
+
+        let input2 = Blob::from_bytes_and_pad(
+            b"17704588942648532530972307366230787358793284390049200127770755029903181125533",
+        );
+        kzg2.calculate_roots_of_unity(input2.len().try_into().unwrap())
+            .unwrap();
+        let input_poly2 = input2
+            .to_polynomial(PolynomialFormat::InCoefficientForm)
+            .unwrap();
+
+        let commitment2 = kzg2.commit(&input_poly2.clone()).unwrap();
+
+        let proof_2 = kzg2.compute_blob_kzg_proof(&input2, &commitment2).unwrap();
+
+        let blobs = vec![input1, input2];
+        let commitments = vec![commitment1, commitment2];
+        let proofs = vec![proof_1, proof_2];
+        // let res = kzg.verify_blob_kzg_proof(&input1, &commitment1, &auto_proof).unwrap();
+
+        let pairing_result =
+            Kzg::verify_blob_kzg_proof_batch(&blobs, &commitments, &proofs, 3000, kzg.get_g2_tau())
+                .unwrap();
+
+        assert_eq!(pairing_result, true);
+    }
+
+    #[test]
+    fn test_verify_kzg_proof() {
+        use rand::Rng;
+
+        let mut kzg = KZG_INSTANCE.clone();
+
+        let input = Blob::from_bytes_and_pad(GETTYSBURG_ADDRESS_BYTES);
+        let input_poly = input
+            .to_polynomial(PolynomialFormat::InCoefficientForm)
+            .unwrap();
+
+        kzg.data_setup_custom(4, input.len().try_into().unwrap())
+            .unwrap();
+        let index = rand::thread_rng().gen_range(0..input_poly.len());
+
+        let commitment = kzg.commit(&input_poly.clone()).unwrap();
+        let proof = kzg
+            .compute_kzg_proof_with_roots_of_unity(&input_poly, index.try_into().unwrap())
+            .unwrap();
+        let value_fr = input_poly.get_at_index(index).unwrap();
+        let z_fr = kzg.get_nth_root_of_unity(index).unwrap();
+        let pairing_result =
+            kzg.verify_kzg_proof(commitment, proof, value_fr.clone(), z_fr.clone());
+        assert_eq!(pairing_result, true);
+
+        let pairing_result2 = Kzg::verify_kzg_proof_batch(
+            &[commitment],
+            &[*z_fr],
+            &[*value_fr],
+            &[proof],
+            kzg.get_g2_tau(),
+        )
+        .unwrap();
+        assert_eq!(pairing_result2, true);
+    }
+
+    #[test]
+    fn test_verify_kzg_proof_batch() {
+        use rand::Rng;
+
+        let mut kzg = KZG_INSTANCE.clone();
+
+        let mut commitments: Vec<G1Affine> = Vec::new();
+        let mut proofs: Vec<G1Affine> = Vec::new();
+        let mut z_frs: Vec<Fr> = Vec::new();
+        let mut value_frs: Vec<Fr> = Vec::new();
+
+        (0..100).for_each(|_| {
+            let input = Blob::from_bytes_and_pad(GETTYSBURG_ADDRESS_BYTES);
+            let input_poly = input
+                .to_polynomial(PolynomialFormat::InCoefficientForm)
+                .unwrap();
+
+            kzg.data_setup_custom(4, input.len().try_into().unwrap())
+                .unwrap();
+            let index = rand::thread_rng().gen_range(0..input_poly.len());
+
+            let commitment = kzg.commit(&input_poly.clone()).unwrap();
+            let proof = kzg
+                .compute_kzg_proof_with_roots_of_unity(&input_poly, index.try_into().unwrap())
+                .unwrap();
+            let value_fr = input_poly.get_at_index(index).unwrap();
+            let z_fr = kzg.get_nth_root_of_unity(index).unwrap();
+
+            commitments.push(commitment);
+            proofs.push(proof);
+            z_frs.push(*z_fr);
+            value_frs.push(*value_fr);
+        });
+
+        let pairing_result = Kzg::verify_kzg_proof_batch(
+            &commitments,
+            z_frs.as_slice(),
+            value_frs.as_slice(),
+            &proofs,
+            kzg.get_g2_tau(),
+        )
+        .unwrap();
+        assert_eq!(pairing_result, true);
+
+        let mut rng = rand::thread_rng();
+        let mut z_frs_bad = z_frs.clone();
+        z_frs_bad.push(Fr::rand(&mut rng));
+        let pairing_result_bad_array = Kzg::verify_kzg_proof_batch(
+            &commitments,
+            z_frs_bad.as_slice(),
+            value_frs.as_slice(),
+            &proofs,
+            kzg.get_g2_tau(),
+        );
+
+        assert_eq!(
+            pairing_result_bad_array,
+            Err(KzgError::GenericError(
+                "length's of the input are not the same".to_string()
+            ))
+        );
+
+        z_frs_bad.pop();
+        z_frs_bad.pop();
+        z_frs_bad.push(Fr::rand(&mut rng));
+
+        let pairing_result_z_fr_bad = Kzg::verify_kzg_proof_batch(
+            &commitments,
+            z_frs_bad.as_slice(),
+            value_frs.as_slice(),
+            &proofs,
+            kzg.get_g2_tau(),
+        )
+        .unwrap();
+
+        assert_eq!(pairing_result_z_fr_bad, false);
+
+        let mut value_frs_bad = value_frs.clone();
+        value_frs_bad.pop();
+        value_frs_bad.push(Fr::rand(&mut rng));
+
+        let pairing_result_z_fr_bad = Kzg::verify_kzg_proof_batch(
+            &commitments,
+            z_frs.as_slice(),
+            value_frs_bad.as_slice(),
+            &proofs,
+            kzg.get_g2_tau(),
+        )
+        .unwrap();
+
+        assert_eq!(pairing_result_z_fr_bad, false);
+
+        let mut proofs_bad = proofs.clone();
+        proofs_bad.pop();
+        proofs_bad.push(G1Affine::rand(&mut rng));
+
+        let pairing_result_proofs_bad = Kzg::verify_kzg_proof_batch(
+            &commitments,
+            z_frs.as_slice(),
+            value_frs.as_slice(),
+            &proofs_bad,
+            kzg.get_g2_tau(),
+        )
+        .unwrap();
+
+        assert_eq!(pairing_result_proofs_bad, false);
+
+        let mut commitments_bad = commitments.clone();
+        commitments_bad.pop();
+        commitments_bad.push(G1Affine::rand(&mut rng));
+
+        let pairing_result_commitment_bad = Kzg::verify_kzg_proof_batch(
+            &commitments_bad,
+            z_frs.as_slice(),
+            value_frs.as_slice(),
+            &proofs,
+            kzg.get_g2_tau(),
+        )
+        .unwrap();
+
+        assert_eq!(pairing_result_commitment_bad, false);
     }
 }

@@ -5,14 +5,17 @@ mod tests {
     #[test]
     fn test_polynomial_error_serialization_from_string() {
         let error = PolynomialError::SerializationFromStringError;
-        assert_eq!(format!("{}", error), "couldn't load string to fr vector");
+        assert_eq!(
+            format!("{}", error),
+            "serialization from string to Fr vector failed"
+        );
     }
 
     #[test]
     fn test_polynomial_error_commit() {
         let msg = String::from("test commit error");
         let error = PolynomialError::CommitError(msg.clone());
-        assert_eq!(format!("{}", error), format!("Commitment error: {}", msg));
+        assert_eq!(format!("{}", error), format!("commitment error: {}", msg));
     }
 
     #[test]
@@ -34,7 +37,7 @@ mod tests {
         let error = PolynomialError::IncorrectFormError(msg.clone());
         assert_eq!(
             format!("{}", error),
-            format!("Incorrect form error: {}", msg)
+            format!("incorrect form error: {}", msg)
         );
     }
 
@@ -52,7 +55,7 @@ mod tests {
     fn test_kzg_error_commit() {
         let msg = String::from("test commit error");
         let error = KzgError::CommitError(msg.clone());
-        assert_eq!(format!("{}", error), format!("Commitment error: {}", msg));
+        assert_eq!(format!("{}", error), format!("commit error: {}", msg));
     }
 
     #[test]
@@ -61,14 +64,14 @@ mod tests {
         let error = KzgError::SerializationError(msg.clone());
         assert_eq!(
             format!("{}", error),
-            format!("Serialization error: {}", msg)
+            format!("serialization error: {}", msg)
         );
     }
 
     #[test]
     fn test_kzg_error_fft() {
         let msg = String::from("test fft error");
-        let error = KzgError::FftError(msg.clone());
+        let error = KzgError::FFTError(msg.clone());
         assert_eq!(format!("{}", error), format!("FFT error: {}", msg));
     }
 
@@ -76,7 +79,7 @@ mod tests {
     fn test_kzg_error_generic() {
         let msg = String::from("test generic error");
         let error = KzgError::GenericError(msg.clone());
-        assert_eq!(format!("{}", error), format!("Generic error: {}", msg));
+        assert_eq!(format!("{}", error), format!("generic error: {}", msg));
     }
 
     #[test]
@@ -91,7 +94,10 @@ mod tests {
     #[test]
     fn test_not_padded_error_display() {
         let error = BlobError::NotPaddedError;
-        assert_eq!(format!("{}", error), "tried to execute on non padded blob");
+        assert_eq!(
+            format!("{}", error),
+            "tried to execute on a non-padded blob"
+        );
     }
 
     #[test]
@@ -99,7 +105,7 @@ mod tests {
         let error = BlobError::AlreadyPaddedError;
         assert_eq!(
             format!("{}", error),
-            "tried to execute on already padded blob"
+            "tried to execute on an already padded blob"
         );
     }
 

@@ -1,5 +1,5 @@
 use ark_bn254::{Fq, Fq2, Fr, G1Affine, G1Projective, G2Affine, G2Projective};
-use ark_ec::AffineRepr;
+use ark_ec::{AffineRepr, CurveGroup, VariableBaseMSM};
 use ark_ff::{sbb, BigInt, BigInteger, Field, LegendreSymbol, PrimeField};
 use ark_serialize::Write;
 use ark_std::{str::FromStr, vec::Vec, One, Zero};
@@ -375,6 +375,36 @@ pub fn is_on_curve_g2(g2: &G2Projective) -> bool {
     tmp *= &get_b_twist_curve_coeff();
     right += &tmp;
     left == right
+}
+
+/// Computes powers of a field element up to a given exponent.
+pub fn compute_powers(base: &Fr, count: usize) -> Vec<Fr> {
+    let mut powers = Vec::with_capacity(count);
+    let mut current = Fr::one();
+    for _ in 0..count {
+        powers.push(current);
+        current *= base;
+    }
+    powers
+}
+
+// fn compute_powers(base: &Fr, num_powers: usize) -> Vec<Fr> {
+//     let mut powers = vec![Fr::default(); num_powers];
+//     if num_powers == 0 {
+//         return powers;
+//     }
+//     powers[0] = Fr::one();
+//     for i in 1..num_powers {
+//         powers[i] = powers[i - 1].mul(base);
+//     }
+//     powers
+// }
+
+/// Computes a linear combination of G1Affine points weighted by scalar coefficients.
+pub fn g1_lincomb(points: &[G1Affine], scalars: &[Fr]) -> G1Affine {
+    // Convert G1Affine to G1Projective for efficient linear combination
+    let lincomb = G1Projective::msm(points, scalars).expect("MSM failed");
+    lincomb.into_affine()
 }
 
 /// Checks if the directory specified by `path`:
