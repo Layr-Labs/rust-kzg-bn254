@@ -22,7 +22,6 @@ fn bench_g1_ifft(c: &mut Criterion) {
             "tests/test-files/mainnet-data/g2.point.powerOf2",
             3000,
             3000,
-            "".to_owned(),
         )
         .unwrap();
         b.iter(|| {

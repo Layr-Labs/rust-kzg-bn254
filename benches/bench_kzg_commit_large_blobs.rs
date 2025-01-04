@@ -11,7 +11,6 @@ fn bench_kzg_commit(c: &mut Criterion) {
         "tests/test-files/mainnet-data/g2.point.powerOf2",
         268435456,
         524288,
-        "".to_owned(),
     )
     .unwrap();
 
