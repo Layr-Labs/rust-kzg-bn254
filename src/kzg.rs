@@ -567,7 +567,8 @@ impl Kzg {
 
     // Need a better name for this. This is used to keep in line with 4844 naming but 
     // this is a bit misleading since compute_kzg_proof doesn't use it and our current implementation is 
-    // DA specific and has additional params. 
+    // DA specific and has additional params. Also this needs to coalese into the compute_kzg_proof because it's
+    // largely a copy paste of compute_kzg_proof but current compute_kzg_proof has some DA uniqueness to it.
     pub fn compute_kzg_proof_impl(
         &self,
         polynomial: &Polynomial,
