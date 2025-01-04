@@ -11,7 +11,6 @@ fn bench_kzg_setup(c: &mut Criterion) {
                 "tests/test-files/g2.point.powerOf2",
                 3000,
                 3000,
-                "".to_owned(),
             )
             .unwrap()
         });
@@ -23,7 +22,6 @@ fn bench_kzg_setup(c: &mut Criterion) {
                 "tests/test-files/mainnet-data/g2.point.powerOf2",
                 268435456,
                 131072,
-                "".to_owned(),
             )
             .unwrap()
         });
