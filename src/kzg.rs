@@ -561,7 +561,7 @@ impl Kzg {
         polynomial: &Polynomial,
         index: u64,
     ) -> Result<G1Affine, KzgError> {
-        self.compute_kzg_proof(polynomial, index, &self.expanded_roots_of_unity)
+        self.compute_kzg_proof_eigenda(polynomial, index)
     }
     
 
@@ -572,7 +572,7 @@ impl Kzg {
     pub fn compute_kzg_proof_impl(
         &self,
         polynomial: &Polynomial,
-        z_fr: Fr,
+        z_fr: &Fr,
     ) -> Result<G1Affine, KzgError> {
         if !self.params.completed_setup {
             return Err(KzgError::GenericError(
@@ -607,7 +607,7 @@ impl Kzg {
                 quotient_poly.push(self.compute_quotient_eval_on_domain(
                     z_fr,
                     &eval_fr,
-                    y_fr,
+                    &y_fr,
                     &self.expanded_roots_of_unity,
                 ));
             } else {
@@ -632,27 +632,13 @@ impl Kzg {
         }
     }
 
-    /// function to compute the kzg proof given the values.
-    pub fn compute_kzg_proof(
+
+    pub fn compute_kzg_proof_eigenda(
         &self,
         polynomial: &Polynomial,
         index: u64,
-        root_of_unities: &[Fr],
     ) -> Result<G1Affine, KzgError> {
-        if !self.params.completed_setup {
-            return Err(KzgError::GenericError(
-                "setup is not complete, run the data_setup functions".to_string(),
-            ));
-        }
 
-        if polynomial.len() != root_of_unities.len() {
-            return Err(KzgError::GenericError(
-                "inconsistent length between blob and root of unities".to_string(),
-            ));
-        }
-
-        let eval_fr = polynomial.to_vec();
-        let mut poly_shift: Vec<Fr> = Vec::with_capacity(eval_fr.len());
         let usized_index = if let Some(x) = index.to_usize() {
             x
         } else {
@@ -661,56 +647,38 @@ impl Kzg {
             ));
         };
 
-        let value_fr = eval_fr[usized_index];
-        let z_fr = root_of_unities[usized_index];
-
-        for fr in &eval_fr {
-            poly_shift.push(*fr - value_fr);
+        let z_fr = self.expanded_roots_of_unity[usized_index];
+        self.compute_kzg_proof(polynomial, &z_fr)
+    }    
+    
+    /// Compute KZG proof at point `z` for the polynomial represented by `Polynomial`.
+    /// Do this by computing the quotient polynomial in evaluation form: q(x) = (p(x) - p(z)) / (x - z).
+    pub fn compute_kzg_proof(
+        &self,
+        polynomial: &Polynomial,
+        z_fr: &Fr,
+    ) -> Result<G1Affine, KzgError> {
+        if !self.params.completed_setup {
+            return Err(KzgError::GenericError(
+                "setup is not complete, run the data_setup functions".to_string(),
+            ));
         }
 
-        let mut denom_poly = Vec::<Fr>::with_capacity(root_of_unities.len());
-        for root_of_unity in root_of_unities.iter().take(eval_fr.len()) {
-            denom_poly.push(*root_of_unity - z_fr);
+        if polynomial.len() != self.expanded_roots_of_unity.len() {
+            return Err(KzgError::GenericError(
+                "inconsistent length between blob and root of unities".to_string(),
+            ));
         }
-
-        let mut quotient_poly = Vec::<Fr>::with_capacity(root_of_unities.len());
-
-        for i in 0..root_of_unities.len() {
-            if denom_poly[i].is_zero() {
-                quotient_poly.push(self.compute_quotient_eval_on_domain(
-                    z_fr,
-                    &eval_fr,
-                    value_fr,
-                    root_of_unities,
-                ));
-            } else {
-                quotient_poly.push(poly_shift[i].div(denom_poly[i]));
-            }
-        }
-
-        let bases = match polynomial.get_form() {
-            PolynomialFormat::InEvaluationForm => {
-                // If the polynomial is in evaluation form, use the original g1 points
-                self.g1[..polynomial.len()].to_vec()
-            },
-            PolynomialFormat::InCoefficientForm => {
-                // If the polynomial is in coefficient form, use inverse FFT
-                self.g1_ifft(polynomial.len())?
-            },
-        };
-
-        match G1Projective::msm(&bases, &quotient_poly) {
-            Ok(res) => Ok(G1Affine::from(res)),
-            Err(err) => Err(KzgError::SerializationError(err.to_string())),
-        }
+        
+        self.compute_kzg_proof_impl(polynomial, z_fr)
     }
 
     /// refer to DA for more context
     pub fn compute_quotient_eval_on_domain(
         &self,
-        z_fr: Fr,
+        z_fr: &Fr,
         eval_fr: &[Fr],
-        value_fr: Fr,
+        value_fr: &Fr,
         roots_of_unity: &[Fr],
     ) -> Fr {
         let mut quotient = Fr::zero();
@@ -720,7 +688,7 @@ impl Kzg {
         let mut temp: Fr = Fr::zero();
 
         roots_of_unity.iter().enumerate().for_each(|(i, omega_i)| {
-            if *omega_i == z_fr {
+            if *omega_i == *z_fr {
                 return;
             }
             fi = eval_fr[i] - value_fr;
@@ -1071,7 +1039,7 @@ impl Kzg {
             .to_polynomial(PolynomialFormat::InCoefficientForm)
             .unwrap();
         let evaluation_challenge = Self::compute_challenge(blob, commitment)?;
-        self.compute_kzg_proof_impl(&blob_poly, evaluation_challenge)
+        self.compute_kzg_proof_impl(&blob_poly, &evaluation_challenge)
     }
 
     pub fn verify_blob_kzg_proof_batch(
