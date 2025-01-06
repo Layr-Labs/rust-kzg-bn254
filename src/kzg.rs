@@ -3,7 +3,7 @@ use crate::{
     consts::BYTES_PER_FIELD_ELEMENT,
     errors::KzgError,
     helpers,
-    polynomial::{Polynomial, PolynomialCoeffForm, PolynomialEvalForm},
+    polynomial::{PolynomialCoeffForm, PolynomialEvalForm},
     traits::ReadPointFromBytes,
 };
 use ark_bn254::{g1::G1Affine, Bn254, Fr, G1Projective, G2Affine};
@@ -21,6 +21,9 @@ use std::{
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Kzg {
+    // SRS points are stored in monomial form, ready to be used for commitments with polynomials
+    // in coefficient form. To commit against a polynomial in evaluation form, we need to transform
+    // the SRS points to lagrange form using IFFT.
     g1: Vec<G1Affine>,
     g2: Vec<G2Affine>,
     params: Params,
@@ -469,8 +472,8 @@ impl Kzg {
             ));
         }
 
-        // When the polynomial is in evaluation form, use the original g1 points
-        let bases = self.g1[..polynomial.len()].to_vec();
+        // When the polynomial is in evaluation form, use IFFT to transform srs points to lagrange form.
+        let bases = self.g1_ifft(polynomial.len())?;
 
         match G1Projective::msm(&bases, polynomial.evaluations()) {
             Ok(res) => Ok(res.into_affine()),
@@ -488,9 +491,8 @@ impl Kzg {
                 "polynomial length is not correct".to_string(),
             ));
         }
-        // When the polynomial is in coefficient form, use inverse FFT on the srs points.
-        // TODO: is this correct? See https://github.com/Layr-Labs/rust-kzg-bn254/issues/20
-        let bases = self.g1_ifft(polynomial.len())?;
+        // When the polynomial is in coefficient form, use the original srs points (in monomial form).
+        let bases = self.g1[..polynomial.len()].to_vec();
 
         match G1Projective::msm(&bases, polynomial.coeffs()) {
             Ok(res) => Ok(res.into_affine()),
@@ -504,60 +506,23 @@ impl Kzg {
     }
 
     /// helper function to work with the library and the env of the kzg instance
-    pub fn compute_kzg_proof_with_roots_of_unity_eval_form(
+    pub fn compute_proof_with_roots_of_unity(
         &self,
         polynomial: &PolynomialEvalForm,
         index: u64,
     ) -> Result<G1Affine, KzgError> {
-        self.compute_kzg_proof_eval_form(polynomial, index, &self.expanded_roots_of_unity)
+        self.compute_proof(polynomial, index, &self.expanded_roots_of_unity)
     }
 
-    pub fn compute_kzg_proof_with_roots_of_unity_coeff_form(
-        &self,
-        polynomial: &PolynomialCoeffForm,
-        index: u64,
-    ) -> Result<G1Affine, KzgError> {
-        self.compute_kzg_proof_coeff_form(polynomial, index, &self.expanded_roots_of_unity)
-    }
-
-    fn compute_kzg_proof_eval_form(
+    /// Compute a kzg proof from a polynomial in evaluation form.
+    /// We don't currently support proofs for polynomials in coefficient form, but one can
+    /// take the FFT of the polynomial in coefficient form to get the polynomial in evaluation form.
+    /// This is available via the method [PolynomialCoeffForm::to_eval_form].
+    pub fn compute_proof(
         &self,
         polynomial: &PolynomialEvalForm,
         index: u64,
         root_of_unities: &[Fr],
-    ) -> Result<G1Affine, KzgError> {
-        self.compute_kzg_proof(
-            Box::new(polynomial),
-            index,
-            root_of_unities,
-            &self.g1[..polynomial.len()],
-        )
-    }
-
-    pub fn compute_kzg_proof_coeff_form(
-        &self,
-        polynomial: &PolynomialCoeffForm,
-        index: u64,
-        root_of_unities: &[Fr],
-    ) -> Result<G1Affine, KzgError> {
-        self.compute_kzg_proof(
-            Box::new(polynomial),
-            index,
-            root_of_unities,
-            &self.g1_ifft(polynomial.len())?,
-        )
-    }
-
-    /// function to compute the kzg proof given the values.
-    fn compute_kzg_proof(
-        &self,
-        // Boxed polynomial to allow working with eval and coeff form polynomials.
-        // This was done to copy the previous implementation at: https://github.com/Layr-Labs/rust-kzg-bn254/blob/85be35704cfd64e53f7e63ee7ec1601bfb4abe26/src/kzg.rs#L566
-        // TODO: is this implementation correct?
-        polynomial: Box<dyn Polynomial + '_>,
-        index: u64,
-        root_of_unities: &[Fr],
-        bases: &[G1Affine],
     ) -> Result<G1Affine, KzgError> {
         if !self.params.completed_setup {
             return Err(KzgError::GenericError(
@@ -571,7 +536,7 @@ impl Kzg {
             ));
         }
 
-        let eval_fr = polynomial.elements();
+        let eval_fr = polynomial.evaluations();
         let mut poly_shift: Vec<Fr> = Vec::with_capacity(eval_fr.len());
         let usized_index = if let Some(x) = index.to_usize() {
             x
@@ -608,7 +573,9 @@ impl Kzg {
             }
         }
 
-        match G1Projective::msm(bases, &quotient_poly) {
+        let bases = self.g1_ifft(polynomial.len())?;
+
+        match G1Projective::msm(&bases, &quotient_poly) {
             Ok(res) => Ok(G1Affine::from(res)),
             Err(err) => Err(KzgError::SerializationError(err.to_string())),
         }
@@ -668,7 +635,7 @@ impl Kzg {
         Ok(ifft_result)
     }
 
-    pub fn verify_kzg_proof(
+    pub fn verify_proof(
         &self,
         commitment: G1Affine,
         proof: G1Affine,

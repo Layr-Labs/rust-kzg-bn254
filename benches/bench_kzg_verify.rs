@@ -17,61 +17,52 @@ fn bench_kzg_verify(c: &mut Criterion) {
     c.bench_function("bench_kzg_verify_10000", |b| {
         let random_blob: Vec<u8> = (0..10000).map(|_| rng.gen_range(32..=126) as u8).collect();
         let input = Blob::from_raw_data(&random_blob);
-        let input_poly = input.to_polynomial_coeff_form();
+        let input_poly = input.to_polynomial_eval_form();
         kzg.data_setup_custom(1, input.len().try_into().unwrap())
             .unwrap();
         let index =
             rand::thread_rng().gen_range(0..input_poly.len_underlying_blob_field_elements());
-        let commitment = kzg.commit_coeff_form(&input_poly).unwrap();
+        let commitment = kzg.commit_eval_form(&input_poly).unwrap();
         let proof = kzg
-            .compute_kzg_proof_with_roots_of_unity_coeff_form(
-                &input_poly,
-                index.try_into().unwrap(),
-            )
+            .compute_proof_with_roots_of_unity(&input_poly, index.try_into().unwrap())
             .unwrap();
         let value_fr = input_poly.get_at_index(index).unwrap();
         let z_fr = kzg.get_nth_root_of_unity(index).unwrap();
-        b.iter(|| kzg.verify_kzg_proof(commitment, proof, *value_fr, *z_fr));
+        b.iter(|| kzg.verify_proof(commitment, proof, *value_fr, *z_fr));
     });
 
     c.bench_function("bench_kzg_verify_30000", |b| {
         let random_blob: Vec<u8> = (0..30000).map(|_| rng.gen_range(32..=126) as u8).collect();
         let input = Blob::from_raw_data(&random_blob);
-        let input_poly = input.to_polynomial_coeff_form();
+        let input_poly = input.to_polynomial_eval_form();
         kzg.data_setup_custom(1, input.len().try_into().unwrap())
             .unwrap();
         let index =
             rand::thread_rng().gen_range(0..input_poly.len_underlying_blob_field_elements());
-        let commitment = kzg.commit_coeff_form(&input_poly).unwrap();
+        let commitment = kzg.commit_eval_form(&input_poly).unwrap();
         let proof = kzg
-            .compute_kzg_proof_with_roots_of_unity_coeff_form(
-                &input_poly,
-                index.try_into().unwrap(),
-            )
+            .compute_proof_with_roots_of_unity(&input_poly, index.try_into().unwrap())
             .unwrap();
         let value_fr = input_poly.get_at_index(index).unwrap();
         let z_fr = kzg.get_nth_root_of_unity(index).unwrap();
-        b.iter(|| kzg.verify_kzg_proof(commitment, proof, *value_fr, *z_fr));
+        b.iter(|| kzg.verify_proof(commitment, proof, *value_fr, *z_fr));
     });
 
     c.bench_function("bench_kzg_verify_50000", |b| {
         let random_blob: Vec<u8> = (0..50000).map(|_| rng.gen_range(32..=126) as u8).collect();
         let input = Blob::from_raw_data(&random_blob);
-        let input_poly = input.to_polynomial_coeff_form();
+        let input_poly = input.to_polynomial_eval_form();
         kzg.data_setup_custom(1, input.len().try_into().unwrap())
             .unwrap();
         let index =
             rand::thread_rng().gen_range(0..input_poly.len_underlying_blob_field_elements());
-        let commitment = kzg.commit_coeff_form(&input_poly).unwrap();
+        let commitment = kzg.commit_eval_form(&input_poly).unwrap();
         let proof = kzg
-            .compute_kzg_proof_with_roots_of_unity_coeff_form(
-                &input_poly,
-                index.try_into().unwrap(),
-            )
+            .compute_proof_with_roots_of_unity(&input_poly, index.try_into().unwrap())
             .unwrap();
         let value_fr = input_poly.get_at_index(index).unwrap();
         let z_fr = kzg.get_nth_root_of_unity(index).unwrap();
-        b.iter(|| kzg.verify_kzg_proof(commitment, proof, *value_fr, *z_fr));
+        b.iter(|| kzg.verify_proof(commitment, proof, *value_fr, *z_fr));
     });
 }
 

@@ -14,7 +14,7 @@ mod tests {
         );
         let poly = blob.to_polynomial_coeff_form();
         assert_eq!(
-            poly.to_bytes_be(),
+            &poly.to_bytes_be()[0..blob.data().len()],
             blob.data(),
             "should be deserialized properly"
         );
@@ -33,7 +33,7 @@ mod tests {
         // let ga_converted_fr = to_fr_array(&ga_converted);
         assert_eq!(
             long_blob.data(),
-            &long_poly.to_bytes_be(),
+            &long_poly.to_bytes_be()[0..long_blob.data().len()],
             "should be deserialized properly"
         );
     }
@@ -52,7 +52,7 @@ mod tests {
         let poly_eval = poly_coeff.to_eval_form().unwrap();
         let poly_coeff_back = poly_eval.to_coef_form().unwrap();
         assert_eq!(
-            &poly_coeff_back.to_bytes_be(),
+            &poly_coeff_back.to_bytes_be()[0..blob.data().len()],
             blob.data(),
             "start and finish bytes should be the same"
         );
@@ -66,7 +66,9 @@ mod tests {
         let poly_eval = poly_coeff.to_eval_form().unwrap();
         let poly_coeff_back = poly_eval.to_coef_form().unwrap();
         assert_eq!(
-            &poly_coeff_back.to_bytes_be(),
+            // TODO: we might want to change the API to return the underlying blob data len?
+            // right now this info is lost after converting between forms.
+            &poly_coeff_back.to_bytes_be()[0..blob.data().len()],
             blob.data(),
             "start and finish bytes should be the same"
         );

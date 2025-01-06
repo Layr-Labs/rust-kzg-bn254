@@ -3,7 +3,11 @@ mod tests {
     use ark_bn254::{Fr, G1Affine, G2Affine};
     use lazy_static::lazy_static;
     use rust_kzg_bn254::{
-        blob::Blob, errors::KzgError, helpers, kzg::Kzg, polynomial::PolynomialCoeffForm,
+        blob::Blob,
+        errors::KzgError,
+        helpers,
+        kzg::Kzg,
+        polynomial::{PolynomialCoeffForm, PolynomialEvalForm},
     };
     use std::{
         env,
@@ -218,28 +222,25 @@ mod tests {
             println!("generating blob of length is {}", blob_length);
 
             let input = Blob::from_raw_data(&random_blob);
-            let input_poly = input.to_polynomial_coeff_form();
+            let input_poly = input.to_polynomial_eval_form();
             kzg.data_setup_custom(1, input.len().try_into().unwrap())
                 .unwrap();
 
             let index =
                 rand::thread_rng().gen_range(0..input_poly.len_underlying_blob_field_elements());
-            let commitment = kzg.commit_coeff_form(&input_poly.clone()).unwrap();
+            let commitment = kzg.commit_eval_form(&input_poly.clone()).unwrap();
             let proof = kzg
-                .compute_kzg_proof_with_roots_of_unity_coeff_form(
-                    &input_poly,
-                    index.try_into().unwrap(),
-                )
+                .compute_proof_with_roots_of_unity(&input_poly, index.try_into().unwrap())
                 .unwrap();
             let value_fr = input_poly.get_at_index(index).unwrap();
             let z_fr = kzg.get_nth_root_of_unity(index).unwrap();
             let pairing_result =
-                kzg.verify_kzg_proof(commitment, proof, value_fr.clone(), z_fr.clone());
+                kzg.verify_proof(commitment, proof, value_fr.clone(), z_fr.clone());
             assert_eq!(pairing_result, true);
 
             // take random index, not the same index and check
             assert_eq!(
-                kzg.verify_kzg_proof(
+                kzg.verify_proof(
                     commitment,
                     proof,
                     value_fr.clone(),
@@ -255,39 +256,38 @@ mod tests {
     }
 
     #[test]
-    fn test_compute_kzg_proof() {
+    fn test_compute_proof() {
         use rand::Rng;
 
         let mut kzg = KZG_INSTANCE.clone();
 
         let input = Blob::from_raw_data(GETTYSBURG_ADDRESS_BYTES);
-        let input_poly = input.to_polynomial_coeff_form();
+        let input_poly = input.to_polynomial_eval_form();
 
         for index in 0..input_poly.len() - 1 {
             kzg.data_setup_custom(4, input.len().try_into().unwrap())
                 .unwrap();
-            let mut rand_index = rand::thread_rng().gen_range(0..input_poly.len());
+            let mut rand_index =
+                rand::thread_rng().gen_range(0..input_poly.len_underlying_blob_field_elements());
             loop {
                 if index == rand_index {
-                    rand_index = rand::thread_rng().gen_range(0..input_poly.len());
+                    rand_index = rand::thread_rng()
+                        .gen_range(0..input_poly.len_underlying_blob_field_elements());
                 } else {
                     break;
                 }
             }
-            let commitment = kzg.commit_coeff_form(&input_poly).unwrap();
+            let commitment = kzg.commit_eval_form(&input_poly).unwrap();
             let proof = kzg
-                .compute_kzg_proof_with_roots_of_unity_coeff_form(
-                    &input_poly,
-                    index.try_into().unwrap(),
-                )
+                .compute_proof_with_roots_of_unity(&input_poly, index.try_into().unwrap())
                 .unwrap();
             let value_fr = input_poly.get_at_index(index).unwrap();
             let z_fr = kzg.get_nth_root_of_unity(index).unwrap();
             let pairing_result =
-                kzg.verify_kzg_proof(commitment, proof, value_fr.clone(), z_fr.clone());
+                kzg.verify_proof(commitment, proof, value_fr.clone(), z_fr.clone());
             assert_eq!(pairing_result, true);
             assert_eq!(
-                kzg.verify_kzg_proof(
+                kzg.verify_proof(
                     commitment,
                     proof,
                     value_fr.clone(),
@@ -453,11 +453,11 @@ mod tests {
             let hard_coded_x = Fq::from_str(the_strings_str[1]).expect("should be fine");
             let hard_coded_y = Fq::from_str(the_strings_str[2]).expect("should be fine");
             let gnark_proof = G1Affine::new(hard_coded_x, hard_coded_y);
-            let poly = PolynomialCoeffForm::new(padded_input_fr_elements.to_vec());
+            let poly = PolynomialEvalForm::new(padded_input_fr_elements.to_vec());
             kzg.data_setup_custom(4, poly.len().try_into().unwrap())
                 .unwrap();
             let result = kzg
-                .compute_kzg_proof_coeff_form(&poly, index, &roots_of_unities)
+                .compute_proof(&poly, index, &roots_of_unities)
                 .unwrap();
             assert_eq!(gnark_proof, result)
         }

@@ -3,19 +3,6 @@ use ark_bn254::Fr;
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 use ark_std::Zero;
 
-/// Polynomial trait that defines the common methods for both Coefficient and Evaluation forms.
-/// Right now this is only used in [kzg::Kzg::compute_kzg_proof_coeff_form].
-/// TODO: feels like a hack. Is there a better API design that wouldn't require this?
-pub trait Polynomial {
-    /// Returns the number of elements in the polynomial (whether coefficients or evaluations)
-    fn len(&self) -> usize;
-    fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-    /// Returns the underlying elements, which can be either coefficients or evaluations.
-    fn elements(&self) -> &[Fr];
-}
-
 #[derive(Clone, Debug, PartialEq)]
 pub struct PolynomialCoeffForm {
     /// coeffs contains the coefficients of the polynomial, padded with 0s to the next power of two.
@@ -30,16 +17,6 @@ pub struct PolynomialCoeffForm {
     ///       This len is equivalent to the coeffs len before it gets padded.
     ///       Perhaps we can store the original coeffs and only pad when needed?
     len_underlying_blob_bytes: usize,
-}
-
-impl Polynomial for &PolynomialCoeffForm {
-    fn len(&self) -> usize {
-        self.coeffs.len()
-    }
-
-    fn elements(&self) -> &[Fr] {
-        self.coeffs()
-    }
 }
 
 impl PolynomialCoeffForm {
@@ -116,16 +93,6 @@ pub struct PolynomialEvalForm {
     len_underlying_blob_bytes: usize,
 }
 
-impl Polynomial for &PolynomialEvalForm {
-    fn len(&self) -> usize {
-        self.evaluations.len()
-    }
-
-    fn elements(&self) -> &[Fr] {
-        self.evaluations()
-    }
-}
-
 impl PolynomialEvalForm {
     pub fn new(evals: Vec<Fr>) -> Self {
         let underlying_blob_len_in_bytes = evals.len() * BYTES_PER_FIELD_ELEMENT;
@@ -154,6 +121,11 @@ impl PolynomialEvalForm {
     /// TODO: we should deprecate this. See comment in the struct.
     pub fn len_underlying_blob_bytes(&self) -> usize {
         self.len_underlying_blob_bytes
+    }
+
+    /// Similar to [Self::len_underlying_blob_bytes], but returns the number of field elements instead of bytes
+    pub fn len_underlying_blob_field_elements(&self) -> usize {
+        self.len_underlying_blob_bytes / BYTES_PER_FIELD_ELEMENT
     }
 
     pub fn get_at_index(&self, i: usize) -> Option<&Fr> {
