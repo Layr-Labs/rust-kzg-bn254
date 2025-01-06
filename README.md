@@ -34,11 +34,7 @@ See the `test_compute_kzg_proof` function in [./tests/kzg_test.rs](./tests/kzg_t
 
 ## Function Reference
 
-### `from_bytes_and_pad()`
-
-The `Blob` is loaded with `from_bytes_and_pad` which accepts bytes and "pads" it so that the data fits within the requirements of Eigen DA functioning. It also keeps track of the blob length after padding.
-
-### `to_polynomial()`
+### `to_polynomial_coeff_form()` / `to_polynomial_eval_form()`
 
 From the `Blob`, a polynomial can be obtained via calling the `to_polynomial()` function. This converts the Blob to Field elements, then calculates the next power of 2 from this length of field elements and appends `zero` value elements for the remaining length.
 
@@ -51,6 +47,15 @@ The `data_setup_custom` (for testing) or `data_setup_mins` should be used to spe
 The `commit` function takes in a `polynomial`. It is computed over `lagrange` basis by performing the (i)FFT depending on the `polynomial` form specified.
 
 
-### `compute_kzg_proof_with_roots_of_unity()`
+### `compute_proof_with_roots_of_unity()`
 
-The `compute_kzg_proof_with_roots_of_unity` takes in a `Polynomial` and an `index` at which it needs to be computed.
+The `compute_proof_with_roots_of_unity` takes in a `Polynomial` and an `index` at which it needs to be computed.
+
+## KZG Commitments
+
+Below diagram explains the difference types involved between polynomials, SRS points, and kzg commitments.
+A KZG commitment can be taken by an inner product between (poly_eval, srs_monomial) or (poly_coeff, srs_lagrange). FFT and IFFT operations can be performed to convert between these forms.
+
+![KZG Commitments](./kzg_commitment_diagram.png)
+
+Our current codebase has the types PolynomialEvalForm and PolynomialCoeffForm to represent the polynomial in evaluation and coefficient form respectively. However, we do not have types to represent the two forms of srs points. They are implicitly assumed to be in monomial form when loaded, and an IFFT is performed before taking the inner product with the polynomial in evaluation form.
