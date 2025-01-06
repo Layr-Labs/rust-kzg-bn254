@@ -16,7 +16,7 @@ fn bench_kzg_verify(c: &mut Criterion) {
 
     c.bench_function("bench_kzg_verify_10000", |b| {
         let random_blob: Vec<u8> = (0..10000).map(|_| rng.gen_range(32..=126) as u8).collect();
-        let input = Blob::from_bytes_and_pad(&random_blob);
+        let input = Blob::from_raw_data(&random_blob);
         let input_poly = input
             .to_polynomial(PolynomialFormat::InCoefficientForm)
             .unwrap();
@@ -35,7 +35,7 @@ fn bench_kzg_verify(c: &mut Criterion) {
 
     c.bench_function("bench_kzg_verify_30000", |b| {
         let random_blob: Vec<u8> = (0..30000).map(|_| rng.gen_range(32..=126) as u8).collect();
-        let input = Blob::from_bytes_and_pad(&random_blob);
+        let input = Blob::from_raw_data(&random_blob);
         let input_poly = input
             .to_polynomial(PolynomialFormat::InCoefficientForm)
             .unwrap();
@@ -54,7 +54,7 @@ fn bench_kzg_verify(c: &mut Criterion) {
 
     c.bench_function("bench_kzg_verify_50000", |b| {
         let random_blob: Vec<u8> = (0..50000).map(|_| rng.gen_range(32..=126) as u8).collect();
-        let input = Blob::from_bytes_and_pad(&random_blob);
+        let input = Blob::from_raw_data(&random_blob);
         let input_poly = input
             .to_polynomial(PolynomialFormat::InCoefficientForm)
             .unwrap();
