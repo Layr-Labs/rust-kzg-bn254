@@ -1,6 +1,6 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use rand::Rng;
-use rust_kzg_bn254::{blob::Blob, kzg::Kzg, polynomial::PolynomialFormat};
+use rust_kzg_bn254::{blob::Blob, kzg::Kzg};
 use std::time::Duration;
 
 fn bench_kzg_commit(c: &mut Criterion) {
@@ -19,12 +19,10 @@ fn bench_kzg_commit(c: &mut Criterion) {
             .map(|_| rng.gen_range(32..=126) as u8)
             .collect();
         let input = Blob::from_raw_data(&random_blob);
-        let input_poly = input
-            .to_polynomial(PolynomialFormat::InCoefficientForm)
-            .unwrap();
+        let input_poly = input.to_polynomial_coeff_form();
         kzg.data_setup_custom(1, input.len().try_into().unwrap())
             .unwrap();
-        b.iter(|| kzg.commit(&input_poly).unwrap());
+        b.iter(|| kzg.commit_coeff_form(&input_poly).unwrap());
     });
 
     c.bench_function("bench_kzg_commit_16mb", |b| {
@@ -32,12 +30,10 @@ fn bench_kzg_commit(c: &mut Criterion) {
             .map(|_| rng.gen_range(32..=126) as u8)
             .collect();
         let input = Blob::from_raw_data(&random_blob);
-        let input_poly = input
-            .to_polynomial(PolynomialFormat::InCoefficientForm)
-            .unwrap();
+        let input_poly = input.to_polynomial_coeff_form();
         kzg.data_setup_custom(1, input.len().try_into().unwrap())
             .unwrap();
-        b.iter(|| kzg.commit(&input_poly).unwrap());
+        b.iter(|| kzg.commit_coeff_form(&input_poly).unwrap());
     });
 }
 

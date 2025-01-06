@@ -1,6 +1,6 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use rand::Rng;
-use rust_kzg_bn254::{blob::Blob, kzg::Kzg, polynomial::PolynomialFormat};
+use rust_kzg_bn254::{blob::Blob, kzg::Kzg};
 use std::time::Duration;
 
 fn bench_kzg_verify(c: &mut Criterion) {
@@ -17,16 +17,17 @@ fn bench_kzg_verify(c: &mut Criterion) {
     c.bench_function("bench_kzg_verify_10000", |b| {
         let random_blob: Vec<u8> = (0..10000).map(|_| rng.gen_range(32..=126) as u8).collect();
         let input = Blob::from_raw_data(&random_blob);
-        let input_poly = input
-            .to_polynomial(PolynomialFormat::InCoefficientForm)
-            .unwrap();
+        let input_poly = input.to_polynomial_coeff_form();
         kzg.data_setup_custom(1, input.len().try_into().unwrap())
             .unwrap();
         let index =
-            rand::thread_rng().gen_range(0..input_poly.get_length_of_padded_blob_as_fr_vector());
-        let commitment = kzg.commit(&input_poly.clone()).unwrap();
+            rand::thread_rng().gen_range(0..input_poly.len_underlying_blob_field_elements());
+        let commitment = kzg.commit_coeff_form(&input_poly).unwrap();
         let proof = kzg
-            .compute_kzg_proof_with_roots_of_unity(&input_poly, index.try_into().unwrap())
+            .compute_kzg_proof_with_roots_of_unity_coeff_form(
+                &input_poly,
+                index.try_into().unwrap(),
+            )
             .unwrap();
         let value_fr = input_poly.get_at_index(index).unwrap();
         let z_fr = kzg.get_nth_root_of_unity(index).unwrap();
@@ -36,16 +37,17 @@ fn bench_kzg_verify(c: &mut Criterion) {
     c.bench_function("bench_kzg_verify_30000", |b| {
         let random_blob: Vec<u8> = (0..30000).map(|_| rng.gen_range(32..=126) as u8).collect();
         let input = Blob::from_raw_data(&random_blob);
-        let input_poly = input
-            .to_polynomial(PolynomialFormat::InCoefficientForm)
-            .unwrap();
+        let input_poly = input.to_polynomial_coeff_form();
         kzg.data_setup_custom(1, input.len().try_into().unwrap())
             .unwrap();
         let index =
-            rand::thread_rng().gen_range(0..input_poly.get_length_of_padded_blob_as_fr_vector());
-        let commitment = kzg.commit(&input_poly.clone()).unwrap();
+            rand::thread_rng().gen_range(0..input_poly.len_underlying_blob_field_elements());
+        let commitment = kzg.commit_coeff_form(&input_poly).unwrap();
         let proof = kzg
-            .compute_kzg_proof_with_roots_of_unity(&input_poly, index.try_into().unwrap())
+            .compute_kzg_proof_with_roots_of_unity_coeff_form(
+                &input_poly,
+                index.try_into().unwrap(),
+            )
             .unwrap();
         let value_fr = input_poly.get_at_index(index).unwrap();
         let z_fr = kzg.get_nth_root_of_unity(index).unwrap();
@@ -55,16 +57,17 @@ fn bench_kzg_verify(c: &mut Criterion) {
     c.bench_function("bench_kzg_verify_50000", |b| {
         let random_blob: Vec<u8> = (0..50000).map(|_| rng.gen_range(32..=126) as u8).collect();
         let input = Blob::from_raw_data(&random_blob);
-        let input_poly = input
-            .to_polynomial(PolynomialFormat::InCoefficientForm)
-            .unwrap();
+        let input_poly = input.to_polynomial_coeff_form();
         kzg.data_setup_custom(1, input.len().try_into().unwrap())
             .unwrap();
         let index =
-            rand::thread_rng().gen_range(0..input_poly.get_length_of_padded_blob_as_fr_vector());
-        let commitment = kzg.commit(&input_poly.clone()).unwrap();
+            rand::thread_rng().gen_range(0..input_poly.len_underlying_blob_field_elements());
+        let commitment = kzg.commit_coeff_form(&input_poly).unwrap();
         let proof = kzg
-            .compute_kzg_proof_with_roots_of_unity(&input_poly, index.try_into().unwrap())
+            .compute_kzg_proof_with_roots_of_unity_coeff_form(
+                &input_poly,
+                index.try_into().unwrap(),
+            )
             .unwrap();
         let value_fr = input_poly.get_at_index(index).unwrap();
         let z_fr = kzg.get_nth_root_of_unity(index).unwrap();

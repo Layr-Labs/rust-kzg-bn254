@@ -56,7 +56,7 @@ mod tests {
         }
 
         let polynomial = PolynomialCoeffForm::new(coeffs);
-        let result = KZG_3000.commit_coef_form(&polynomial);
+        let result = KZG_3000.commit_coeff_form(&polynomial);
         assert_eq!(
             result,
             Err(KzgError::SerializationError(
@@ -224,9 +224,9 @@ mod tests {
 
             let index =
                 rand::thread_rng().gen_range(0..input_poly.len_underlying_blob_field_elements());
-            let commitment = kzg.commit_coef_form(&input_poly.clone()).unwrap();
+            let commitment = kzg.commit_coeff_form(&input_poly.clone()).unwrap();
             let proof = kzg
-                .compute_kzg_proof_with_roots_of_unity_coef_form(
+                .compute_kzg_proof_with_roots_of_unity_coeff_form(
                     &input_poly,
                     index.try_into().unwrap(),
                 )
@@ -274,9 +274,9 @@ mod tests {
                     break;
                 }
             }
-            let commitment = kzg.commit_coef_form(&input_poly).unwrap();
+            let commitment = kzg.commit_coeff_form(&input_poly).unwrap();
             let proof = kzg
-                .compute_kzg_proof_with_roots_of_unity_coef_form(
+                .compute_kzg_proof_with_roots_of_unity_coeff_form(
                     &input_poly,
                     index.try_into().unwrap(),
                 )
