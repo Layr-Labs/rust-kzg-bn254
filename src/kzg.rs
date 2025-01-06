@@ -479,7 +479,10 @@ impl Kzg {
     }
 
     /// commit the actual polynomial with the values setup
-    pub fn commit_coeff_form(&self, polynomial: &PolynomialCoeffForm) -> Result<G1Affine, KzgError> {
+    pub fn commit_coeff_form(
+        &self,
+        polynomial: &PolynomialCoeffForm,
+    ) -> Result<G1Affine, KzgError> {
         if polynomial.len() > self.g1.len() {
             return Err(KzgError::SerializationError(
                 "polynomial length is not correct".to_string(),
@@ -596,7 +599,7 @@ impl Kzg {
             if denom_poly[i].is_zero() {
                 quotient_poly.push(self.compute_quotient_eval_on_domain(
                     z_fr,
-                    &eval_fr,
+                    eval_fr,
                     value_fr,
                     root_of_unities,
                 ));
@@ -605,7 +608,7 @@ impl Kzg {
             }
         }
 
-        match G1Projective::msm(&bases, &quotient_poly) {
+        match G1Projective::msm(bases, &quotient_poly) {
             Ok(res) => Ok(G1Affine::from(res)),
             Err(err) => Err(KzgError::SerializationError(err.to_string())),
         }

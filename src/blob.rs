@@ -1,5 +1,4 @@
 use crate::{
-    errors::BlobError,
     helpers,
     polynomial::{PolynomialCoeffForm, PolynomialEvalForm},
 };

@@ -9,6 +9,9 @@ use ark_std::Zero;
 pub trait Polynomial {
     /// Returns the number of elements in the polynomial (whether coefficients or evaluations)
     fn len(&self) -> usize;
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
     /// Returns the underlying elements, which can be either coefficients or evaluations.
     fn elements(&self) -> &[Fr];
 }
