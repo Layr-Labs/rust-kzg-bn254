@@ -3,11 +3,7 @@ mod tests {
     use ark_bn254::{Fr, G1Affine, G2Affine};
     use lazy_static::lazy_static;
     use rust_kzg_bn254::{
-        blob::Blob,
-        errors::KzgError,
-        helpers,
-        kzg::Kzg,
-        polynomial::{Polynomial, PolynomialFormat},
+        blob::Blob, errors::KzgError, helpers, kzg::Kzg, polynomial::PolynomialCoeffForm,
     };
     use std::{
         env,
@@ -54,13 +50,13 @@ mod tests {
 
     #[test]
     fn test_commit_errors() {
-        let mut poly = vec![];
+        let mut coeffs = vec![];
         for _ in 0..4000 {
-            poly.push(Fr::one());
+            coeffs.push(Fr::one());
         }
 
-        let polynomial = Polynomial::new(&poly, 2, PolynomialFormat::InCoefficientForm).unwrap();
-        let result = KZG_3000.commit(&polynomial);
+        let polynomial = PolynomialCoeffForm::new(coeffs);
+        let result = KZG_3000.commit_coef_form(&polynomial);
         assert_eq!(
             result,
             Err(KzgError::SerializationError(
@@ -176,9 +172,7 @@ mod tests {
                 .calculate_roots_of_unity(input.len().try_into().unwrap())
                 .unwrap();
 
-            let polynomial_input = input
-                .to_polynomial(PolynomialFormat::InCoefficientForm)
-                .unwrap();
+            let polynomial_input = input.to_polynomial_coeff_form();
             let expanded_roots_of_unity_vec_1: Vec<&Fr> = (0..polynomial_input.len())
                 .map(|i| kzg_clone1.get_nth_root_of_unity(i).unwrap())
                 .collect();
@@ -195,9 +189,7 @@ mod tests {
         use ark_bn254::Fq;
 
         let blob = Blob::from_raw_data(GETTYSBURG_ADDRESS_BYTES);
-        let fn_output = KZG_3000
-            .blob_to_kzg_commitment(&blob, PolynomialFormat::InCoefficientForm)
-            .unwrap();
+        let fn_output = KZG_3000.blob_to_kzg_commitment(&blob).unwrap();
         let commitment_from_da = G1Affine::new_unchecked(
             Fq::from_str(
                 "2961155957874067312593973807786254905069537311739090798303675273531563528369",
@@ -226,17 +218,18 @@ mod tests {
             println!("generating blob of length is {}", blob_length);
 
             let input = Blob::from_raw_data(&random_blob);
-            let input_poly = input
-                .to_polynomial(PolynomialFormat::InCoefficientForm)
-                .unwrap();
+            let input_poly = input.to_polynomial_coeff_form();
             kzg.data_setup_custom(1, input.len().try_into().unwrap())
                 .unwrap();
 
-            let index = rand::thread_rng()
-                .gen_range(0..input_poly.get_length_of_padded_blob_as_fr_vector());
-            let commitment = kzg.commit(&input_poly.clone()).unwrap();
+            let index =
+                rand::thread_rng().gen_range(0..input_poly.len_underlying_blob_field_elements());
+            let commitment = kzg.commit_coef_form(&input_poly.clone()).unwrap();
             let proof = kzg
-                .compute_kzg_proof_with_roots_of_unity(&input_poly, index.try_into().unwrap())
+                .compute_kzg_proof_with_roots_of_unity_coef_form(
+                    &input_poly,
+                    index.try_into().unwrap(),
+                )
                 .unwrap();
             let value_fr = input_poly.get_at_index(index).unwrap();
             let z_fr = kzg.get_nth_root_of_unity(index).unwrap();
@@ -251,7 +244,7 @@ mod tests {
                     proof,
                     value_fr.clone(),
                     kzg.get_nth_root_of_unity(
-                        (index + 1) % input_poly.get_length_of_padded_blob_as_fr_vector()
+                        (index + 1) % input_poly.len_underlying_blob_field_elements()
                     )
                     .unwrap()
                     .clone()
@@ -268,9 +261,7 @@ mod tests {
         let mut kzg = KZG_INSTANCE.clone();
 
         let input = Blob::from_raw_data(GETTYSBURG_ADDRESS_BYTES);
-        let input_poly = input
-            .to_polynomial(PolynomialFormat::InCoefficientForm)
-            .unwrap();
+        let input_poly = input.to_polynomial_coeff_form();
 
         for index in 0..input_poly.len() - 1 {
             kzg.data_setup_custom(4, input.len().try_into().unwrap())
@@ -283,9 +274,12 @@ mod tests {
                     break;
                 }
             }
-            let commitment = kzg.commit(&input_poly.clone()).unwrap();
+            let commitment = kzg.commit_coef_form(&input_poly).unwrap();
             let proof = kzg
-                .compute_kzg_proof_with_roots_of_unity(&input_poly, index.try_into().unwrap())
+                .compute_kzg_proof_with_roots_of_unity_coef_form(
+                    &input_poly,
+                    index.try_into().unwrap(),
+                )
                 .unwrap();
             let value_fr = input_poly.get_at_index(index).unwrap();
             let z_fr = kzg.get_nth_root_of_unity(index).unwrap();
@@ -459,16 +453,11 @@ mod tests {
             let hard_coded_x = Fq::from_str(the_strings_str[1]).expect("should be fine");
             let hard_coded_y = Fq::from_str(the_strings_str[2]).expect("should be fine");
             let gnark_proof = G1Affine::new(hard_coded_x, hard_coded_y);
-            let poly = Polynomial::new(
-                &padded_input_fr_elements,
-                30,
-                PolynomialFormat::InCoefficientForm,
-            )
-            .unwrap();
+            let poly = PolynomialCoeffForm::new(padded_input_fr_elements.to_vec());
             kzg.data_setup_custom(4, poly.len().try_into().unwrap())
                 .unwrap();
             let result = kzg
-                .compute_kzg_proof(&poly, index, &roots_of_unities)
+                .compute_kzg_proof_coeff_form(&poly, index, &roots_of_unities)
                 .unwrap();
             assert_eq!(gnark_proof, result)
         }
