@@ -456,9 +456,7 @@ mod tests {
             let poly = PolynomialEvalForm::new(padded_input_fr_elements.to_vec());
             kzg.data_setup_custom(4, poly.len().try_into().unwrap())
                 .unwrap();
-            let result = kzg
-                .compute_proof(&poly, index, &roots_of_unities)
-                .unwrap();
+            let result = kzg.compute_proof(&poly, index, &roots_of_unities).unwrap();
             assert_eq!(gnark_proof, result)
         }
     }

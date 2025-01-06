@@ -272,7 +272,8 @@ impl Kzg {
     }
 
     /// read files in chunks with specified length
-    /// TODO: chunks seems misleading here, since we read one field element at a time.
+    /// TODO: chunks seems misleading here, since we read one field element at a
+    /// time.
     fn read_file_chunks(
         file_path: &str,
         sender: Sender<(Vec<u8>, usize, bool)>,
@@ -287,8 +288,9 @@ impl Kzg {
 
         let mut i = 0;
         // We are making one syscall per field element, which is super inefficient.
-        // FIXME: Read the entire file (or large segments) into memory and then split it into field elements.
-        // Entire G1 file might be ~8GiB, so might not fit in RAM.
+        // FIXME: Read the entire file (or large segments) into memory and then split it
+        // into field elements. Entire G1 file might be ~8GiB, so might not fit
+        // in RAM.
         while let Ok(bytes_read) = reader.read(&mut buffer) {
             if bytes_read == 0 {
                 break;
@@ -352,9 +354,10 @@ impl Kzg {
         Ok(all_points.iter().map(|(point, _)| *point).collect())
     }
 
-    /// read G1 points in parallel, by creating one reader thread, which reads bytes from the file,
-    /// and fans them out to worker threads (one per cpu) which parse the bytes into G1Affine points.
-    /// The worker threads then fan in the parsed points to the main thread, which sorts them by
+    /// read G1 points in parallel, by creating one reader thread, which reads
+    /// bytes from the file, and fans them out to worker threads (one per
+    /// cpu) which parse the bytes into G1Affine points. The worker threads
+    /// then fan in the parsed points to the main thread, which sorts them by
     /// their original position in the file to maintain order.
     ///
     /// # Arguments
@@ -370,7 +373,8 @@ impl Kzg {
         srs_points_to_load: u32,
         is_native: bool,
     ) -> Result<Vec<G1Affine>, KzgError> {
-        // Channel contains (bytes, position, is_native) tuples. The position is used to reorder the points after processing them.
+        // Channel contains (bytes, position, is_native) tuples. The position is used to
+        // reorder the points after processing them.
         let (sender, receiver) = bounded::<(Vec<u8>, usize, bool)>(1000);
 
         // Spawning the reader thread
@@ -472,7 +476,8 @@ impl Kzg {
             ));
         }
 
-        // When the polynomial is in evaluation form, use IFFT to transform srs points to lagrange form.
+        // When the polynomial is in evaluation form, use IFFT to transform srs points
+        // to lagrange form.
         let bases = self.g1_ifft(polynomial.len())?;
 
         match G1Projective::msm(&bases, polynomial.evaluations()) {
@@ -491,7 +496,8 @@ impl Kzg {
                 "polynomial length is not correct".to_string(),
             ));
         }
-        // When the polynomial is in coefficient form, use the original srs points (in monomial form).
+        // When the polynomial is in coefficient form, use the original srs points (in
+        // monomial form).
         let bases = self.g1[..polynomial.len()].to_vec();
 
         match G1Projective::msm(&bases, polynomial.coeffs()) {
@@ -515,9 +521,10 @@ impl Kzg {
     }
 
     /// Compute a kzg proof from a polynomial in evaluation form.
-    /// We don't currently support proofs for polynomials in coefficient form, but one can
-    /// take the FFT of the polynomial in coefficient form to get the polynomial in evaluation form.
-    /// This is available via the method [PolynomialCoeffForm::to_eval_form].
+    /// We don't currently support proofs for polynomials in coefficient form,
+    /// but one can take the FFT of the polynomial in coefficient form to
+    /// get the polynomial in evaluation form. This is available via the
+    /// method [PolynomialCoeffForm::to_eval_form].
     pub fn compute_proof(
         &self,
         polynomial: &PolynomialEvalForm,

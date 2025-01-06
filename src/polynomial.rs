@@ -5,17 +5,20 @@ use ark_std::Zero;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct PolynomialCoeffForm {
-    /// coeffs contains the coefficients of the polynomial, padded with 0s to the next power of two.
-    /// Hence if the polynomial is created with coefficients [1, 2, 3], the internal representation
-    /// will be [1, 2, 3, 0].
+    /// coeffs contains the coefficients of the polynomial, padded with 0s to
+    /// the next power of two. Hence if the polynomial is created with
+    /// coefficients [1, 2, 3], the internal representation will be [1, 2,
+    /// 3, 0].
     coeffs: Vec<Fr>,
-    /// Number of bytes in the underlying blob, which was used to create the polynomial.
-    /// This is passed as is when converting between Coefficient and Evaluation forms,
-    /// so that the blob can be reconstructed with the same length.
+    /// Number of bytes in the underlying blob, which was used to create the
+    /// polynomial. This is passed as is when converting between Coefficient
+    /// and Evaluation forms, so that the blob can be reconstructed with the
+    /// same length.
     ///
-    /// TODO: We should get rid of this: polynomial should not know about the blob.
-    ///       This len is equivalent to the coeffs len before it gets padded.
-    ///       Perhaps we can store the original coeffs and only pad when needed?
+    /// TODO: We should get rid of this: polynomial should not know about the
+    /// blob.       This len is equivalent to the coeffs len before it gets
+    /// padded.       Perhaps we can store the original coeffs and only pad
+    /// when needed?
     len_underlying_blob_bytes: usize,
 }
 
@@ -36,9 +39,9 @@ impl PolynomialCoeffForm {
         &self.coeffs
     }
 
-    /// Returns the number of coefficients in the polynomial. Note that this returns the number of
-    /// coefficients in the padded polynomial, not the number of coefficients in the original
-    /// polynomial.
+    /// Returns the number of coefficients in the polynomial. Note that this
+    /// returns the number of coefficients in the padded polynomial, not the
+    /// number of coefficients in the original polynomial.
     pub fn len(&self) -> usize {
         self.coeffs.len()
     }
@@ -48,7 +51,8 @@ impl PolynomialCoeffForm {
         self.len_underlying_blob_bytes
     }
 
-    /// Similar to [Self::len_underlying_blob_bytes], but returns the number of field elements instead of bytes
+    /// Similar to [Self::len_underlying_blob_bytes], but returns the number of
+    /// field elements instead of bytes
     pub fn len_underlying_blob_field_elements(&self) -> usize {
         self.len_underlying_blob_bytes / BYTES_PER_FIELD_ELEMENT
     }
@@ -79,17 +83,20 @@ impl PolynomialCoeffForm {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct PolynomialEvalForm {
-    /// evaluations contains the evaluations of the polynomial, padded with 0s to the next power of two.
-    /// Hence if the polynomial is created with coefficients [1, 2, 3], the internal representation
-    /// will be [1, 2, 3, 0].
+    /// evaluations contains the evaluations of the polynomial, padded with 0s
+    /// to the next power of two. Hence if the polynomial is created with
+    /// coefficients [1, 2, 3], the internal representation will be [1, 2,
+    /// 3, 0].
     evaluations: Vec<Fr>,
-    /// Number of bytes in the underlying blob, which was used to create the polynomial.
-    /// This is passed as is when converting between Coefficient and Evaluation forms,
-    /// so that the blob can be reconstructed with the same length.
+    /// Number of bytes in the underlying blob, which was used to create the
+    /// polynomial. This is passed as is when converting between Coefficient
+    /// and Evaluation forms, so that the blob can be reconstructed with the
+    /// same length.
     ///
-    /// TODO: We should get rid of this: polynomial should not know about the blob.
-    ///       This len is equivalent to the coeffs len before it gets padded.
-    ///       Perhaps we can store the original coeffs and only pad when needed?
+    /// TODO: We should get rid of this: polynomial should not know about the
+    /// blob.       This len is equivalent to the coeffs len before it gets
+    /// padded.       Perhaps we can store the original coeffs and only pad
+    /// when needed?
     len_underlying_blob_bytes: usize,
 }
 
@@ -98,7 +105,8 @@ impl PolynomialEvalForm {
         let underlying_blob_len_in_bytes = evals.len() * BYTES_PER_FIELD_ELEMENT;
         let next_power_of_two = evals.len().next_power_of_two();
         let mut padded_evals = evals;
-        // TODO: does it make sense to pad evaluations with zeros? This changes the polynomial...
+        // TODO: does it make sense to pad evaluations with zeros? This changes the
+        // polynomial...
         padded_evals.resize(next_power_of_two, Fr::zero());
 
         Self {
@@ -111,9 +119,9 @@ impl PolynomialEvalForm {
         &self.evaluations
     }
 
-    /// Returns the number of evaluations in the polynomial. Note that this returns the number of
-    /// evaluations in the padded polynomial, not the number of evaluations in the original
-    /// polynomial.
+    /// Returns the number of evaluations in the polynomial. Note that this
+    /// returns the number of evaluations in the padded polynomial, not the
+    /// number of evaluations in the original polynomial.
     pub fn len(&self) -> usize {
         self.evaluations.len()
     }
@@ -123,7 +131,8 @@ impl PolynomialEvalForm {
         self.len_underlying_blob_bytes
     }
 
-    /// Similar to [Self::len_underlying_blob_bytes], but returns the number of field elements instead of bytes
+    /// Similar to [Self::len_underlying_blob_bytes], but returns the number of
+    /// field elements instead of bytes
     pub fn len_underlying_blob_field_elements(&self) -> usize {
         self.len_underlying_blob_bytes / BYTES_PER_FIELD_ELEMENT
     }
