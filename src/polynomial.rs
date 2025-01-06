@@ -3,8 +3,18 @@ use ark_bn254::Fr;
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 use ark_std::Zero;
 
+/// Polynomial trait that defines the common methods for both Coefficient and Evaluation forms.
+/// Right now this is only used in [kzg::Kzg::compute_kzg_proof_coeff_form].
+/// TODO: feels like a hack. Is there a better API design that wouldn't require this?
+pub trait Polynomial {
+    /// Returns the number of elements in the polynomial (whether coefficients or evaluations)
+    fn len(&self) -> usize;
+    /// Returns the underlying elements, which can be either coefficients or evaluations.
+    fn elements(&self) -> &[Fr];
+}
+
 #[derive(Clone, Debug, PartialEq)]
-pub struct PolynomialCoefForm {
+pub struct PolynomialCoeffForm {
     /// coeffs contains the coefficients of the polynomial, padded with 0s to the next power of two.
     /// Hence if the polynomial is created with coefficients [1, 2, 3], the internal representation
     /// will be [1, 2, 3, 0].
@@ -19,7 +29,17 @@ pub struct PolynomialCoefForm {
     len_underlying_blob_bytes: usize,
 }
 
-impl PolynomialCoefForm {
+impl Polynomial for &PolynomialCoeffForm {
+    fn len(&self) -> usize {
+        self.coeffs.len()
+    }
+
+    fn elements(&self) -> &[Fr] {
+        self.coeffs()
+    }
+}
+
+impl PolynomialCoeffForm {
     pub fn new(coeffs: Vec<Fr>) -> Self {
         let underlying_blob_len_in_bytes = coeffs.len() * BYTES_PER_FIELD_ELEMENT;
         let next_power_of_two = coeffs.len().next_power_of_two();
@@ -46,6 +66,11 @@ impl PolynomialCoefForm {
     /// TODO: we should deprecate this. See comment in the struct.
     pub fn len_underlying_blob_bytes(&self) -> usize {
         self.len_underlying_blob_bytes
+    }
+
+    /// Similar to [Self::len_underlying_blob_bytes], but returns the number of field elements instead of bytes
+    pub fn len_underlying_blob_field_elements(&self) -> usize {
+        self.len_underlying_blob_bytes / BYTES_PER_FIELD_ELEMENT
     }
 
     pub fn get_at_index(&self, i: usize) -> Option<&Fr> {
@@ -86,6 +111,16 @@ pub struct PolynomialEvalForm {
     ///       This len is equivalent to the coeffs len before it gets padded.
     ///       Perhaps we can store the original coeffs and only pad when needed?
     len_underlying_blob_bytes: usize,
+}
+
+impl Polynomial for &PolynomialEvalForm {
+    fn len(&self) -> usize {
+        self.evaluations.len()
+    }
+
+    fn elements(&self) -> &[Fr] {
+        self.evaluations()
+    }
 }
 
 impl PolynomialEvalForm {
@@ -132,12 +167,12 @@ impl PolynomialEvalForm {
         helpers::to_byte_array(&self.evaluations, self.len_underlying_blob_bytes)
     }
 
-    pub fn to_coef_form(&self) -> Result<PolynomialCoefForm, PolynomialError> {
+    pub fn to_coef_form(&self) -> Result<PolynomialCoeffForm, PolynomialError> {
         let coeffs = GeneralEvaluationDomain::<Fr>::new(self.len())
             .ok_or(PolynomialError::FFTError(
                 "Failed to construct domain for IFFT".to_string(),
             ))?
             .ifft(&self.evaluations);
-        Ok(PolynomialCoefForm::new(coeffs))
+        Ok(PolynomialCoeffForm::new(coeffs))
     }
 }

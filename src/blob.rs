@@ -1,7 +1,7 @@
 use crate::{
     errors::BlobError,
     helpers,
-    polynomial::{PolynomialCoefForm, PolynomialEvalForm},
+    polynomial::{PolynomialCoeffForm, PolynomialEvalForm},
 };
 
 /// A blob which is Eigen DA spec aligned.
@@ -63,9 +63,9 @@ impl Blob {
     }
 
     /// Convert the blob data to a `PolynomialCoefForm`.
-    pub fn to_polynomial_coeff_form(&self) -> PolynomialCoefForm {
+    pub fn to_polynomial_coeff_form(&self) -> PolynomialCoeffForm {
         let fr_vec = helpers::to_fr_array(&self.blob_data);
-        PolynomialCoefForm::new(fr_vec)
+        PolynomialCoeffForm::new(fr_vec)
     }
 }
 
