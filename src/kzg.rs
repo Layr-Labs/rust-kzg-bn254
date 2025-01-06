@@ -22,7 +22,7 @@ use ark_std::{ops::Div, str::FromStr, One, Zero};
 use crossbeam_channel::{bounded, Sender};
 use num_traits::ToPrimitive;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
-use sha3::{Digest, Sha3_256};
+use sha2::{Digest, Sha256};
 use std::{
     fs::{self, File},
     io::{self, BufReader},
@@ -859,7 +859,7 @@ impl Kzg {
     /// * `Fr` - The resulting field element.
     fn hash_to_field_element(msg: &[u8]) -> Fr {
         // Perform the hash operation.
-        let msg_digest = Sha3_256::digest(msg);
+        let msg_digest = Sha256::digest(msg);
         let hash_elements = msg_digest.as_slice();
 
         let fr_element: Fr = match KZG_ENDIANNESS {
@@ -1188,9 +1188,7 @@ impl Kzg {
             return Err(KzgError::InvalidInputLength);
         }
 
-        // Now let's create the challenge!
-        let evaluation: [u8; 32] = Sha3_256::digest(data_to_be_hashed).into();
-        let r = Fr::from_be_bytes_mod_order(&evaluation);
+        let r = Self::hash_to_field_element(&data_to_be_hashed);
 
         Ok(helpers::compute_powers(&r, n))
     }
