@@ -479,7 +479,7 @@ impl Kzg {
     }
 
     /// commit the actual polynomial with the values setup
-    pub fn commit_coef_form(&self, polynomial: &PolynomialCoeffForm) -> Result<G1Affine, KzgError> {
+    pub fn commit_coeff_form(&self, polynomial: &PolynomialCoeffForm) -> Result<G1Affine, KzgError> {
         if polynomial.len() > self.g1.len() {
             return Err(KzgError::SerializationError(
                 "polynomial length is not correct".to_string(),
@@ -509,7 +509,7 @@ impl Kzg {
         self.compute_kzg_proof_eval_form(polynomial, index, &self.expanded_roots_of_unity)
     }
 
-    pub fn compute_kzg_proof_with_roots_of_unity_coef_form(
+    pub fn compute_kzg_proof_with_roots_of_unity_coeff_form(
         &self,
         polynomial: &PolynomialCoeffForm,
         index: u64,
