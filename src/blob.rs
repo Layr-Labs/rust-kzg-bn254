@@ -5,7 +5,7 @@ use crate::{
 
 /// A blob which is Eigen DA spec aligned.
 /// TODO: we should probably move to a transparent repr like
-///       https://docs.rs/alloy-primitives/latest/alloy_primitives/struct.FixedBytes.html
+///       <https://docs.rs/alloy-primitives/latest/alloy_primitives/struct.FixedBytes.html>
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Blob {
     blob_data: Vec<u8>,

@@ -19,8 +19,16 @@ use std::{
     io::{self, BufReader},
 };
 
+/// Main interesting struct of the rust-kzg-bn254 crate.
+/// [Kzg] is a struct that holds the SRS points in monomial form, and
+/// provides methods for committing to a blob, (either via a [Blob] itself, 
+/// or a [PolynomialCoeffForm] or [PolynomialEvalForm]), and generating and verifying proofs.
+/// 
+/// The [Blob] and [PolynomialCoeffForm]/[PolynomialEvalForm] structs are mostly 
+/// <https://en.wikipedia.org/wiki/Passive_data_structure> with 
+/// constructor and few helper methods. 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Kzg {
+pub struct KZG {
     // SRS points are stored in monomial form, ready to be used for commitments with polynomials
     // in coefficient form. To commit against a polynomial in evaluation form, we need to transform
     // the SRS points to lagrange form using IFFT.
@@ -39,7 +47,7 @@ struct Params {
     completed_setup: bool,
 }
 
-impl Kzg {
+impl KZG {
     pub fn setup(
         path_to_g1_points: &str,
         path_to_g2_points: &str,

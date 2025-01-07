@@ -6,7 +6,7 @@ mod tests {
         blob::Blob,
         errors::KzgError,
         helpers,
-        kzg::Kzg,
+        kzg::KZG,
         polynomial::{PolynomialCoeffForm, PolynomialEvalForm},
     };
     use std::{
@@ -18,9 +18,9 @@ mod tests {
     use ark_std::{str::FromStr, One};
 
     // Function to determine the setup based on an environment variable
-    fn determine_setup() -> Kzg {
+    fn determine_setup() -> KZG {
         match env::var("KZG_ENV") {
-            Ok(val) if val == "mainnet-data" => Kzg::setup(
+            Ok(val) if val == "mainnet-data" => KZG::setup(
                 "tests/test-files/mainnet-data/g1.131072.point",
                 "",
                 "tests/test-files/mainnet-data/g2.point.powerOf2",
@@ -28,7 +28,7 @@ mod tests {
                 131072,
             )
             .unwrap(),
-            _ => Kzg::setup(
+            _ => KZG::setup(
                 "tests/test-files/g1.point",
                 "tests/test-files/g2.point",
                 "tests/test-files/g2.point.powerOf2",
@@ -41,8 +41,8 @@ mod tests {
 
     // Define a static variable for setup
     lazy_static! {
-        static ref KZG_INSTANCE: Kzg = determine_setup();
-        static ref KZG_3000: Kzg = Kzg::setup(
+        static ref KZG_INSTANCE: KZG = determine_setup();
+        static ref KZG_3000: KZG = KZG::setup(
             "tests/test-files/g1.point",
             "tests/test-files/g2.point",
             "tests/test-files/g2.point.powerOf2",
@@ -71,7 +71,7 @@ mod tests {
 
     #[test]
     fn test_kzg_setup_errors() {
-        let kzg1 = Kzg::setup("tests/test-files/g1.point", "", "", 3000, 3000);
+        let kzg1 = KZG::setup("tests/test-files/g1.point", "", "", 3000, 3000);
         assert_eq!(
             kzg1,
             Err(KzgError::GenericError(
@@ -79,7 +79,7 @@ mod tests {
             ))
         );
 
-        let mut kzg2 = Kzg::setup(
+        let mut kzg2 = KZG::setup(
             "tests/test-files/g1.point",
             "tests/test-files/g2.point",
             "tests/test-files/g2.point.powerOf2",
@@ -97,7 +97,7 @@ mod tests {
             ))
         );
 
-        let kzg3 = Kzg::setup(
+        let kzg3 = KZG::setup(
             "tests/test-files/g1.point",
             "tests/test-files/g2.point",
             "tests/test-files/g2.point.powerOf2",
@@ -118,7 +118,7 @@ mod tests {
         use rust_kzg_bn254::helpers::is_on_curve_g2;
         use std::io::BufRead;
 
-        let kzg = Kzg::setup(
+        let kzg = KZG::setup(
             "tests/test-files/g1.point",
             "",
             "tests/test-files/g2.point.powerOf2",
@@ -159,8 +159,8 @@ mod tests {
         use rand::Rng;
         let mut rng = rand::thread_rng();
 
-        let mut kzg_clone1: Kzg = KZG_3000.clone();
-        let mut kzg_clone2: Kzg = KZG_3000.clone();
+        let mut kzg_clone1: KZG = KZG_3000.clone();
+        let mut kzg_clone2: KZG = KZG_3000.clone();
 
         (0..10000).for_each(|_| {
             let blob_length: u64 = rand::thread_rng().gen_range(35..40000);

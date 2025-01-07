@@ -1,11 +1,11 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use rust_kzg_bn254::kzg::Kzg;
+use rust_kzg_bn254::kzg::KZG;
 use std::time::Duration;
 
 fn bench_kzg_setup(c: &mut Criterion) {
     c.bench_function("bench_kzg_setup", |b| {
         b.iter(|| {
-            Kzg::setup(
+            KZG::setup(
                 "tests/test-files/g1.point",
                 "tests/test-files/g2.point",
                 "tests/test-files/g2.point.powerOf2",
@@ -16,7 +16,7 @@ fn bench_kzg_setup(c: &mut Criterion) {
         });
 
         b.iter(|| {
-            Kzg::setup(
+            KZG::setup(
                 "tests/test-files/mainnet-data/g1.131072.point",
                 "",
                 "tests/test-files/mainnet-data/g2.point.powerOf2",

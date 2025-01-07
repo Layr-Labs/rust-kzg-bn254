@@ -1,11 +1,11 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use rand::Rng;
-use rust_kzg_bn254::{blob::Blob, kzg::Kzg};
+use rust_kzg_bn254::{blob::Blob, kzg::KZG};
 use std::time::Duration;
 
 fn bench_kzg_commit(c: &mut Criterion) {
     let mut rng = rand::thread_rng();
-    let mut kzg = Kzg::setup(
+    let mut kzg = KZG::setup(
         "tests/test-files/mainnet-data/g1.32mb.point",
         "",
         "tests/test-files/mainnet-data/g2.point.powerOf2",
