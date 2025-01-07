@@ -290,7 +290,8 @@ impl Kzg {
         // We are making one syscall per field element, which is super inefficient.
         // FIXME: Read the entire file (or large segments) into memory and then split it
         // into field elements. Entire G1 file might be ~8GiB, so might not fit
-        // in RAM.
+        // in RAM. But we can only read the subset of the file that we need.
+        // For eg. for fault proof usage, only need to read 32MiB if our blob size is that large.
         while let Ok(bytes_read) = reader.read(&mut buffer) {
             if bytes_read == 0 {
                 break;
