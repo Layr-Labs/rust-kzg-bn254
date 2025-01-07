@@ -114,25 +114,26 @@ impl Kzg {
         Ok(chunks)
     }
 
-    fn calculate_roots_of_unity_non_assign(
+
+    // This function calculates the roots of unities but doesn't assign it to the struct
+    // Used in batch verification process as the roots need to be calculated for each blob
+    // because of different length.
+    fn calculate_roots_of_unity_standalone(
         length_of_data_after_padding: u64,
         srs_order: u64,
     ) -> Result<(Params, Vec<Fr>), KzgError> {
+        // Initialize parameters
         let mut params = Params {
             num_chunks: 0_u64,
             chunk_length: 0_u64,
             max_fft_width: 0_u64,
             completed_setup: false,
         };
-        let log2_of_evals = length_of_data_after_padding
+
+        // Calculate log2 of the next power of two of the length of data after padding
+        let log2_of_evals = (length_of_data_after_padding
             .div_ceil(32)
-            .next_power_of_two()
-            .to_f64()
-            .ok_or_else(|| {
-                KzgError::GenericError(
-                    "Failed to convert length_of_data_after_padding to f64".to_string(),
-                )
-            })?
+            .next_power_of_two() as f64)
             .log2()
             .to_u8()
             .ok_or_else(|| {
@@ -140,8 +141,11 @@ impl Kzg {
                     "Failed to convert length_of_data_after_padding to u8".to_string(),
                 )
             })?;
+
+        // Set the maximum FFT width
         params.max_fft_width = 1_u64 << log2_of_evals;
 
+        // Check if the length of data after padding is valid with respect to the SRS order
         if length_of_data_after_padding
             .div_ceil(BYTES_PER_FIELD_ELEMENT as u64)
             .next_power_of_two()
@@ -153,15 +157,24 @@ impl Kzg {
             ));
         }
 
+        // Get the primitive roots of unity
         let primitive_roots_of_unity = Self::get_primitive_roots_of_unity()?;
+
+        // Find the root of unity corresponding to the calculated log2 value
         let found_root_of_unity = primitive_roots_of_unity
             .get(log2_of_evals as usize)
             .ok_or_else(|| KzgError::GenericError("Root of unity not found".to_string()))?;
+
+        // Expand the root to get all the roots of unity
         let mut expanded_roots_of_unity = Self::expand_root_of_unity(found_root_of_unity);
+
+        // Remove the last element to avoid duplication
         expanded_roots_of_unity.truncate(expanded_roots_of_unity.len() - 1);
 
+        // Mark the setup as completed
         params.completed_setup = true;
 
+        // Return the parameters and the expanded roots of unity
         Ok((params, expanded_roots_of_unity))
     }
 
@@ -244,14 +257,13 @@ impl Kzg {
         &mut self,
         length_of_data_after_padding: u64,
     ) -> Result<(), KzgError> {
-        let (params, roots_of_unity) = Self::calculate_roots_of_unity_non_assign(
+        let (params, roots_of_unity) = Self::calculate_roots_of_unity_standalone(
             length_of_data_after_padding,
             self.srs_order,
         )?;
         self.params = params;
         self.params.completed_setup = true;
         self.expanded_roots_of_unity = roots_of_unity;
-
         Ok(())
     }
 
@@ -276,7 +288,7 @@ impl Kzg {
         roots
     }
 
-    /// refer to DA code for more context
+    /// Precompute the primitive roots of unity for binary powers that divide r - 1
     fn get_primitive_roots_of_unity() -> Result<Vec<Fr>, KzgError> {
         let data: [&str; 29] = [
             "1",
@@ -406,7 +418,8 @@ impl Kzg {
     /// read G1 points in parallel, by creating one reader thread, which reads bytes from the file,
     /// and fans them out to worker threads (one per cpu) which parse the bytes into G1Affine points.
     /// The worker threads then fan in the parsed points to the main thread, which sorts them by
-    /// their original position in the file to maintain order.
+    /// their original position in the file to maintain order. This uses the arkworks `native` method
+    /// of decompressing the points after reading. Not used anywhere but kept as a reference.
     ///
     /// # Arguments
     /// * `file_path` - The path to the file containing the G1 points
@@ -545,10 +558,20 @@ impl Kzg {
         blob: &Blob,
         form: PolynomialFormat,
     ) -> Result<G1Affine, KzgError> {
+        // Step 1: Convert blob to polynomial representation
+        // The blob is converted to a polynomial in the specified form (evaluation or coefficient)
+        // This step is crucial as KZG commitments work with polynomial representations
         let polynomial = blob
             .to_polynomial(form)
             .map_err(|err| KzgError::SerializationError(err.to_string()))?;
+    
+        // Step 2: Generate KZG commitment to the polynomial
+        // This creates a single G1 point that commits to the entire polynomial
+        // The commitment preserves the polynomial's properties while being constant-size
         let commitment = self.commit(&polynomial)?;
+    
+        // Return the commitment point in affine form
+        // The commitment can be used later for proof generation and verification
         Ok(commitment)
     }
 
@@ -628,11 +651,21 @@ impl Kzg {
         polynomial: &Polynomial,
         index: u64,
     ) -> Result<G1Affine, KzgError> {
+        // Convert u64 index to usize for array indexing
+        // This is necessary because array indices in Rust must be usize
+        // Handle potential overflow with explicit error
         let usized_index = index.to_usize().ok_or(KzgError::GenericError(
             "Index conversion to usize failed".to_string(),
         ))?;
-
+    
+        // Get the root of unity at the specified index
+        // These roots are pre-computed and stored in expanded_roots_of_unity
+        // They form the domain for polynomial evaluation
         let z_fr = self.expanded_roots_of_unity[usized_index];
+    
+        // Compute the KZG proof at the selected root of unity
+        // This delegates to the main proof computation function
+        // using our selected evaluation point
         self.compute_kzg_proof(polynomial, &z_fr)
     }
 
@@ -896,7 +929,7 @@ impl Kzg {
 
         // Step 2: Calculate roots of unity for the given blob size and SRS order
         let (_, roots_of_unity) =
-            Self::calculate_roots_of_unity_non_assign(blob_size as u64, srs_order)?;
+            Self::calculate_roots_of_unity_standalone(blob_size as u64, srs_order)?;
 
         // Step 3: Ensure the polynomial length matches the domain length
         if polynomial.len() != roots_of_unity.len() {
