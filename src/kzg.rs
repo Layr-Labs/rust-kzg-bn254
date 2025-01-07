@@ -650,16 +650,13 @@ impl Kzg {
         polynomial: &Polynomial,
         index: u64,
     ) -> Result<G1Affine, KzgError> {
+
         // Convert u64 index to usize for array indexing
-        // This is necessary because array indices in Rust must be usize
-        // Handle potential overflow with explicit error
         let usized_index = index.to_usize().ok_or(KzgError::GenericError(
             "Index conversion to usize failed".to_string(),
         ))?;
 
         // Get the root of unity at the specified index
-        // These roots are pre-computed and stored in expanded_roots_of_unity
-        // They form the domain for polynomial evaluation
         let z_fr = self.expanded_roots_of_unity[usized_index];
 
         // Compute the KZG proof at the selected root of unity
@@ -975,9 +972,9 @@ impl Kzg {
     }
 
     fn compute_challenges_and_evaluate_polynomial(
-        blobs: &Vec<Blob>,        // Input data blobs to process
-        commitments: &[G1Affine], // KZG commitments corresponding to each blob
-        srs_order: u64,           // Order of the structured reference string (SRS)
+        blobs: &Vec<Blob>,
+        commitments: &[G1Affine],
+        srs_order: u64,
     ) -> Result<(Vec<Fr>, Vec<Fr>), KzgError> {
         // Pre-allocate vectors to store:
         // - evaluation_challenges: Points where polynomials will be evaluated
