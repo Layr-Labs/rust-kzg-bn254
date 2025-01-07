@@ -151,7 +151,7 @@ impl PolynomialEvalForm {
         helpers::to_byte_array(&self.evaluations, self.len_underlying_blob_bytes)
     }
 
-    pub fn to_coef_form(&self) -> Result<PolynomialCoeffForm, PolynomialError> {
+    pub fn to_coeff_form(&self) -> Result<PolynomialCoeffForm, PolynomialError> {
         let coeffs = GeneralEvaluationDomain::<Fr>::new(self.len())
             .ok_or(PolynomialError::FFTError(
                 "Failed to construct domain for IFFT".to_string(),

@@ -50,7 +50,7 @@ mod tests {
         let poly_coeff = blob.to_polynomial_coeff_form();
 
         let poly_eval = poly_coeff.to_eval_form().unwrap();
-        let poly_coeff_back = poly_eval.to_coef_form().unwrap();
+        let poly_coeff_back = poly_eval.to_coeff_form().unwrap();
         assert_eq!(
             &poly_coeff_back.to_bytes_be()[0..blob.data().len()],
             blob.data(),
@@ -64,7 +64,7 @@ mod tests {
         let poly_coeff = blob.to_polynomial_coeff_form();
 
         let poly_eval = poly_coeff.to_eval_form().unwrap();
-        let poly_coeff_back = poly_eval.to_coef_form().unwrap();
+        let poly_coeff_back = poly_eval.to_coeff_form().unwrap();
         assert_eq!(
             // TODO: we might want to change the API to return the underlying blob data len?
             // right now this info is lost after converting between forms.
