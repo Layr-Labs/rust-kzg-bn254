@@ -17,12 +17,12 @@ impl Blob {
     /// that it contains bn254 field elements. Otherwise, use
     /// [`Blob::from_raw_data`].
     ///
-    /// WARNING: This function does not check if the bytes are modulo bn254
-    /// if the data has 32 byte segments exceeding the modulo of the field
+    /// WARNING: This function does not check if the bytes are modulo bn254.
+    /// If the data has 32 byte segments exceeding the modulo of the field
     /// then the bytes will be modded by the order of the field and the data
     /// will be transformed incorrectly.
     /// TODO: we should check that the bytes are correct and return an error
-    /// instead of       relying on the users reading this documentation.
+    /// instead of relying on the users reading this documentation.
     pub fn new(blob_data: &[u8]) -> Self {
         Blob {
             blob_data: blob_data.to_vec(),
