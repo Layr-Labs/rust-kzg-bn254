@@ -22,11 +22,10 @@ fn bench_kzg_verify(c: &mut Criterion) {
             .unwrap();
         kzg.data_setup_custom(1, input.len().try_into().unwrap())
             .unwrap();
-        let index =
-            rand::thread_rng().gen_range(0..input_poly.get_length_of_padded_blob_as_fr_vector());
+        let index = rand::thread_rng().gen_range(0..input_poly.len());
         let commitment = kzg.commit(&input_poly.clone()).unwrap();
         let proof = kzg
-            .compute_kzg_proof_with_roots_of_unity(&input_poly, index.try_into().unwrap())
+            .compute_kzg_proof_eigenda(&input_poly, index.try_into().unwrap())
             .unwrap();
         let value_fr = input_poly.get_at_index(index).unwrap();
         let z_fr = kzg.get_nth_root_of_unity(index).unwrap();
@@ -41,11 +40,10 @@ fn bench_kzg_verify(c: &mut Criterion) {
             .unwrap();
         kzg.data_setup_custom(1, input.len().try_into().unwrap())
             .unwrap();
-        let index =
-            rand::thread_rng().gen_range(0..input_poly.get_length_of_padded_blob_as_fr_vector());
+        let index = rand::thread_rng().gen_range(0..input_poly.len());
         let commitment = kzg.commit(&input_poly.clone()).unwrap();
         let proof = kzg
-            .compute_kzg_proof_with_roots_of_unity(&input_poly, index.try_into().unwrap())
+            .compute_kzg_proof_eigenda(&input_poly, index.try_into().unwrap())
             .unwrap();
         let value_fr = input_poly.get_at_index(index).unwrap();
         let z_fr = kzg.get_nth_root_of_unity(index).unwrap();
@@ -60,11 +58,10 @@ fn bench_kzg_verify(c: &mut Criterion) {
             .unwrap();
         kzg.data_setup_custom(1, input.len().try_into().unwrap())
             .unwrap();
-        let index =
-            rand::thread_rng().gen_range(0..input_poly.get_length_of_padded_blob_as_fr_vector());
+        let index = rand::thread_rng().gen_range(0..input_poly.len());
         let commitment = kzg.commit(&input_poly.clone()).unwrap();
         let proof = kzg
-            .compute_kzg_proof_with_roots_of_unity(&input_poly, index.try_into().unwrap())
+            .compute_kzg_proof_eigenda(&input_poly, index.try_into().unwrap())
             .unwrap();
         let value_fr = input_poly.get_at_index(index).unwrap();
         let z_fr = kzg.get_nth_root_of_unity(index).unwrap();

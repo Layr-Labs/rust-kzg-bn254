@@ -93,18 +93,24 @@ impl Kzg {
     }
 
     pub fn read_g2_point_on_power_of_2(g2_power_of2_path: &str) -> Result<Vec<G2Affine>, KzgError> {
-        let mut file = File::open(g2_power_of2_path).unwrap();
+        let mut file =
+            File::open(g2_power_of2_path).map_err(|e| KzgError::GenericError(e.to_string()))?;
 
         // Calculate the start position in bytes and seek to that position
         // Read in 64-byte chunks
         let mut chunks = Vec::new();
         let mut buffer = [0u8; 64];
         loop {
-            let bytes_read = file.read(&mut buffer).unwrap();
+            let bytes_read = file
+                .read(&mut buffer)
+                .map_err(|e| KzgError::GenericError(e.to_string()))?;
             if bytes_read == 0 {
                 break; // End of file reached
             }
-            chunks.push(G2Affine::read_point_from_bytes_be(&buffer[..bytes_read]).unwrap());
+            chunks.push(
+                G2Affine::read_point_from_bytes_be(&buffer[..bytes_read])
+                    .map_err(|e| KzgError::GenericError(e.to_string()))?,
+            );
         }
         Ok(chunks)
     }
@@ -123,10 +129,18 @@ impl Kzg {
             .div_ceil(32)
             .next_power_of_two()
             .to_f64()
-            .unwrap()
+            .ok_or_else(|| {
+                KzgError::GenericError(
+                    "Failed to convert length_of_data_after_padding to f64".to_string(),
+                )
+            })?
             .log2()
             .to_u8()
-            .unwrap();
+            .ok_or_else(|| {
+                KzgError::GenericError(
+                    "Failed to convert length_of_data_after_padding to u8".to_string(),
+                )
+            })?;
         params.max_fft_width = 1_u64 << log2_of_evals;
 
         if length_of_data_after_padding
@@ -140,10 +154,10 @@ impl Kzg {
             ));
         }
 
-        let primitive_roots_of_unity = Self::get_primitive_roots_of_unity();
+        let primitive_roots_of_unity = Self::get_primitive_roots_of_unity()?;
         let found_root_of_unity = primitive_roots_of_unity
             .get(log2_of_evals as usize)
-            .unwrap();
+            .ok_or_else(|| KzgError::GenericError("Root of unity not found".to_string()))?;
         let mut expanded_roots_of_unity = Self::expand_root_of_unity(found_root_of_unity);
         expanded_roots_of_unity.truncate(expanded_roots_of_unity.len() - 1);
 
@@ -181,19 +195,27 @@ impl Kzg {
         let number_of_evaluations = params.chunk_length * params.num_chunks;
         let mut log2_of_evals = number_of_evaluations
             .to_f64()
-            .unwrap()
+            .ok_or_else(|| {
+                KzgError::GenericError("Failed to convert number_of_evaluations to f64".to_string())
+            })?
             .log2()
             .to_u8()
-            .unwrap();
+            .ok_or_else(|| {
+                KzgError::GenericError("Failed to convert number_of_evaluations to u8".to_string())
+            })?;
         params.max_fft_width = 1_u64 << log2_of_evals;
 
         if params.chunk_length == 1 {
             log2_of_evals = (2 * params.num_chunks)
                 .to_f64()
-                .unwrap()
+                .ok_or_else(|| {
+                    KzgError::GenericError("Failed to convert num_chunks to f64".to_string())
+                })?
                 .log2()
                 .to_u8()
-                .unwrap();
+                .ok_or_else(|| {
+                    KzgError::GenericError("Failed to convert num_chunks to u8".to_string())
+                })?;
         }
 
         if params.chunk_length * params.num_chunks >= self.srs_order {
@@ -203,10 +225,12 @@ impl Kzg {
             ));
         }
 
-        let primitive_roots_of_unity = Self::get_primitive_roots_of_unity();
+        let primitive_roots_of_unity = Self::get_primitive_roots_of_unity()?;
         let found_root_of_unity = primitive_roots_of_unity
-            .get(log2_of_evals.to_usize().unwrap())
-            .unwrap();
+            .get(log2_of_evals.to_usize().ok_or_else(|| {
+                KzgError::GenericError("Failed to convert log2_of_evals to usize".to_string())
+            })?)
+            .ok_or_else(|| KzgError::GenericError("Root of unity not found".to_string()))?;
         let mut expanded_roots_of_unity = Self::expand_root_of_unity(found_root_of_unity);
         expanded_roots_of_unity.truncate(expanded_roots_of_unity.len() - 1);
 
@@ -254,7 +278,7 @@ impl Kzg {
     }
 
     /// refer to DA code for more context
-    fn get_primitive_roots_of_unity() -> Vec<Fr> {
+    fn get_primitive_roots_of_unity() -> Result<Vec<Fr>, KzgError> {
         let data: [&str; 29] = [
             "1",
             "21888242871839275222246405745257275088548364400416034343698204186575808495616",
@@ -287,8 +311,11 @@ impl Kzg {
             "19103219067921713944291392827692070036145651957329286315305642004821462161904",
         ];
         data.iter()
-            .map(|each| Fr::from_str(each).unwrap())
-            .collect()
+            .map(|each| Fr::from_str(each))
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|_| {
+                KzgError::GenericError("Failed to parse primitive roots of unity".to_string())
+            })
     }
 
     /// helper function to get g1 points
@@ -526,15 +553,6 @@ impl Kzg {
         Ok(commitment)
     }
 
-    /// helper function to work with the library and the env of the kzg instance
-    pub fn compute_kzg_proof_with_roots_of_unity(
-        &self,
-        polynomial: &Polynomial,
-        index: u64,
-    ) -> Result<G1Affine, KzgError> {
-        self.compute_kzg_proof_eigenda(polynomial, index)
-    }
-
     /// Helper function for `compute_kzg_proof()` and `compute_blob_kzg_proof()`
     fn compute_kzg_proof_impl(
         &self,
@@ -604,13 +622,9 @@ impl Kzg {
         polynomial: &Polynomial,
         index: u64,
     ) -> Result<G1Affine, KzgError> {
-        let usized_index = if let Some(x) = index.to_usize() {
-            x
-        } else {
-            return Err(KzgError::SerializationError(
-                "index couldn't be converted to usize".to_string(),
-            ));
-        };
+        let usized_index = index.to_usize().ok_or(KzgError::GenericError(
+            "Index conversion to usize failed".to_string(),
+        ))?;
 
         let z_fr = self.expanded_roots_of_unity[usized_index];
         self.compute_kzg_proof(polynomial, &z_fr)
@@ -698,25 +712,30 @@ impl Kzg {
         proof: G1Affine,
         value_fr: Fr,
         z_fr: Fr,
-    ) -> bool {
-        let g2_tau = if self.g2.len() > 28 {
-            *self.g2.get(1).unwrap()
-        } else {
-            *self.g2.first().unwrap()
-        };
+    ) -> Result<bool, KzgError> {
+        let g2_tau = self.get_g2_tau()?;
         let value_g1 = (G1Affine::generator() * value_fr).into_affine();
         let commit_minus_value = (commitment - value_g1).into_affine();
         let z_g2 = (G2Affine::generator() * z_fr).into_affine();
-        let x_minus_z = (g2_tau - z_g2).into_affine();
-        Self::pairings_verify(commit_minus_value, G2Affine::generator(), proof, x_minus_z)
+        let x_minus_z = (*g2_tau - z_g2).into_affine();
+        Ok(Self::pairings_verify(
+            commit_minus_value,
+            G2Affine::generator(),
+            proof,
+            x_minus_z,
+        ))
     }
 
-    pub fn get_g2_tau(&self) -> &G2Affine {
+    pub fn get_g2_tau(&self) -> Result<&G2Affine, KzgError> {
         if self.g2.len() > 28 {
-            return self.g2.get(1).unwrap();
+            self.g2
+                .get(1)
+                .ok_or(KzgError::GenericError("g2 tau not found".to_string()))
         } else {
-            return self.g2.first().unwrap();
-        };
+            self.g2
+                .first()
+                .ok_or(KzgError::GenericError("g2 tau not found".to_string()))
+        }
     }
 
     fn pairings_verify(a1: G1Affine, a2: G2Affine, b1: G1Affine, b2: G2Affine) -> bool {
@@ -762,9 +781,7 @@ impl Kzg {
     /// * `Ok(Fr)` - The resulting field element challenge.
     /// * `Err(KzgError)` - If any step fails.
     fn compute_challenge(blob: &Blob, commitment: &G1Affine) -> Result<Fr, KzgError> {
-        let blob_poly = blob
-            .to_polynomial(PolynomialFormat::InCoefficientForm)
-            .unwrap();
+        let blob_poly = blob.to_polynomial(PolynomialFormat::InCoefficientForm)?;
         let challenge_input_size: usize = FIAT_SHAMIR_PROTOCOL_DOMAIN.len()
             + 8
             + 8
@@ -798,8 +815,9 @@ impl Kzg {
         let mut commitment_bytes = Vec::with_capacity(32);
         commitment
             .serialize_compressed(&mut commitment_bytes)
-            .map_err(|_| KzgError::SerializationError("Failed to serialize commitment".to_string()))
-            .unwrap();
+            .map_err(|_| {
+                KzgError::SerializationError("Failed to serialize commitment".to_string())
+            })?;
 
         digest_bytes[offset..offset + SIZE_OF_G1_AFFINE_COMPRESSED]
             .copy_from_slice(&commitment_bytes);
@@ -883,9 +901,7 @@ impl Kzg {
         //       Also depending on the size of blobs, this can be parallelized for some gains.
         for i in 0..blobs.len() {
             // Convert the blob to its polynomial representation
-            let polynomial = blobs[i]
-                .to_polynomial(PolynomialFormat::InCoefficientForm)
-                .unwrap();
+            let polynomial = blobs[i].to_polynomial(PolynomialFormat::InCoefficientForm)?;
 
             // Compute the Fiat-Shamir challenge for the current blob and its commitment
             let evaluation_challenge = Self::compute_challenge(&blobs[i], &commitments[i])?;
@@ -912,9 +928,7 @@ impl Kzg {
         proof: &G1Affine,
     ) -> Result<bool, KzgError> {
         // Convert blob to polynomial
-        let polynomial = blob
-            .to_polynomial(PolynomialFormat::InCoefficientForm)
-            .unwrap();
+        let polynomial = blob.to_polynomial(PolynomialFormat::InCoefficientForm)?;
 
         // Compute the evaluation challenge for the blob and commitment
         let evaluation_challenge = Self::compute_challenge(blob, commitment)?;
@@ -927,7 +941,7 @@ impl Kzg {
         )?;
 
         // Verify the KZG proof
-        Ok(self.verify_kzg_proof(*commitment, *proof, y, evaluation_challenge))
+        self.verify_kzg_proof(*commitment, *proof, y, evaluation_challenge)
     }
 
     pub fn compute_blob_kzg_proof(
@@ -941,9 +955,7 @@ impl Kzg {
             ));
         }
 
-        let blob_poly = blob
-            .to_polynomial(PolynomialFormat::InCoefficientForm)
-            .unwrap();
+        let blob_poly = blob.to_polynomial(PolynomialFormat::InCoefficientForm)?;
         let evaluation_challenge = Self::compute_challenge(blob, commitment)?;
         self.compute_kzg_proof_impl(&blob_poly, &evaluation_challenge)
     }
@@ -1106,7 +1118,7 @@ impl Kzg {
             return Err(KzgError::NotOnCurveError("proof".to_owned()));
         }
 
-        if !is_on_curve_g2(&G2Projective::from(*self.get_g2_tau())) {
+        if !is_on_curve_g2(&G2Projective::from(*self.get_g2_tau()?)) {
             return Err(KzgError::NotOnCurveError("g2 tau".to_owned()));
         }
 
@@ -1139,7 +1151,7 @@ impl Kzg {
         // Verify the pairing equation
         let result = Self::pairings_verify(
             proof_lincomb,
-            *self.get_g2_tau(),
+            *self.get_g2_tau()?,
             rhs_g1.into(),
             G2Affine::generator(),
         );

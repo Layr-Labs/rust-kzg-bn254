@@ -22,10 +22,9 @@ fn bench_kzg_proof(c: &mut Criterion) {
             .unwrap();
         kzg.data_setup_custom(1, input.len().try_into().unwrap())
             .unwrap();
-        let index =
-            rand::thread_rng().gen_range(0..input_poly.get_length_of_padded_blob_as_fr_vector());
+        let index = rand::thread_rng().gen_range(0..input_poly.len());
         b.iter(|| {
-            kzg.compute_kzg_proof_with_roots_of_unity(&input_poly, index.try_into().unwrap())
+            kzg.compute_kzg_proof_eigenda(&input_poly, index.try_into().unwrap())
                 .unwrap()
         });
     });
@@ -38,10 +37,9 @@ fn bench_kzg_proof(c: &mut Criterion) {
             .unwrap();
         kzg.data_setup_custom(1, input.len().try_into().unwrap())
             .unwrap();
-        let index =
-            rand::thread_rng().gen_range(0..input_poly.get_length_of_padded_blob_as_fr_vector());
+        let index = rand::thread_rng().gen_range(0..input_poly.len());
         b.iter(|| {
-            kzg.compute_kzg_proof_with_roots_of_unity(&input_poly, index.try_into().unwrap())
+            kzg.compute_kzg_proof_eigenda(&input_poly, index.try_into().unwrap())
                 .unwrap()
         });
     });
@@ -54,10 +52,9 @@ fn bench_kzg_proof(c: &mut Criterion) {
             .unwrap();
         kzg.data_setup_custom(1, input.len().try_into().unwrap())
             .unwrap();
-        let index =
-            rand::thread_rng().gen_range(0..input_poly.get_length_of_padded_blob_as_fr_vector());
+        let index = rand::thread_rng().gen_range(0..input_poly.len());
         b.iter(|| {
-            kzg.compute_kzg_proof_with_roots_of_unity(&input_poly, index.try_into().unwrap())
+            kzg.compute_kzg_proof_eigenda(&input_poly, index.try_into().unwrap())
                 .unwrap()
         });
     });
