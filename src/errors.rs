@@ -50,6 +50,9 @@ pub enum KzgError {
     #[error("polynomial error: {0}")]
     PolynomialError(#[from] PolynomialError),
 
+    #[error("MSM error: {0}")]
+    MsmError(String),
+
     /// Wraps errors originating from Blob operations.
     #[error("blob error: {0}")]
     BlobError(#[from] BlobError),

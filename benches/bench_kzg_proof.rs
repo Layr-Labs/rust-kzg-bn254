@@ -24,7 +24,7 @@ fn bench_kzg_proof(c: &mut Criterion) {
             .unwrap();
         let index = rand::thread_rng().gen_range(0..input_poly.len());
         b.iter(|| {
-            kzg.compute_kzg_proof_eigenda(&input_poly, index.try_into().unwrap())
+            kzg.compute_kzg_proof_with_known_z_fr_index(&input_poly, index.try_into().unwrap())
                 .unwrap()
         });
     });
@@ -39,7 +39,7 @@ fn bench_kzg_proof(c: &mut Criterion) {
             .unwrap();
         let index = rand::thread_rng().gen_range(0..input_poly.len());
         b.iter(|| {
-            kzg.compute_kzg_proof_eigenda(&input_poly, index.try_into().unwrap())
+            kzg.compute_kzg_proof_with_known_z_fr_index(&input_poly, index.try_into().unwrap())
                 .unwrap()
         });
     });
@@ -54,7 +54,7 @@ fn bench_kzg_proof(c: &mut Criterion) {
             .unwrap();
         let index = rand::thread_rng().gen_range(0..input_poly.len());
         b.iter(|| {
-            kzg.compute_kzg_proof_eigenda(&input_poly, index.try_into().unwrap())
+            kzg.compute_kzg_proof_with_known_z_fr_index(&input_poly, index.try_into().unwrap())
                 .unwrap()
         });
     });

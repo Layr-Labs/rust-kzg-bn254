@@ -7,7 +7,11 @@ use std::cmp;
 
 use crate::{
     arith,
-    consts::{BYTES_PER_FIELD_ELEMENT, SIZE_OF_G1_AFFINE_COMPRESSED, SIZE_OF_G2_AFFINE_COMPRESSED},
+    consts::{
+        Endianness, BYTES_PER_FIELD_ELEMENT, KZG_ENDIANNESS, SIZE_OF_G1_AFFINE_COMPRESSED,
+        SIZE_OF_G2_AFFINE_COMPRESSED,
+    },
+    errors::KzgError,
     traits::ReadPointFromBytes,
 };
 use ark_ec::AdditiveGroup;
@@ -110,25 +114,51 @@ pub fn to_fr_array(data: &[u8]) -> Vec<Fr> {
 }
 
 pub fn to_byte_array(data_fr: &[Fr], max_data_size: usize) -> Vec<u8> {
+    // Calculate the number of field elements in input
     let n = data_fr.len();
+
+    // Calculate actual data size as minimum of:
+    // - Total size needed for all elements (n * bytes per element)
+    // - Maximum allowed size
     let data_size = cmp::min(n * BYTES_PER_FIELD_ELEMENT, max_data_size);
+
+    // Initialize output buffer with zeros
+    // Size is determined by data_size calculation above
     let mut data = vec![0u8; data_size];
 
+    // Iterate through each field element
+    // Using enumerate().take(n) to process elements up to n
     for (i, element) in data_fr.iter().enumerate().take(n) {
-        let v: Vec<u8> = element.into_bigint().to_bytes_be();
+        // Convert field element to bytes based on configured endianness
+        let v: Vec<u8> = match KZG_ENDIANNESS {
+            Endianness::Big => element.into_bigint().to_bytes_be(), // Big-endian conversion
+            Endianness::Little => element.into_bigint().to_bytes_le(), // Little-endian conversion
+        };
 
+        // Calculate start and end indices for this element in output buffer
         let start = i * BYTES_PER_FIELD_ELEMENT;
         let end = (i + 1) * BYTES_PER_FIELD_ELEMENT;
 
         if end > max_data_size {
+            // Handle case where this element would exceed max_data_size
+            // Calculate how many bytes we can actually copy
             let slice_end = cmp::min(v.len(), max_data_size - start);
+
+            // Copy partial element and break the loop
+            // We can't fit any more complete elements
             data[start..start + slice_end].copy_from_slice(&v[..slice_end]);
             break;
         } else {
+            // Normal case: element fits within max_data_size
+            // Calculate actual end index considering data_size limit
             let actual_end = cmp::min(end, data_size);
+
+            // Copy element bytes to output buffer
+            // Only copy up to actual_end in case this is the last partial element
             data[start..actual_end].copy_from_slice(&v[..actual_end - start]);
         }
     }
+
     data
 }
 
@@ -171,11 +201,6 @@ pub fn lexicographically_largest(z: &Fq) -> bool {
     // First, because self is in Montgomery form we need to reduce it
     let tmp = arith::montgomery_reduce(&z.0 .0[0], &z.0 .0[1], &z.0 .0[2], &z.0 .0[3]);
     let mut borrow: u64 = 0;
-
-    // (_, borrow) = sbb(tmp.0, 0x9E10460B6C3E7EA4, 0);
-    // (_, borrow) = sbb(tmp.1, 0xCBC0B548B438E546, borrow);
-    // (_, borrow) = sbb(tmp.2, 0xDC2822DB40C0AC2E, borrow);
-    // (_, borrow) = sbb(tmp.3, 0x183227397098D014, borrow);
 
     sbb!(tmp.0, 0x9E10460B6C3E7EA4, &mut borrow);
     sbb!(tmp.1, 0xCBC0B548B438E546, &mut borrow);
@@ -369,31 +394,52 @@ pub fn is_on_curve_g2(g2: &G2Projective) -> bool {
 }
 
 /// Computes powers of a field element up to a given exponent.
+///
+/// For a given field element x, computes [1, x, x², x³, ..., x^(count-1)]
+///
+/// # Arguments
+/// * `base` - The field element to compute powers of
+/// * `count` - The number of powers to compute (0 to count-1)
+///
+/// # Returns
+/// * Vector of field elements containing powers: [x⁰, x¹, x², ..., x^(count-1)]
 pub fn compute_powers(base: &Fr, count: usize) -> Vec<Fr> {
+    // Pre-allocate vector to avoid reallocations
     let mut powers = Vec::with_capacity(count);
+
+    // Start with x⁰ = 1
     let mut current = Fr::one();
+
+    // Compute successive powers by multiplying by base
     for _ in 0..count {
+        // Add current power to vector
         powers.push(current);
+        // Compute next power: x^(i+1) = x^i * x
         current *= base;
     }
+
     powers
 }
 
-// fn compute_powers(base: &Fr, num_powers: usize) -> Vec<Fr> {
-//     let mut powers = vec![Fr::default(); num_powers];
-//     if num_powers == 0 {
-//         return powers;
-//     }
-//     powers[0] = Fr::one();
-//     for i in 1..num_powers {
-//         powers[i] = powers[i - 1].mul(base);
-//     }
-//     powers
-// }
+/// Computes a linear combination of G1 points weighted by scalar coefficients.
+///
+/// Given points P₁, P₂, ..., Pₙ and scalars s₁, s₂, ..., sₙ
+/// Computes: s₁P₁ + s₂P₂ + ... + sₙPₙ
+/// Uses Multi-Scalar Multiplication (MSM) for efficient computation.
+///
+/// # Arguments
+/// * `points` - Array of G1 points in affine form
+/// * `scalars` - Array of field elements as scalar weights
+///
+/// # Returns
+/// * Single G1 point in affine form representing the linear combination
+pub fn g1_lincomb(points: &[G1Affine], scalars: &[Fr]) -> Result<G1Affine, KzgError> {
+    // Use MSM (Multi-Scalar Multiplication) for efficient linear combination
+    // MSM is much faster than naive point addition and scalar multiplication
+    let lincomb =
+        G1Projective::msm(points, scalars).map_err(|e| KzgError::MsmError(e.to_string()))?;
 
-/// Computes a linear combination of G1Affine points weighted by scalar coefficients.
-pub fn g1_lincomb(points: &[G1Affine], scalars: &[Fr]) -> G1Affine {
-    // Convert G1Affine to G1Projective for efficient linear combination
-    let lincomb = G1Projective::msm(points, scalars).expect("MSM failed");
-    lincomb.into_affine()
+    // Convert result back to affine coordinates
+    // This is typically needed as most protocols expect points in affine form
+    Ok(lincomb.into_affine())
 }
