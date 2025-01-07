@@ -256,7 +256,7 @@ mod tests {
     }
 
     #[test]
-    fn test_compute_proof() {
+    fn test_compute_kzg_proof() {
         use rand::Rng;
 
         let mut kzg = KZG_INSTANCE.clone();
