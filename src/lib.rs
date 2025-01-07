@@ -42,9 +42,9 @@ TODO
 
 ### Commit to a some user data
 ```rust
-use rust_kzg_bn254::{blob::Blob, kzg::Kzg};
+use rust_kzg_bn254::{blob::Blob, kzg::KZG};
 
-let kzg = Kzg::setup(
+let kzg = KZG::setup(
     "tests/test-files/mainnet-data/g1.131072.point",
     "",
     "tests/test-files/mainnet-data/g2.point.powerOf2",
