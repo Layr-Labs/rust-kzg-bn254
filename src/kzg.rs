@@ -534,7 +534,7 @@ impl Kzg {
     ) -> Result<G1Affine, KzgError> {
         self.compute_kzg_proof_eigenda(polynomial, index)
     }
-    
+
     /// Helper function for `compute_kzg_proof()` and `compute_blob_kzg_proof()`
     fn compute_kzg_proof_impl(
         &self,
@@ -556,7 +556,7 @@ impl Kzg {
         let eval_fr = polynomial.to_vec();
         let mut poly_shift: Vec<Fr> = Vec::with_capacity(eval_fr.len());
 
-        let y_fr = Self::evaluate_polynomial_in_evaluation_form(polynomial, &z_fr, self.srs_order)?;
+        let y_fr = Self::evaluate_polynomial_in_evaluation_form(polynomial, z_fr, self.srs_order)?;
 
         for fr in &eval_fr {
             poly_shift.push(*fr - y_fr);
@@ -599,13 +599,11 @@ impl Kzg {
         }
     }
 
-
     pub fn compute_kzg_proof_eigenda(
         &self,
         polynomial: &Polynomial,
         index: u64,
     ) -> Result<G1Affine, KzgError> {
-
         let usized_index = if let Some(x) = index.to_usize() {
             x
         } else {
@@ -616,8 +614,8 @@ impl Kzg {
 
         let z_fr = self.expanded_roots_of_unity[usized_index];
         self.compute_kzg_proof(polynomial, &z_fr)
-    }    
-    
+    }
+
     /// Compute KZG proof at point `z` for the polynomial represented by `Polynomial`.
     /// Do this by computing the quotient polynomial in evaluation form: q(x) = (p(x) - p(z)) / (x - z).
     pub fn compute_kzg_proof(
@@ -636,7 +634,7 @@ impl Kzg {
                 "inconsistent length between blob and root of unities".to_string(),
             ));
         }
-        
+
         self.compute_kzg_proof_impl(polynomial, z_fr)
     }
 
@@ -937,7 +935,6 @@ impl Kzg {
         blob: &Blob,
         commitment: &G1Affine,
     ) -> Result<G1Affine, KzgError> {
-
         if !is_on_curve_g1(&G1Projective::from(*commitment)) {
             return Err(KzgError::GenericError(
                 "commitment not on curve".to_string(),
@@ -1085,7 +1082,7 @@ impl Kzg {
         commitments: &[G1Affine],
         zs: &[Fr],
         ys: &[Fr],
-        proofs: &[G1Affine]
+        proofs: &[G1Affine],
     ) -> Result<bool, KzgError> {
         if !(commitments.len() == zs.len() && zs.len() == ys.len() && ys.len() == proofs.len()) {
             return Err(KzgError::GenericError(
@@ -1140,8 +1137,12 @@ impl Kzg {
         let rhs_g1 = c_minus_y_lincomb + proof_z_lincomb;
 
         // Verify the pairing equation
-        let result =
-            Self::pairings_verify(proof_lincomb, *self.get_g2_tau(), rhs_g1.into(), G2Affine::generator());
+        let result = Self::pairings_verify(
+            proof_lincomb,
+            *self.get_g2_tau(),
+            rhs_g1.into(),
+            G2Affine::generator(),
+        );
         Ok(result)
     }
 }

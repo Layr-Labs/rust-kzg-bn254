@@ -550,46 +550,58 @@ mod tests {
 
     #[test]
     fn test_verify_blob_kzg_proof_batch_errors() {
-
         let mut kzg = KZG_INSTANCE.clone();
 
         let input = Blob::from_raw_data(b"randomafweggrrnwgiowrgub2grb4ht824t7935gtu");
         let input_poly = input
-                .to_polynomial(PolynomialFormat::InCoefficientForm)
-                .unwrap();
+            .to_polynomial(PolynomialFormat::InCoefficientForm)
+            .unwrap();
         kzg.data_setup_custom(1, input.len().try_into().unwrap())
-                .unwrap();
+            .unwrap();
 
         let commitment = kzg.commit(&input_poly.clone()).unwrap();
         let proof = kzg.compute_blob_kzg_proof(&input, &commitment).unwrap();
 
-        let bad_commitment = G1Affine::new_unchecked(Fq::from_str(
-            "2961155957874067312593973807786254905069537311739090798303675273531563528369",
-        )
-        .unwrap(), Fq::from_str(
-            "2961155957874067312593973807786254905069537311739090798303675273531563528369",
-        )
-        .unwrap());
+        let bad_commitment = G1Affine::new_unchecked(
+            Fq::from_str(
+                "2961155957874067312593973807786254905069537311739090798303675273531563528369",
+            )
+            .unwrap(),
+            Fq::from_str(
+                "2961155957874067312593973807786254905069537311739090798303675273531563528369",
+            )
+            .unwrap(),
+        );
 
-        let bad_proof = G1Affine::new_unchecked(Fq::from_str(
-            "2961155957874067312593973807786254905069537311739090798303675273531563528369",
-        )
-        .unwrap(), Fq::from_str(
-            "2961155957874067312593973807786254905069537311739090798303675273531563528369",
-        )
-        .unwrap());
+        let bad_proof = G1Affine::new_unchecked(
+            Fq::from_str(
+                "2961155957874067312593973807786254905069537311739090798303675273531563528369",
+            )
+            .unwrap(),
+            Fq::from_str(
+                "2961155957874067312593973807786254905069537311739090798303675273531563528369",
+            )
+            .unwrap(),
+        );
 
-        let pairing_result_bad_commitment =
-            kzg.verify_blob_kzg_proof_batch(&vec![input.clone()], &vec![bad_commitment], &vec![proof]);
-        assert_eq!(pairing_result_bad_commitment, Err(KzgError::CommitmentError(
-            "commitment not on curve".to_string()
-        )));
+        let pairing_result_bad_commitment = kzg.verify_blob_kzg_proof_batch(
+            &vec![input.clone()],
+            &vec![bad_commitment],
+            &vec![proof],
+        );
+        assert_eq!(
+            pairing_result_bad_commitment,
+            Err(KzgError::CommitmentError(
+                "commitment not on curve".to_string()
+            ))
+        );
 
         let pairing_result_bad_proof =
             kzg.verify_blob_kzg_proof_batch(&vec![input], &vec![commitment], &vec![bad_proof]);
-        assert_eq!(pairing_result_bad_proof, Err(KzgError::CommitmentError(
-            "proof not on curve".to_string()
-        )));
+        assert_eq!(
+            pairing_result_bad_proof,
+            Err(KzgError::CommitmentError("proof not on curve".to_string()))
+        );
     }
 
     #[test]
@@ -627,47 +639,35 @@ mod tests {
         let mut bad_commitments = commitments.clone();
         let mut bad_proofs = proofs.clone();
 
-        let pairing_result =
-            kzg.verify_blob_kzg_proof_batch(&blobs, &commitments, &proofs)
-                .unwrap();
+        let pairing_result = kzg
+            .verify_blob_kzg_proof_batch(&blobs, &commitments, &proofs)
+            .unwrap();
         assert_eq!(pairing_result, true);
 
         bad_blobs.pop();
         bad_blobs.push(Blob::from_raw_data(b"random"));
-        let pairing_result_bad_blobs = kzg.verify_blob_kzg_proof_batch(
-            &bad_blobs,
-            &commitments,
-            &proofs,
-        )
-        .unwrap();
+        let pairing_result_bad_blobs = kzg
+            .verify_blob_kzg_proof_batch(&bad_blobs, &commitments, &proofs)
+            .unwrap();
         assert_eq!(pairing_result_bad_blobs, false);
 
         bad_commitments.pop();
         bad_commitments.push(G1Affine::rand(&mut rng));
-        let pairing_result_bad_commitments = kzg.verify_blob_kzg_proof_batch(
-            &blobs,
-            &bad_commitments,
-            &proofs,
-        )
-        .unwrap();
+        let pairing_result_bad_commitments = kzg
+            .verify_blob_kzg_proof_batch(&blobs, &bad_commitments, &proofs)
+            .unwrap();
         assert_eq!(pairing_result_bad_commitments, false);
 
         bad_proofs.pop();
         bad_proofs.push(G1Affine::rand(&mut rng));
-        let pairing_result_bad_proofs = kzg.verify_blob_kzg_proof_batch(
-            &blobs,
-            &commitments,
-            &bad_proofs,
-        )
-        .unwrap();
+        let pairing_result_bad_proofs = kzg
+            .verify_blob_kzg_proof_batch(&blobs, &commitments, &bad_proofs)
+            .unwrap();
         assert_eq!(pairing_result_bad_proofs, false);
 
-        let pairing_result_everything_bad = kzg.verify_blob_kzg_proof_batch(
-            &bad_blobs,
-            &bad_commitments,
-            &bad_proofs,
-        )
-        .unwrap();
+        let pairing_result_everything_bad = kzg
+            .verify_blob_kzg_proof_batch(&bad_blobs, &bad_commitments, &bad_proofs)
+            .unwrap();
         assert_eq!(pairing_result_everything_bad, false);
     }
 
@@ -709,11 +709,10 @@ mod tests {
         let proofs = vec![proof_1, proof_2];
         // let res = kzg.verify_blob_kzg_proof(&input1, &commitment1, &auto_proof).unwrap();
 
-        let pairing_result =
-            kzg.verify_blob_kzg_proof_batch(&blobs, &commitments, &proofs)
-                .unwrap();
+        let pairing_result = kzg
+            .verify_blob_kzg_proof_batch(&blobs, &commitments, &proofs)
+            .unwrap();
 
         assert_eq!(pairing_result, true);
     }
-
 }
