@@ -54,7 +54,7 @@ The `compute_proof_with_roots_of_unity` takes in a `Polynomial` and an `index` a
 ## KZG Commitments
 
 Below diagram explains the difference types involved between polynomials, SRS points, and kzg commitments.
-A KZG commitment can be taken by an inner product between (poly_eval, srs_monomial) or (poly_coeff, srs_lagrange). FFT and IFFT operations can be performed to convert between these forms.
+A KZG commitment can be taken by an inner product between (poly_coeff, srs_monomial) or (poly_eval, srs_lagrange). FFT and IFFT operations can be performed to convert between these forms.
 
 ![KZG Commitments](./kzg_commitment_diagram.png)
 
