@@ -19,9 +19,6 @@ This code is unaudited and under construction. This is experimental software and
 2. Specify the files in `kzg.setup()` function, leave the `g2_points` empty, and specify the `srs_order` per the guide.
 3. Note that this is process will take a few minutes to load since it is a bit intensive.
 
-## Clippy
-Linting can be triggered via running `cargo clippy --all --manifest-path Cargo.toml -- -D warnings`.
-
 ## Quick Start
 
 See the `test_compute_kzg_proof` function in [./tests/kzg_test.rs](./tests/kzg_test.rs#) for an end to end usage of the library.
@@ -32,30 +29,39 @@ See the `test_compute_kzg_proof` function in [./tests/kzg_test.rs](./tests/kzg_t
 2. Committing is performed in Lagrange format. The required IFFT is done within the function and is not required to be performed separately.
 3. For proof generation, the data is treated as evaluation of polynomial. The required (I)FFT is performed by the compute function and is not required to be performed separately.
 
-## Function Reference
+## Library Design / Architecture
 
-### `to_polynomial_coeff_form()` / `to_polynomial_eval_form()`
+The main purpose of this library is to allow taking a piece of data, committing to it, and then generating and verifying proofs against that commitment.
 
-From the `Blob`, a polynomial can be obtained via calling the `to_polynomial()` function. This converts the Blob to Field elements, then calculates the next power of 2 from this length of field elements and appends `zero` value elements for the remaining length.
+### Data Types
 
-### `data_setup_custom` and `data_setup_mins` parameters
+The main data pipeline goes: 
+> user data -> Blob -> Polynomial -> KZG Commitment / Proof
 
-The `data_setup_custom` (for testing) or `data_setup_mins` should be used to specify the number of chunks and chunk length. These parameters are used to calculate the FFT params required for FFT operations.
+- User Data: bytes array
+  - meaningful to users (typically will be a rollup batch)
+- Blob: bn254 field elements array
+  - meaningful to EigenDA network
+  - Obtained from User Data by inserting zeroes every 31 bytes to make every 32 byte an element of bn254.
+- Polynomial: bn254 field elements array, interpreted as coefficients or evaluations of a polynomial
+  - meaningful when committing and generating/verifying proofs
+  - Obtained from Blob by appending zeroes to make the length a power of 2, and then interpreting the array as coefficients or evaluations of a polynomial.
+- Kzg: struct storing the SRS points used to generate commitments and proofs
+- SRS points: bn254 group elements
+  - inner producted with the polynomial to generate commitments
 
-### `commit()`
+The [Blob](./src/blob.rs) and [Polynomial](./src/polynomial.rs) structs are mostly [Plain Old Data](https://en.wikipedia.org/wiki/Passive_data_structure) with constructor and few helper methods. The interesting stuff happens in the [KZG](./src/kzg.rs) struct, which has methods for committing to a blob, polynomial in coeff or eval form, and generating and verifying proofs.
 
-The `commit` function takes in a `polynomial`. It is computed over `lagrange` basis by performing the (i)FFT depending on the `polynomial` form specified.
+Our current codebase has the types PolynomialEvalForm and PolynomialCoeffForm to represent the polynomial in evaluation and coefficient form respectively. However, we do not have types to represent the two forms of srs points. They are implicitly assumed to be in monomial form when loaded, and an IFFT is performed before taking the inner product with the polynomial in evaluation form.
 
+### KZG Commitments
 
-### `compute_proof_with_roots_of_unity()`
-
-The `compute_proof_with_roots_of_unity` takes in a `Polynomial` and an `index` at which it needs to be computed.
-
-## KZG Commitments
-
-Below diagram explains the difference types involved between polynomials, SRS points, and kzg commitments.
+Below diagram explains the different types involved between polynomials, SRS points, and KZG commitments.
 A KZG commitment can be taken by an inner product between (poly_coeff, srs_monomial) or (poly_eval, srs_lagrange). FFT and IFFT operations can be performed to convert between these forms.
 
 ![KZG Commitments](./kzg_commitment_diagram.png)
 
-Our current codebase has the types PolynomialEvalForm and PolynomialCoeffForm to represent the polynomial in evaluation and coefficient form respectively. However, we do not have types to represent the two forms of srs points. They are implicitly assumed to be in monomial form when loaded, and an IFFT is performed before taking the inner product with the polynomial in evaluation form.
+
+### KZG Proofs
+
+TODO: Add diagram for KZG Proofs

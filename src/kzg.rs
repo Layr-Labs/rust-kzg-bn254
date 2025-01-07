@@ -104,7 +104,9 @@ impl Kzg {
         Ok(chunks)
     }
 
-    /// data_setup_custom is a helper function
+    /// Similar to [Kzg::data_setup_mins], but mainly used for setting up Kzg for testing purposes.
+    /// Used to specify the number of chunks and chunk length.
+    /// These parameters are then used to calculate the FFT params required for FFT operations.
     pub fn data_setup_custom(
         &mut self,
         num_of_nodes: u64,
@@ -117,7 +119,8 @@ impl Kzg {
         self.data_setup_mins(min_num_chunks, num_of_nodes)
     }
 
-    /// data_setup_mins sets up the environment per the blob data
+    /// Used to specify the number of chunks and chunk length.
+    /// These parameters are then used to calculate the FFT params required for FFT operations.
     pub fn data_setup_mins(
         &mut self,
         min_chunk_length: u64,
@@ -470,7 +473,7 @@ impl Kzg {
         self.g2.to_vec()
     }
 
-    /// commit the actual polynomial with the values setup
+    /// Commit the polynomial with the srs values loaded into [Kzg].
     pub fn commit_eval_form(&self, polynomial: &PolynomialEvalForm) -> Result<G1Affine, KzgError> {
         if polynomial.len() > self.g1.len() {
             return Err(KzgError::SerializationError(
@@ -488,7 +491,7 @@ impl Kzg {
         }
     }
 
-    /// commit the actual polynomial with the values setup
+    /// Commit the polynomial with the srs values loaded into [Kzg].
     pub fn commit_coeff_form(
         &self,
         polynomial: &PolynomialCoeffForm,
@@ -508,12 +511,15 @@ impl Kzg {
         }
     }
 
-    pub fn blob_to_kzg_commitment(&self, blob: &Blob) -> Result<G1Affine, KzgError> {
+    /// commit to a [Blob], by transforming it into a [PolynomialEvalForm] and then
+    /// calling [Kzg::commit_eval_form].
+    pub fn commit_blob(&self, blob: &Blob) -> Result<G1Affine, KzgError> {
         let polynomial = blob.to_polynomial_eval_form();
         self.commit_eval_form(&polynomial)
     }
 
-    /// helper function to work with the library and the env of the kzg instance
+    /// Wrapper around [Kzg::compute_proof] that uses the roots of unity
+    /// that were expanded and stored in [Kzg::setup].
     pub fn compute_proof_with_roots_of_unity(
         &self,
         polynomial: &PolynomialEvalForm,
