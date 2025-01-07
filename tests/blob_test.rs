@@ -1,56 +1,29 @@
 #[cfg(test)]
 mod tests {
-    use rust_kzg_bn254::{blob::Blob, errors::BlobError, polynomial::PolynomialFormat};
+    use rust_kzg_bn254::blob::Blob;
     const GETTYSBURG_ADDRESS_BYTES: &[u8] = "Fourscore and seven years ago our fathers brought forth, on this continent, a new nation, conceived in liberty, and dedicated to the proposition that all men are created equal. Now we are engaged in a great civil war, testing whether that nation, or any nation so conceived, and so dedicated, can long endure. We are met on a great battle-field of that war. We have come to dedicate a portion of that field, as a final resting-place for those who here gave their lives, that that nation might live. It is altogether fitting and proper that we should do this. But, in a larger sense, we cannot dedicate, we cannot consecrate—we cannot hallow—this ground. The brave men, living and dead, who struggled here, have consecrated it far above our poor power to add or detract. The world will little note, nor long remember what we say here, but it can never forget what they did here. It is for us the living, rather, to be dedicated here to the unfinished work which they who fought here have thus far so nobly advanced. It is rather for us to be here dedicated to the great task remaining before us—that from these honored dead we take increased devotion to that cause for which they here gave the last full measure of devotion—that we here highly resolve that these dead shall not have died in vain—that this nation, under God, shall have a new birth of freedom, and that government of the people, by the people, for the people, shall not perish from the earth.".as_bytes();
 
     #[test]
-    fn test_already_padded() {
-        let mut blob = Blob::from_bytes_and_pad("hi".as_bytes());
-        let mut result = blob.pad_data();
-        assert_eq!(result, Err(BlobError::AlreadyPaddedError));
-        blob.remove_padding().unwrap();
-        result = blob.remove_padding();
-        assert_eq!(result, Err(BlobError::NotPaddedError));
-        assert_eq!(
-            blob.to_polynomial(PolynomialFormat::InCoefficientForm),
-            Err(BlobError::NotPaddedError)
-        );
-    }
-
-    #[test]
     fn test_is_empty() {
-        let blob_empty = Blob::from_bytes_and_pad("".as_bytes());
+        let blob_empty = Blob::from_raw_data("".as_bytes());
         assert!(blob_empty.is_empty(), "blob should be empty");
 
-        let blob = Blob::from_bytes_and_pad("hi".as_bytes());
+        let blob = Blob::from_raw_data("hi".as_bytes());
         assert!(!blob.is_empty(), "blob should not be empty");
     }
 
     #[test]
     fn test_from_padded_bytes_unchecked() {
-        let blob = Blob::from_bytes_and_pad("hi".as_bytes());
-        let blob_unchecked = Blob::from_padded_bytes_unchecked(blob.get_blob_data().as_slice());
+        let blob = Blob::from_raw_data("hi".as_bytes());
+        let blob_unchecked = Blob::new(blob.data());
 
         assert_eq!(blob, blob_unchecked, "blob should be equal");
     }
 
     #[test]
     fn test_convert_by_padding_empty_byte() {
-        let mut blob = Blob::from_bytes_and_pad("hi".as_bytes());
-        assert_eq!(
-            blob.get_blob_data(),
-            vec![0, 104, 105],
-            "testing adding padding"
-        );
-        assert!(blob.is_padded(), "has to be padded");
-
-        blob.remove_padding().unwrap();
-        assert_eq!(
-            blob.get_blob_data(),
-            vec![104, 105],
-            "testing removing padding"
-        );
-        assert!(!blob.is_padded(), "cannot be padded");
+        let mut blob = Blob::from_raw_data("hi".as_bytes());
+        assert_eq!(blob.data(), &[0, 104, 105], "testing adding padding");
 
         let result: Vec<u8> = vec![
             0, 70, 111, 117, 114, 115, 99, 111, 114, 101, 32, 97, 110, 100, 32, 115, 101, 118, 101,
@@ -137,28 +110,16 @@ mod tests {
             97, 114, 116, 104, 46,
         ];
 
-        blob = Blob::from_bytes_and_pad(GETTYSBURG_ADDRESS_BYTES);
-        assert_eq!(blob.get_blob_data(), result, "testing adding padding");
-        assert!(blob.is_padded(), "has to be padded");
-        assert_eq!(blob.get_length_after_padding(), 1515);
-
-        blob.remove_padding().unwrap();
-        assert!(!blob.is_padded(), "cannot be padded");
-        assert_eq!(
-            blob.get_blob_data(),
-            GETTYSBURG_ADDRESS_BYTES,
-            "testing removing padding"
-        );
+        blob = Blob::from_raw_data(GETTYSBURG_ADDRESS_BYTES);
+        assert_eq!(blob.data(), result, "testing adding padding");
+        assert_eq!(blob.len(), 1515);
     }
 
     #[test]
-    fn test_new_blob_creation() {
-        let blob_from = Blob::from_bytes_and_pad(GETTYSBURG_ADDRESS_BYTES);
-        let mut blob_raw = Blob::new(GETTYSBURG_ADDRESS_BYTES.to_vec());
+    fn test_blob_creation() {
+        let blob = Blob::from_raw_data(GETTYSBURG_ADDRESS_BYTES);
+        let raw_data = blob.to_raw_data();
 
-        blob_raw.pad_data().unwrap();
-        assert_eq!(blob_raw, blob_from, "testing adding padding");
-        assert!(blob_raw.is_padded(), "has to be padded");
-        assert!(blob_from.is_padded(), "has to be padded");
+        assert_eq!(GETTYSBURG_ADDRESS_BYTES, &raw_data);
     }
 }

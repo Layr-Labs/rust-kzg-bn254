@@ -24,13 +24,13 @@ Linting can be triggered via running `cargo clippy --all --manifest-path Cargo.t
 
 ## Quick Start
 
-1. Check the test in `test_compute_kzg_proof` function to see the end to end usage of the library for quick start.
+See the `test_compute_kzg_proof` function in [./tests/kzg_test.rs](./tests/kzg_test.rs#) for an end to end usage of the library.
 
 ## Requirements
 
-1. SRS points required are in the same format as provided by the EigenDA.
-2. Commiting is performed in lagrange format. The required IFFT is done within the function and is not required to be performed separately.
-3. For proof generation, the data is treated as evaluation of polynomial. The required (i)FFT is performed by the compute function and is not required to be performed separately.
+1. SRS points required are in the same format as provided by EigenDA.
+2. Committing is performed in Lagrange format. The required IFFT is done within the function and is not required to be performed separately.
+3. For proof generation, the data is treated as evaluation of polynomial. The required (I)FFT is performed by the compute function and is not required to be performed separately.
 
 ## Function Reference
 
@@ -49,15 +49,6 @@ The `data_setup_custom` (for testing) or `data_setup_mins` should be used to spe
 ### `commit()`
 
 The `commit` function takes in a `polynomial`. It is computed over `lagrange` basis by performing the (i)FFT depending on the `polynomial` form specified.
-
-### `initialize_cache()`
-
-The `initialize_cache` function takes in a bool `force`. If `force` is set to `true` which delete's files which ends in `.cache` in the `cache_dir`. It computes the needed cache and writes it to files on disk into `cache_dir`.
-
-### `commit_with_cache()`
-
-The `commit_with_cache` function takes in a `polynomial` and `cache_dir`. It computes the commitment over the cached IFFT'd SRS points. The cache has to be already populated.
-
 
 
 ### `compute_kzg_proof_with_roots_of_unity()`

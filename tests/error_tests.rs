@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use rust_kzg_bn254::errors::{BlobError, KzgError, PolynomialError};
+    use rust_kzg_bn254::errors::{KzgError, PolynomialError};
 
     #[test]
     fn test_polynomial_error_serialization_from_string() {
@@ -89,44 +89,5 @@ mod tests {
         let error3 = KzgError::SerializationError(String::from("different error"));
         assert_eq!(error1, error2);
         assert_ne!(error1, error3);
-    }
-
-    #[test]
-    fn test_not_padded_error_display() {
-        let error = BlobError::NotPaddedError;
-        assert_eq!(
-            format!("{}", error),
-            "tried to execute on a non-padded blob"
-        );
-    }
-
-    #[test]
-    fn test_already_padded_error_display() {
-        let error = BlobError::AlreadyPaddedError;
-        assert_eq!(
-            format!("{}", error),
-            "tried to execute on an already padded blob"
-        );
-    }
-
-    #[test]
-    fn test_blob_error_equality() {
-        let error1 = BlobError::NotPaddedError;
-        let error2 = BlobError::NotPaddedError;
-        let error3 = BlobError::AlreadyPaddedError;
-        let error4 = BlobError::GenericError("test".to_string());
-
-        assert_eq!(error1, error2);
-        assert_ne!(error1, error3);
-        assert_ne!(error1, error4);
-    }
-
-    #[test]
-    fn test_blob_generic_error() {
-        let error1 = BlobError::GenericError(String::from("error"));
-        let error3 = BlobError::GenericError(String::from("error"));
-        let error2 = BlobError::NotPaddedError;
-        assert_eq!(error1, error3);
-        assert_ne!(error1, error2);
     }
 }

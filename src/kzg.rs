@@ -1,8 +1,8 @@
 use crate::{
     blob::Blob,
     consts::{BYTES_PER_FIELD_ELEMENT, SIZE_OF_G1_AFFINE_COMPRESSED},
-    errors::{BlobError, KzgError},
-    helpers::{self, check_directory, is_on_curve_g2},
+    errors::KzgError,
+    helpers::{self, is_on_curve_g2},
     polynomial::{Polynomial, PolynomialFormat},
     traits::ReadPointFromBytes,
 };
@@ -16,15 +16,14 @@ use ark_bn254::{Bn254, Fr, G1Affine, G1Projective, G2Affine, G2Projective};
 use ark_ec::{pairing::Pairing, AffineRepr, CurveGroup, VariableBaseMSM};
 use ark_ff::{BigInteger, Field, PrimeField};
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
-use ark_serialize::CanonicalSerialize;
-use ark_serialize::{Read, Write};
+use ark_serialize::{CanonicalSerialize, Read};
 use ark_std::{ops::Div, str::FromStr, One, Zero};
 use crossbeam_channel::{bounded, Sender};
 use num_traits::ToPrimitive;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use sha2::{Digest, Sha256};
 use std::{
-    fs::{self, File},
+    fs::File,
     io::{self, BufReader},
 };
 
@@ -35,7 +34,6 @@ pub struct Kzg {
     params: Params,
     srs_order: u64,
     expanded_roots_of_unity: Vec<Fr>,
-    cache_dir: String,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -53,18 +51,11 @@ impl Kzg {
         g2_power_of2_path: &str,
         srs_order: u32,
         srs_points_to_load: u32,
-        cache_dir: String,
     ) -> Result<Self, KzgError> {
         if srs_points_to_load > srs_order {
             return Err(KzgError::GenericError(
                 "number of points to load is more than the srs order".to_string(),
             ));
-        }
-
-        if !cache_dir.is_empty() {
-            if let Err(err) = check_directory(&cache_dir) {
-                return Err(KzgError::GenericError(err));
-            }
         }
 
         let g1_points =
@@ -98,7 +89,6 @@ impl Kzg {
             },
             srs_order: srs_order.into(),
             expanded_roots_of_unity: vec![],
-            cache_dir,
         })
     }
 
@@ -499,25 +489,6 @@ impl Kzg {
         self.g2.to_vec()
     }
 
-    pub fn commit_with_cache(
-        polynomial: &Polynomial,
-        cache_dir: &str,
-    ) -> Result<G1Affine, KzgError> {
-        let poly_len = polynomial.len();
-
-        let bases = Self::read_from_cache_if_exists(poly_len, cache_dir);
-        if bases.is_empty() {
-            return Err(KzgError::CommitError(
-                "unable to commit using cache.".to_string(),
-            ));
-        }
-
-        match G1Projective::msm(&bases, &polynomial.to_vec()) {
-            Ok(res) => Ok(res.into_affine()),
-            Err(err) => Err(KzgError::CommitError(err.to_string())),
-        }
-    }
-
     /// commit the actual polynomial with the values setup
     pub fn commit(&self, polynomial: &Polynomial) -> Result<G1Affine, KzgError> {
         if polynomial.len() > self.g1.len() {
@@ -698,52 +669,6 @@ impl Kzg {
         quotient
     }
 
-    fn read_from_cache_if_exists(length: usize, cache_dir: &str) -> Vec<G1Affine> {
-        // check if the cache_dir has the file with the length in it
-        let cache_file = format!("{}/2_pow_{}.cache", cache_dir, length);
-        if !cache_dir.is_empty()
-            && check_directory(cache_dir).is_ok()
-            && fs::metadata(&cache_file).is_ok()
-        {
-            match Self::parallel_read_g1_points_native(cache_file, length as u32, true) {
-                Ok(points) => points,
-                Err(_) => Vec::new(),
-            }
-        } else {
-            Vec::new()
-        }
-    }
-
-    // computes the IFFT, deserialize it and store it in file format.
-    pub fn initialize_cache(&self, force: bool) -> Result<(), KzgError> {
-        // powers of 2 from 10 to 20
-        for length in 10..20_usize {
-            let in_pow_2 = 2_u32.pow(length as u32);
-            let cache_file = format!("{}/2_pow_{}.cache", self.cache_dir, in_pow_2);
-
-            if fs::metadata(&cache_file).is_ok() && force {
-                // Cache file already exists, delete it if force cache is set
-                fs::remove_file(&cache_file)
-                    .map_err(|err| KzgError::GenericError(err.to_string()))?;
-            }
-
-            let g1_ifft_points = self.g1_ifft(in_pow_2 as usize)?;
-
-            let mut file =
-                File::create(&cache_file).map_err(|err| KzgError::GenericError(err.to_string()))?;
-            for point in g1_ifft_points {
-                let mut serialized_point = vec![];
-                point
-                    .serialize_compressed(&mut serialized_point)
-                    .map_err(|err| KzgError::SerializationError(err.to_string()))?;
-                file.write_all(&serialized_point)
-                    .map_err(|err| KzgError::SerializationError(err.to_string()))?;
-            }
-        }
-
-        Ok(())
-    }
-
     /// function to compute the inverse FFT
     pub fn g1_ifft(&self, length: usize) -> Result<Vec<G1Affine>, KzgError> {
         // is not power of 2
@@ -753,27 +678,20 @@ impl Kzg {
             ));
         }
 
-        let cached_points = Self::read_from_cache_if_exists(length, &self.cache_dir);
-        if cached_points.is_empty() {
-            let points_projective: Vec<G1Projective> = self.g1[..length]
-                .par_iter()
-                .map(|&p| G1Projective::from(p))
-                .collect();
+        let points_projective: Vec<G1Projective> = self.g1[..length]
+            .par_iter()
+            .map(|&p| G1Projective::from(p))
+            .collect();
+        let ifft_result: Vec<_> = GeneralEvaluationDomain::<Fr>::new(length)
+            .ok_or(KzgError::FFTError(
+                "Could not perform IFFT due to domain consturction error".to_string(),
+            ))?
+            .ifft(&points_projective)
+            .par_iter()
+            .map(|p| p.into_affine())
+            .collect();
 
-            match GeneralEvaluationDomain::<Fr>::new(length) {
-                Some(domain) => {
-                    let ifft_result = domain.ifft(&points_projective);
-                    let ifft_result_affine: Vec<_> =
-                        ifft_result.par_iter().map(|p| p.into_affine()).collect();
-                    Ok(ifft_result_affine)
-                },
-                None => Err(KzgError::FFTError(
-                    "Could not perform IFFT due to domain consturction error".to_string(),
-                )),
-            }
-        } else {
-            Ok(cached_points)
-        }
+        Ok(ifft_result)
     }
 
     pub fn verify_kzg_proof(
@@ -1019,11 +937,6 @@ impl Kzg {
         blob: &Blob,
         commitment: &G1Affine,
     ) -> Result<G1Affine, KzgError> {
-        if !blob.is_padded() {
-            return Err(KzgError::GenericError(
-                "blob needs to be padded".to_string(),
-            ));
-        }
 
         if !is_on_curve_g1(&G1Projective::from(*commitment)) {
             return Err(KzgError::GenericError(
@@ -1048,10 +961,6 @@ impl Kzg {
             return Err(KzgError::GenericError(
                 "length's of the input are not the same".to_owned(),
             ));
-        }
-
-        if !blobs.iter().all(|blob| blob.is_padded()) {
-            return Err(BlobError::GenericError("blob not padded".to_owned()).into());
         }
 
         if !commitments

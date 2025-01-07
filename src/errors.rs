@@ -6,14 +6,6 @@ use thiserror::Error;
 /// operations on the `Blob` struct, such as padding and conversion errors.
 #[derive(Clone, Debug, PartialEq, Error)]
 pub enum BlobError {
-    /// Error indicating that an operation was attempted on a blob that is not padded.
-    #[error("tried to execute on a non-padded blob")]
-    NotPaddedError,
-
-    /// Error indicating that an operation was attempted on a blob that is already padded.
-    #[error("tried to execute on an already padded blob")]
-    AlreadyPaddedError,
-
     /// A generic error with a descriptive message.
     #[error("generic error: {0}")]
     GenericError(String),

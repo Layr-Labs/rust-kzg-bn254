@@ -13,9 +13,8 @@ mod tests {
     };
     use std::{
         env,
-        fs::{self, File},
-        io::BufReader,
-        path::{Path, PathBuf},
+        fs::File,
+        io::{BufRead, BufReader},
     };
     const GETTYSBURG_ADDRESS_BYTES: &[u8] = "Fourscore and seven years ago our fathers brought forth, on this continent, a new nation, conceived in liberty, and dedicated to the proposition that all men are created equal. Now we are engaged in a great civil war, testing whether that nation, or any nation so conceived, and so dedicated, can long endure. We are met on a great battle-field of that war. We have come to dedicate a portion of that field, as a final resting-place for those who here gave their lives, that that nation might live. It is altogether fitting and proper that we should do this. But, in a larger sense, we cannot dedicate, we cannot consecrate—we cannot hallow—this ground. The brave men, living and dead, who struggled here, have consecrated it far above our poor power to add or detract. The world will little note, nor long remember what we say here, but it can never forget what they did here. It is for us the living, rather, to be dedicated here to the unfinished work which they who fought here have thus far so nobly advanced. It is rather for us to be here dedicated to the great task remaining before us—that from these honored dead we take increased devotion to that cause for which they here gave the last full measure of devotion—that we here highly resolve that these dead shall not have died in vain—that this nation, under God, shall have a new birth of freedom, and that government of the people, by the people, for the people, shall not perish from the earth.".as_bytes();
     use ark_std::{str::FromStr, One};
@@ -29,7 +28,6 @@ mod tests {
                 "tests/test-files/mainnet-data/g2.point.powerOf2",
                 268435456,
                 131072,
-                "".to_owned(),
             )
             .unwrap(),
             _ => Kzg::setup(
@@ -38,7 +36,6 @@ mod tests {
                 "tests/test-files/g2.point.powerOf2",
                 3000,
                 3000,
-                "".to_owned(),
             )
             .unwrap(),
         }
@@ -53,7 +50,6 @@ mod tests {
             "tests/test-files/g2.point.powerOf2",
             3000,
             3000,
-            "".to_owned()
         )
         .unwrap();
     }
@@ -77,14 +73,7 @@ mod tests {
 
     #[test]
     fn test_kzg_setup_errors() {
-        let kzg1 = Kzg::setup(
-            "tests/test-files/g1.point",
-            "",
-            "",
-            3000,
-            3000,
-            "".to_owned(),
-        );
+        let kzg1 = Kzg::setup("tests/test-files/g1.point", "", "", 3000, 3000);
         assert_eq!(
             kzg1,
             Err(KzgError::GenericError(
@@ -98,7 +87,6 @@ mod tests {
             "tests/test-files/g2.point.powerOf2",
             2,
             2,
-            "".to_owned(),
         )
         .unwrap();
 
@@ -117,7 +105,6 @@ mod tests {
             "tests/test-files/g2.point.powerOf2",
             3000,
             3001,
-            "".to_owned(),
         );
         assert_eq!(
             kzg3,
@@ -139,7 +126,6 @@ mod tests {
             "tests/test-files/g2.point.powerOf2",
             3000,
             3000,
-            "".to_owned(),
         )
         .unwrap();
 
@@ -171,56 +157,6 @@ mod tests {
     }
 
     #[test]
-    fn test_cache_read_and_commitment() {
-        let mut rng = rand::thread_rng();
-        let cache_dir = "/tmp";
-        let mut kzg = Kzg::setup(
-            "tests/test-files/mainnet-data/g1.32mb.point",
-            "",
-            "tests/test-files/mainnet-data/g2.point.powerOf2",
-            268435456,
-            524288,
-            cache_dir.to_owned(),
-        )
-        .unwrap();
-
-        let tmp_dir = Path::new(cache_dir);
-
-        // Iterate over the files in the /tmp directory
-        for entry in fs::read_dir(tmp_dir).unwrap() {
-            let entry = entry.unwrap();
-            let path: PathBuf = entry.path();
-
-            // Check if the entry is a file and ends with .cache
-            if path.is_file() && path.extension().and_then(|ext| ext.to_str()) == Some("cache") {
-                // Delete the file
-                fs::remove_file(&path).unwrap();
-            }
-        }
-
-        let random_blob: Vec<u8> = (0..8000000)
-            .map(|_| rng.gen_range(32..=126) as u8)
-            .collect();
-        let input = Blob::from_bytes_and_pad(&random_blob);
-        let input_poly = input
-            .to_polynomial(PolynomialFormat::InCoefficientForm)
-            .unwrap();
-        kzg.data_setup_custom(1, input.len().try_into().unwrap())
-            .unwrap();
-
-        let commitment_raw_computed = kzg.commit(&input_poly).unwrap();
-
-        kzg.initialize_cache(false).unwrap();
-
-        let commitment_cache = kzg.commit(&input_poly).unwrap();
-        let commitment_cache_pure_method = Kzg::commit_with_cache(&input_poly, cache_dir).unwrap();
-
-        assert_eq!(commitment_raw_computed, commitment_cache);
-        assert_eq!(commitment_raw_computed, commitment_cache_pure_method);
-        assert_eq!(commitment_cache, commitment_cache_pure_method);
-    }
-
-    #[test]
     fn test_roots_of_unity_setup() {
         use rand::Rng;
         let mut rng = rand::thread_rng();
@@ -234,12 +170,12 @@ mod tests {
                 .map(|_| rng.gen_range(32..=126) as u8)
                 .collect();
 
-            let input = Blob::from_bytes_and_pad(&random_blob);
+            let input = Blob::from_raw_data(&random_blob);
             kzg_clone1
                 .data_setup_custom(1, input.len().try_into().unwrap())
                 .unwrap();
             kzg_clone2
-                .calculate_roots_of_unity(input.get_length_after_padding().try_into().unwrap())
+                .calculate_roots_of_unity(input.len().try_into().unwrap())
                 .unwrap();
 
             let polynomial_input = input
@@ -260,7 +196,7 @@ mod tests {
     fn test_blob_to_kzg_commitment() {
         use ark_bn254::Fq;
 
-        let blob = Blob::from_bytes_and_pad(GETTYSBURG_ADDRESS_BYTES);
+        let blob = Blob::from_raw_data(GETTYSBURG_ADDRESS_BYTES);
         let fn_output = KZG_3000
             .blob_to_kzg_commitment(&blob, PolynomialFormat::InCoefficientForm)
             .unwrap();
@@ -291,7 +227,7 @@ mod tests {
                 .collect();
             println!("generating blob of length is {}", blob_length);
 
-            let input = Blob::from_bytes_and_pad(&random_blob);
+            let input = Blob::from_raw_data(&random_blob);
             let input_poly = input
                 .to_polynomial(PolynomialFormat::InCoefficientForm)
                 .unwrap();
@@ -330,7 +266,7 @@ mod tests {
 
         let mut kzg = KZG_INSTANCE.clone();
 
-        let input = Blob::from_bytes_and_pad(GETTYSBURG_ADDRESS_BYTES);
+        let input = Blob::from_raw_data(GETTYSBURG_ADDRESS_BYTES);
         let input_poly = input
             .to_polynomial(PolynomialFormat::InCoefficientForm)
             .unwrap();
@@ -617,7 +553,7 @@ mod tests {
 
         let mut kzg = KZG_INSTANCE.clone();
 
-        let input = Blob::from_bytes_and_pad(b"randomafweggrrnwgiowrgub2grb4ht824t7935gtu");
+        let input = Blob::from_raw_data(b"randomafweggrrnwgiowrgub2grb4ht824t7935gtu");
         let input_poly = input
                 .to_polynomial(PolynomialFormat::InCoefficientForm)
                 .unwrap();
@@ -672,7 +608,7 @@ mod tests {
                 .collect();
             println!("generating blob of length is {}", blob_length);
 
-            let input = Blob::from_bytes_and_pad(&random_blob);
+            let input = Blob::from_raw_data(&random_blob);
             let input_poly = input
                 .to_polynomial(PolynomialFormat::InCoefficientForm)
                 .unwrap();
@@ -697,7 +633,7 @@ mod tests {
         assert_eq!(pairing_result, true);
 
         bad_blobs.pop();
-        bad_blobs.push(Blob::from_bytes_and_pad(b"random"));
+        bad_blobs.push(Blob::from_raw_data(b"random"));
         let pairing_result_bad_blobs = kzg.verify_blob_kzg_proof_batch(
             &bad_blobs,
             &commitments,
@@ -740,7 +676,7 @@ mod tests {
         let mut kzg = KZG_INSTANCE.clone();
         let mut kzg2 = KZG_INSTANCE.clone();
 
-        let input1 = Blob::from_bytes_and_pad(GETTYSBURG_ADDRESS_BYTES);
+        let input1 = Blob::from_raw_data(GETTYSBURG_ADDRESS_BYTES);
         kzg.data_setup_custom(4, input1.len().try_into().unwrap())
             .unwrap();
 
@@ -755,7 +691,7 @@ mod tests {
         reversed_input.clone_from_slice(GETTYSBURG_ADDRESS_BYTES);
         reversed_input.reverse();
 
-        let input2 = Blob::from_bytes_and_pad(
+        let input2 = Blob::from_raw_data(
             b"17704588942648532530972307366230787358793284390049200127770755029903181125533",
         );
         kzg2.calculate_roots_of_unity(input2.len().try_into().unwrap())

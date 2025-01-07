@@ -64,11 +64,6 @@ path = "benches/bench_g1_ifft.rs"
 
 
 [[bench]]
-name = "bench_kzg_commit_with_cache"
-harness = false
-path = "benches/bench_kzg_commit_with_cache.rs"
-
-[[bench]]
 name = "bench_kzg_setup"
 harness = false
 path = "benches/bench_kzg_setup.rs"
@@ -82,11 +77,6 @@ path = "benches/bench_kzg_commit.rs"
 name = "bench_kzg_commit_large_blobs"
 harness = false
 path = "benches/bench_kzg_commit_large_blobs.rs"
-
-[[bench]]
-name = "bench_kzg_ifft_cache"
-harness = false
-path = "benches/bench_kzg_ifft_cache.rs"
 
 [[bench]]
 name = "bench_kzg_proof"
