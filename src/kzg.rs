@@ -477,7 +477,7 @@ impl Kzg {
             ));
         }
 
-        // When the polynomial is in evaluation form, use IFFT to transform srs points
+        // When the polynomial is in evaluation form, use IFFT to transform monomial srs points
         // to lagrange form.
         let bases = self.g1_ifft(polynomial.len())?;
 
