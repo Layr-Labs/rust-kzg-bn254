@@ -114,7 +114,6 @@ impl Kzg {
         Ok(chunks)
     }
 
-
     // This function calculates the roots of unities but doesn't assign it to the struct
     // Used in batch verification process as the roots need to be calculated for each blob
     // because of different length.
@@ -564,12 +563,12 @@ impl Kzg {
         let polynomial = blob
             .to_polynomial(form)
             .map_err(|err| KzgError::SerializationError(err.to_string()))?;
-    
+
         // Step 2: Generate KZG commitment to the polynomial
         // This creates a single G1 point that commits to the entire polynomial
         // The commitment preserves the polynomial's properties while being constant-size
         let commitment = self.commit(&polynomial)?;
-    
+
         // Return the commitment point in affine form
         // The commitment can be used later for proof generation and verification
         Ok(commitment)
@@ -657,12 +656,12 @@ impl Kzg {
         let usized_index = index.to_usize().ok_or(KzgError::GenericError(
             "Index conversion to usize failed".to_string(),
         ))?;
-    
+
         // Get the root of unity at the specified index
         // These roots are pre-computed and stored in expanded_roots_of_unity
         // They form the domain for polynomial evaluation
         let z_fr = self.expanded_roots_of_unity[usized_index];
-    
+
         // Compute the KZG proof at the selected root of unity
         // This delegates to the main proof computation function
         // using our selected evaluation point
