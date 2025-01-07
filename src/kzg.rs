@@ -564,12 +564,8 @@ impl Kzg {
         self.compute_kzg_proof_eigenda(polynomial, index)
     }
     
-
-    // Need a better name for this. This is used to keep in line with 4844 naming but 
-    // this is a bit misleading since compute_kzg_proof doesn't use it and our current implementation is 
-    // DA specific and has additional params. Also this needs to coalese into the compute_kzg_proof because it's
-    // largely a copy paste of compute_kzg_proof but current compute_kzg_proof has some DA uniqueness to it.
-    pub fn compute_kzg_proof_impl(
+    /// Helper function for `compute_kzg_proof()` and `compute_blob_kzg_proof()`
+    fn compute_kzg_proof_impl(
         &self,
         polynomial: &Polynomial,
         z_fr: &Fr,
@@ -1043,11 +1039,10 @@ impl Kzg {
     }
 
     pub fn verify_blob_kzg_proof_batch(
+        &self,
         blobs: &Vec<Blob>,
         commitments: &Vec<G1Affine>,
         proofs: &Vec<G1Affine>,
-        srs_order: u64,
-        g2_tau: &G2Affine,
     ) -> Result<bool, KzgError> {
         if !(commitments.len() == blobs.len() && proofs.len() == blobs.len()) {
             return Err(KzgError::GenericError(
@@ -1086,14 +1081,15 @@ impl Kzg {
         let (evaluation_challenges, ys) = Self::compute_challenges_and_evaluate_polynomial(
             blobs.to_vec(),
             commitments,
-            srs_order,
+            self.srs_order,
         )?;
 
         // Perform batch verification.
-        Self::verify_kzg_proof_batch(commitments, &evaluation_challenges, &ys, proofs, g2_tau)
+        self.verify_kzg_proof_batch(commitments, &evaluation_challenges, &ys, proofs)
     }
 
     fn compute_r_powers(
+        &self,
         commitment: &[G1Affine],
         zs: &[Fr],
         ys: &[Fr],
@@ -1175,12 +1171,12 @@ impl Kzg {
     /// * `Ok(true)` if all proofs are valid.
     /// * `Ok(false)` if any proof is invalid.
     /// * `Err(KzgError)` if an error occurs during verification.
-    pub fn verify_kzg_proof_batch(
+    fn verify_kzg_proof_batch(
+        &self,
         commitments: &[G1Affine],
         zs: &[Fr],
         ys: &[Fr],
-        proofs: &[G1Affine],
-        g2_tau: &G2Affine,
+        proofs: &[G1Affine]
     ) -> Result<bool, KzgError> {
         if !(commitments.len() == zs.len() && zs.len() == ys.len() && ys.len() == proofs.len()) {
             return Err(KzgError::GenericError(
@@ -1204,7 +1200,7 @@ impl Kzg {
             return Err(KzgError::NotOnCurveError("proof".to_owned()));
         }
 
-        if !is_on_curve_g2(&G2Projective::from(*g2_tau)) {
+        if !is_on_curve_g2(&G2Projective::from(*self.get_g2_tau())) {
             return Err(KzgError::NotOnCurveError("g2 tau".to_owned()));
         }
 
@@ -1215,7 +1211,7 @@ impl Kzg {
         let mut r_times_z: Vec<Fr> = Vec::with_capacity(n);
 
         // Compute r powers
-        let r_powers = Self::compute_r_powers(commitments, zs, ys, proofs)?;
+        let r_powers = self.compute_r_powers(commitments, zs, ys, proofs)?;
 
         // Compute proof linear combination
         let proof_lincomb = helpers::g1_lincomb(proofs, &r_powers);
@@ -1236,7 +1232,7 @@ impl Kzg {
 
         // Verify the pairing equation
         let result =
-            Self::pairings_verify(proof_lincomb, *g2_tau, rhs_g1.into(), G2Affine::generator());
+            Self::pairings_verify(proof_lincomb, *self.get_g2_tau(), rhs_g1.into(), G2Affine::generator());
         Ok(result)
     }
 }

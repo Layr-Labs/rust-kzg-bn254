@@ -14,7 +14,7 @@ mod tests {
     use std::{
         env,
         fs::{self, File},
-        io::{BufRead, BufReader},
+        io::BufReader,
         path::{Path, PathBuf},
     };
     const GETTYSBURG_ADDRESS_BYTES: &[u8] = "Fourscore and seven years ago our fathers brought forth, on this continent, a new nation, conceived in liberty, and dedicated to the proposition that all men are created equal. Now we are engaged in a great civil war, testing whether that nation, or any nation so conceived, and so dedicated, can long endure. We are met on a great battle-field of that war. We have come to dedicate a portion of that field, as a final resting-place for those who here gave their lives, that that nation might live. It is altogether fitting and proper that we should do this. But, in a larger sense, we cannot dedicate, we cannot consecrate—we cannot hallow—this ground. The brave men, living and dead, who struggled here, have consecrated it far above our poor power to add or detract. The world will little note, nor long remember what we say here, but it can never forget what they did here. It is for us the living, rather, to be dedicated here to the unfinished work which they who fought here have thus far so nobly advanced. It is rather for us to be here dedicated to the great task remaining before us—that from these honored dead we take increased devotion to that cause for which they here gave the last full measure of devotion—that we here highly resolve that these dead shall not have died in vain—that this nation, under God, shall have a new birth of freedom, and that government of the people, by the people, for the people, shall not perish from the earth.".as_bytes();
@@ -644,13 +644,13 @@ mod tests {
         .unwrap());
 
         let pairing_result_bad_commitment =
-            Kzg::verify_blob_kzg_proof_batch(&vec![input.clone()], &vec![bad_commitment], &vec![proof], 3000, kzg.get_g2_tau());
+            kzg.verify_blob_kzg_proof_batch(&vec![input.clone()], &vec![bad_commitment], &vec![proof]);
         assert_eq!(pairing_result_bad_commitment, Err(KzgError::CommitmentError(
             "commitment not on curve".to_string()
         )));
 
         let pairing_result_bad_proof =
-            Kzg::verify_blob_kzg_proof_batch(&vec![input], &vec![commitment], &vec![bad_proof], 3000, kzg.get_g2_tau());
+            kzg.verify_blob_kzg_proof_batch(&vec![input], &vec![commitment], &vec![bad_proof]);
         assert_eq!(pairing_result_bad_proof, Err(KzgError::CommitmentError(
             "proof not on curve".to_string()
         )));
@@ -692,52 +692,44 @@ mod tests {
         let mut bad_proofs = proofs.clone();
 
         let pairing_result =
-            Kzg::verify_blob_kzg_proof_batch(&blobs, &commitments, &proofs, 3000, kzg.get_g2_tau())
+            kzg.verify_blob_kzg_proof_batch(&blobs, &commitments, &proofs)
                 .unwrap();
         assert_eq!(pairing_result, true);
 
         bad_blobs.pop();
         bad_blobs.push(Blob::from_bytes_and_pad(b"random"));
-        let pairing_result_bad_blobs = Kzg::verify_blob_kzg_proof_batch(
+        let pairing_result_bad_blobs = kzg.verify_blob_kzg_proof_batch(
             &bad_blobs,
             &commitments,
             &proofs,
-            3000,
-            kzg.get_g2_tau(),
         )
         .unwrap();
         assert_eq!(pairing_result_bad_blobs, false);
 
         bad_commitments.pop();
         bad_commitments.push(G1Affine::rand(&mut rng));
-        let pairing_result_bad_commitments = Kzg::verify_blob_kzg_proof_batch(
+        let pairing_result_bad_commitments = kzg.verify_blob_kzg_proof_batch(
             &blobs,
             &bad_commitments,
             &proofs,
-            3000,
-            kzg.get_g2_tau(),
         )
         .unwrap();
         assert_eq!(pairing_result_bad_commitments, false);
 
         bad_proofs.pop();
         bad_proofs.push(G1Affine::rand(&mut rng));
-        let pairing_result_bad_proofs = Kzg::verify_blob_kzg_proof_batch(
+        let pairing_result_bad_proofs = kzg.verify_blob_kzg_proof_batch(
             &blobs,
             &commitments,
             &bad_proofs,
-            3000,
-            kzg.get_g2_tau(),
         )
         .unwrap();
         assert_eq!(pairing_result_bad_proofs, false);
 
-        let pairing_result_everything_bad = Kzg::verify_blob_kzg_proof_batch(
+        let pairing_result_everything_bad = kzg.verify_blob_kzg_proof_batch(
             &bad_blobs,
             &bad_commitments,
             &bad_proofs,
-            3000,
-            kzg.get_g2_tau(),
         )
         .unwrap();
         assert_eq!(pairing_result_everything_bad, false);
@@ -782,168 +774,10 @@ mod tests {
         // let res = kzg.verify_blob_kzg_proof(&input1, &commitment1, &auto_proof).unwrap();
 
         let pairing_result =
-            Kzg::verify_blob_kzg_proof_batch(&blobs, &commitments, &proofs, 3000, kzg.get_g2_tau())
+            kzg.verify_blob_kzg_proof_batch(&blobs, &commitments, &proofs)
                 .unwrap();
 
         assert_eq!(pairing_result, true);
     }
 
-    #[test]
-    fn test_verify_kzg_proof() {
-        use rand::Rng;
-
-        let mut kzg = KZG_INSTANCE.clone();
-
-        let input = Blob::from_bytes_and_pad(GETTYSBURG_ADDRESS_BYTES);
-        let input_poly = input
-            .to_polynomial(PolynomialFormat::InCoefficientForm)
-            .unwrap();
-
-        kzg.data_setup_custom(4, input.len().try_into().unwrap())
-            .unwrap();
-        let index = rand::thread_rng().gen_range(0..input_poly.len());
-
-        let commitment = kzg.commit(&input_poly.clone()).unwrap();
-        let proof = kzg
-            .compute_kzg_proof_with_roots_of_unity(&input_poly, index.try_into().unwrap())
-            .unwrap();
-        let value_fr = input_poly.get_at_index(index).unwrap();
-        let z_fr = kzg.get_nth_root_of_unity(index).unwrap();
-        let pairing_result =
-            kzg.verify_kzg_proof(commitment, proof, value_fr.clone(), z_fr.clone());
-        assert_eq!(pairing_result, true);
-
-        let pairing_result2 = Kzg::verify_kzg_proof_batch(
-            &[commitment],
-            &[*z_fr],
-            &[*value_fr],
-            &[proof],
-            kzg.get_g2_tau(),
-        )
-        .unwrap();
-        assert_eq!(pairing_result2, true);
-    }
-
-    #[test]
-    fn test_verify_kzg_proof_batch() {
-        use rand::Rng;
-
-        let mut kzg = KZG_INSTANCE.clone();
-
-        let mut commitments: Vec<G1Affine> = Vec::new();
-        let mut proofs: Vec<G1Affine> = Vec::new();
-        let mut z_frs: Vec<Fr> = Vec::new();
-        let mut value_frs: Vec<Fr> = Vec::new();
-
-        (0..100).for_each(|_| {
-            let input = Blob::from_bytes_and_pad(GETTYSBURG_ADDRESS_BYTES);
-            let input_poly = input
-                .to_polynomial(PolynomialFormat::InCoefficientForm)
-                .unwrap();
-
-            kzg.data_setup_custom(4, input.len().try_into().unwrap())
-                .unwrap();
-            let index = rand::thread_rng().gen_range(0..input_poly.len());
-
-            let commitment = kzg.commit(&input_poly.clone()).unwrap();
-            let proof = kzg
-                .compute_kzg_proof_with_roots_of_unity(&input_poly, index.try_into().unwrap())
-                .unwrap();
-            let value_fr = input_poly.get_at_index(index).unwrap();
-            let z_fr = kzg.get_nth_root_of_unity(index).unwrap();
-
-            commitments.push(commitment);
-            proofs.push(proof);
-            z_frs.push(*z_fr);
-            value_frs.push(*value_fr);
-        });
-
-        let pairing_result = Kzg::verify_kzg_proof_batch(
-            &commitments,
-            z_frs.as_slice(),
-            value_frs.as_slice(),
-            &proofs,
-            kzg.get_g2_tau(),
-        )
-        .unwrap();
-        assert_eq!(pairing_result, true);
-
-        let mut rng = rand::thread_rng();
-        let mut z_frs_bad = z_frs.clone();
-        z_frs_bad.push(Fr::rand(&mut rng));
-        let pairing_result_bad_array = Kzg::verify_kzg_proof_batch(
-            &commitments,
-            z_frs_bad.as_slice(),
-            value_frs.as_slice(),
-            &proofs,
-            kzg.get_g2_tau(),
-        );
-
-        assert_eq!(
-            pairing_result_bad_array,
-            Err(KzgError::GenericError(
-                "length's of the input are not the same".to_string()
-            ))
-        );
-
-        z_frs_bad.pop();
-        z_frs_bad.pop();
-        z_frs_bad.push(Fr::rand(&mut rng));
-
-        let pairing_result_z_fr_bad = Kzg::verify_kzg_proof_batch(
-            &commitments,
-            z_frs_bad.as_slice(),
-            value_frs.as_slice(),
-            &proofs,
-            kzg.get_g2_tau(),
-        )
-        .unwrap();
-
-        assert_eq!(pairing_result_z_fr_bad, false);
-
-        let mut value_frs_bad = value_frs.clone();
-        value_frs_bad.pop();
-        value_frs_bad.push(Fr::rand(&mut rng));
-
-        let pairing_result_z_fr_bad = Kzg::verify_kzg_proof_batch(
-            &commitments,
-            z_frs.as_slice(),
-            value_frs_bad.as_slice(),
-            &proofs,
-            kzg.get_g2_tau(),
-        )
-        .unwrap();
-
-        assert_eq!(pairing_result_z_fr_bad, false);
-
-        let mut proofs_bad = proofs.clone();
-        proofs_bad.pop();
-        proofs_bad.push(G1Affine::rand(&mut rng));
-
-        let pairing_result_proofs_bad = Kzg::verify_kzg_proof_batch(
-            &commitments,
-            z_frs.as_slice(),
-            value_frs.as_slice(),
-            &proofs_bad,
-            kzg.get_g2_tau(),
-        )
-        .unwrap();
-
-        assert_eq!(pairing_result_proofs_bad, false);
-
-        let mut commitments_bad = commitments.clone();
-        commitments_bad.pop();
-        commitments_bad.push(G1Affine::rand(&mut rng));
-
-        let pairing_result_commitment_bad = Kzg::verify_kzg_proof_batch(
-            &commitments_bad,
-            z_frs.as_slice(),
-            value_frs.as_slice(),
-            &proofs,
-            kzg.get_g2_tau(),
-        )
-        .unwrap();
-
-        assert_eq!(pairing_result_commitment_bad, false);
-    }
 }
