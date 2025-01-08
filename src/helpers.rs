@@ -28,6 +28,13 @@ pub fn set_bytes_canonical_manual(data: &[u8]) -> Fr {
 
 // Functions being used
 
+/// Copied the referenced bytes array argument into a Vec, inserting an empty
+/// byte at the front of every 31 bytes. The empty byte is padded at the low
+/// address, because we use big endian to interpret a field element.
+/// This ensures every 32 bytes is within the valid range of a field element for
+/// the bn254 curve. If the input data is not a multiple of 31 bytes, the
+/// remainder is added to the output by inserting a 0 and the remainder. The
+/// output is thus not necessarily a multiple of 32.
 pub fn convert_by_padding_empty_byte(data: &[u8]) -> Vec<u8> {
     let data_size = data.len();
     let parse_size = BYTES_PER_FIELD_ELEMENT - 1;
