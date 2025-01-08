@@ -160,7 +160,7 @@ impl KZG {
         if length_of_data_after_padding
             .div_ceil(BYTES_PER_FIELD_ELEMENT as u64)
             .next_power_of_two()
-            >= srs_order
+            > srs_order
         {
             return Err(KzgError::SerializationError(
                 "the supplied encoding parameters are not valid with respect to the SRS."
@@ -823,6 +823,56 @@ impl KZG {
         result.is_zero()
     }
 
+    pub fn verify_blob_kzg_proof(
+        &self,
+        blob: &Blob,
+        commitment: &G1Affine,
+        proof: &G1Affine,
+    ) -> Result<bool, KzgError> {
+        // Convert blob to polynomial
+        let polynomial = blob.to_polynomial_eval_form();
+
+        // Compute the evaluation challenge for the blob and commitment
+        let evaluation_challenge = Self::compute_challenge(blob, commitment)?;
+
+        // Evaluate the polynomial in evaluation form
+        let y = Self::evaluate_polynomial_in_evaluation_form(
+            &polynomial,
+            &evaluation_challenge,
+            self.srs_order,
+        )?;
+
+        // Verify the KZG proof
+        self.verify_proof(*commitment, *proof, y, evaluation_challenge)
+    }
+
+    pub fn compute_blob_kzg_proof(
+        &self,
+        blob: &Blob,
+        commitment: &G1Affine,
+    ) -> Result<G1Affine, KzgError> {
+        // Validate that the commitment is a valid point on the G1 curve
+        // This prevents potential invalid curve attacks
+        if !commitment.is_on_curve() || !commitment.is_in_correct_subgroup_assuming_on_curve() {
+            return Err(KzgError::NotOnCurveError(
+                "commitment not on curve".to_string(),
+            ));
+        }
+
+        // Convert the blob to a polynomial in evaluation form
+        // This is necessary because KZG proofs work with polynomials
+        let blob_poly = blob.to_polynomial_eval_form();
+
+        // Compute the evaluation challenge using Fiat-Shamir heuristic
+        // This challenge determines the point at which we evaluate the polynomial
+        let evaluation_challenge = Self::compute_challenge(blob, commitment)?;
+
+        // Compute the actual KZG proof using the polynomial and evaluation point
+        // This creates a proof that the polynomial evaluates to a specific value at the challenge point
+        // The proof is a single G1 point that can be used to verify the evaluation
+        self.compute_kzg_proof_impl(&blob_poly, &evaluation_challenge)
+    }
+
     /// Maps a byte slice to a field element (`Fr`) using SHA-256 from SHA3 family as the
     /// hash function.
     ///
@@ -845,7 +895,7 @@ impl KZG {
 
         fr_element
     }
-
+    
     /// Computes the Fiat-Shamir challenge from a blob and its commitment.
     ///
     /// # Arguments
@@ -1026,56 +1076,6 @@ impl KZG {
         // 2. Vector of polynomial evaluations at those points
         // These will be used in the KZG proof verification process
         Ok((evaluation_challenges, ys))
-    }
-
-    pub fn verify_blob_kzg_proof(
-        &self,
-        blob: &Blob,
-        commitment: &G1Affine,
-        proof: &G1Affine,
-    ) -> Result<bool, KzgError> {
-        // Convert blob to polynomial
-        let polynomial = blob.to_polynomial_eval_form();
-
-        // Compute the evaluation challenge for the blob and commitment
-        let evaluation_challenge = Self::compute_challenge(blob, commitment)?;
-
-        // Evaluate the polynomial in evaluation form
-        let y = Self::evaluate_polynomial_in_evaluation_form(
-            &polynomial,
-            &evaluation_challenge,
-            self.srs_order,
-        )?;
-
-        // Verify the KZG proof
-        self.verify_proof(*commitment, *proof, y, evaluation_challenge)
-    }
-
-    pub fn compute_blob_kzg_proof(
-        &self,
-        blob: &Blob,
-        commitment: &G1Affine,
-    ) -> Result<G1Affine, KzgError> {
-        // Validate that the commitment is a valid point on the G1 curve
-        // This prevents potential invalid curve attacks
-        if !commitment.is_on_curve() || !commitment.is_in_correct_subgroup_assuming_on_curve() {
-            return Err(KzgError::NotOnCurveError(
-                "commitment not on curve".to_string(),
-            ));
-        }
-
-        // Convert the blob to a polynomial in evaluation form
-        // This is necessary because KZG proofs work with polynomials
-        let blob_poly = blob.to_polynomial_eval_form();
-
-        // Compute the evaluation challenge using Fiat-Shamir heuristic
-        // This challenge determines the point at which we evaluate the polynomial
-        let evaluation_challenge = Self::compute_challenge(blob, commitment)?;
-
-        // Compute the actual KZG proof using the polynomial and evaluation point
-        // This creates a proof that the polynomial evaluates to a specific value at the challenge point
-        // The proof is a single G1 point that can be used to verify the evaluation
-        self.compute_kzg_proof_impl(&blob_poly, &evaluation_challenge)
     }
 
     pub fn verify_blob_kzg_proof_batch(
