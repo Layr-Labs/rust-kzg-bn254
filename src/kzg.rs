@@ -1095,10 +1095,9 @@ impl KZG {
         // Validate that all commitments are valid points on the G1 curve
         // Using parallel iterator (par_iter) for better performance on large batches
         // This prevents invalid curve attacks
-        if !commitments
-            .par_iter()
-            .all(|commitment| is_on_curve_g1(&G1Projective::from(*commitment)))
-        {
+        if !commitments.par_iter().any(|commitment| {
+            commitment == &G1Affine::identity() || !is_on_curve_g1(&G1Projective::from(*commitment))
+        }) {
             return Err(KzgError::CommitmentError(
                 "commitment not on curve".to_owned(),
             ));
@@ -1106,10 +1105,9 @@ impl KZG {
 
         // Validate that all proofs are valid points on the G1 curve
         // Using parallel iterator for efficiency
-        if !proofs
-            .par_iter()
-            .all(|proof| is_on_curve_g1(&G1Projective::from(*proof)))
-        {
+        if !proofs.par_iter().any(|proof| {
+            proof == &G1Affine::identity() || !is_on_curve_g1(&G1Projective::from(*proof))
+        }) {
             return Err(KzgError::CommitmentError("proof not on curve".to_owned()));
         }
 

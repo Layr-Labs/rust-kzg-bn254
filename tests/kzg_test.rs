@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests {
     use ark_bn254::{Fq, Fr, G1Affine, G2Affine};
+    use ark_ec::AffineRepr;
     use ark_ff::UniformRand;
     use lazy_static::lazy_static;
     use rand::Rng;
@@ -612,7 +613,6 @@ mod tests {
             let random_blob: Vec<u8> = (0..blob_length)
                 .map(|_| rng.gen_range(32..=126) as u8)
                 .collect();
-            println!("generating blob of length is {}", blob_length);
 
             let input = Blob::from_raw_data(&random_blob);
             let input_poly = input.to_polynomial_eval_form();
@@ -702,5 +702,123 @@ mod tests {
             .unwrap();
 
         assert_eq!(pairing_result, true);
+    }
+
+    #[test]
+    fn test_kzg_batch_proof_with_infinity() {
+        let mut kzg = KZG_INSTANCE.clone();
+
+        // Setup with consistent domain size
+        let input_size = GETTYSBURG_ADDRESS_BYTES.len();
+        kzg.data_setup_custom(4, input_size.try_into().unwrap())
+            .unwrap();
+
+        // First blob and proof - regular case
+        let input1 = Blob::from_raw_data(GETTYSBURG_ADDRESS_BYTES);
+        let input_poly1 = input1.to_polynomial_eval_form();
+        let commitment1 = kzg.commit_eval_form(&input_poly1).unwrap();
+        let proof_1 = kzg.compute_blob_kzg_proof(&input1, &commitment1).unwrap();
+
+        // Create a proof point at infinity
+        let proof_at_infinity = G1Affine::identity();
+
+        let blobs = vec![input1.clone()];
+        let commitments = vec![commitment1];
+        let proofs = vec![proof_at_infinity];
+
+        // This should fail since a proof point at infinity is invalid
+        let result = kzg.verify_blob_kzg_proof_batch(&blobs, &commitments, &proofs);
+
+        assert!(result.is_err());
+
+        // Also test mixed case - one valid proof, one at infinity
+        let input2 = Blob::from_raw_data(b"second input");
+        let input_poly2 = input2.to_polynomial_eval_form();
+        let commitment2 = kzg.commit_eval_form(&input_poly2).unwrap();
+
+        let blobs_mixed = vec![input1, input2];
+        let commitments_mixed = vec![commitment1, commitment2];
+        let proofs_mixed = vec![proof_1, proof_at_infinity];
+
+        let result_mixed =
+            kzg.verify_blob_kzg_proof_batch(&blobs_mixed, &commitments_mixed, &proofs_mixed);
+        assert!(result_mixed.is_err());
+    }
+
+    #[test]
+    fn test_kzg_batch_proof_invalid_curve_points() {
+        let mut kzg = KZG_INSTANCE.clone();
+        kzg.data_setup_custom(4, GETTYSBURG_ADDRESS_BYTES.len().try_into().unwrap())
+            .unwrap();
+
+        // Create valid inputs first
+        let input = Blob::from_raw_data(GETTYSBURG_ADDRESS_BYTES);
+        let input_poly = input.to_polynomial_eval_form();
+        let valid_commitment = kzg.commit_eval_form(&input_poly).unwrap();
+        let valid_proof = kzg
+            .compute_blob_kzg_proof(&input, &valid_commitment)
+            .unwrap();
+
+        // Create points not on the curve
+        let invalid_point_commitment = generate_point_wrong_subgroup();
+
+        let invalid_point_proof = generate_point_wrong_subgroup();
+        let invalid_proof_from_valid_proof_plus_1 = G1Affine::new_unchecked(
+            valid_proof.x().unwrap(),
+            valid_proof.y().unwrap() + Fq::one(),
+        ); // This is not a valid proof
+
+        // Test cases with different combinations
+        let test_cases = vec![
+            (
+                vec![invalid_point_commitment.clone(), valid_commitment],
+                vec![valid_proof.clone(), valid_proof.clone()],
+                "Invalid commitment point",
+            ),
+            (
+                vec![valid_commitment, valid_commitment],
+                vec![invalid_point_proof.clone(), valid_proof.clone()],
+                "Invalid proof point",
+            ),
+            (
+                vec![invalid_point_commitment.clone(), valid_commitment],
+                vec![invalid_point_proof.clone(), valid_proof.clone()],
+                "Both invalid commitment and proof",
+            ),
+            (
+                vec![valid_commitment, invalid_point_commitment],
+                vec![valid_proof.clone(), invalid_point_proof],
+                "Invalid points in second position",
+            ),
+            (
+                vec![valid_commitment, invalid_point_commitment],
+                vec![valid_proof.clone(), invalid_proof_from_valid_proof_plus_1],
+                "Invalid proof from valid proof",
+            ),
+        ];
+
+        for (commitments, proofs, case_description) in test_cases {
+            let blobs = vec![input.clone(), input.clone()];
+            let result = kzg.verify_blob_kzg_proof_batch(&blobs, &commitments, &proofs);
+
+            assert!(
+                result.is_err(),
+                "Failed to detect invalid curve point - {}",
+                case_description
+            );
+        }
+    }
+
+    // Helper function to generate a point in the wrong subgroup
+    fn generate_point_wrong_subgroup() -> G1Affine {
+        let x = Fq::from_str(
+            "17704588942648532530972307366230787358793284390049200127770755029903181125533",
+        )
+        .unwrap();
+        let y = Fq::from_str(
+            "17704588942648532530972307366230787358793284390049200127770755029903181125533",
+        )
+        .unwrap();
+        G1Affine::new_unchecked(x, y)
     }
 }
