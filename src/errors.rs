@@ -62,10 +62,6 @@ pub enum KzgError {
     SerializationError(String),
 
     /// Error related to commitment processes with a descriptive message.
-    #[error("commitment error: {0}")]
-    CommitmentError(String),
-
-    /// Error related to commitment processes with a descriptive message.
     #[error("not on curve error: {0}")]
     NotOnCurveError(String),
 

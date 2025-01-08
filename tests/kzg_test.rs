@@ -586,7 +586,7 @@ mod tests {
         );
         assert_eq!(
             pairing_result_bad_commitment,
-            Err(KzgError::CommitmentError(
+            Err(KzgError::NotOnCurveError(
                 "commitment not on curve".to_string()
             ))
         );
@@ -595,7 +595,7 @@ mod tests {
             kzg.verify_blob_kzg_proof_batch(&vec![input], &vec![commitment], &vec![bad_proof]);
         assert_eq!(
             pairing_result_bad_proof,
-            Err(KzgError::CommitmentError("proof not on curve".to_string()))
+            Err(KzgError::NotOnCurveError("proof not on curve".to_string()))
         );
     }
 

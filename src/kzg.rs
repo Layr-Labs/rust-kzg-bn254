@@ -1058,8 +1058,8 @@ impl KZG {
     ) -> Result<G1Affine, KzgError> {
         // Validate that the commitment is a valid point on the G1 curve
         // This prevents potential invalid curve attacks
-        if !is_on_curve_g1(&G1Projective::from(*commitment)) {
-            return Err(KzgError::GenericError(
+        if !commitment.is_on_curve() || !commitment.is_in_correct_subgroup_assuming_on_curve() {
+            return Err(KzgError::NotOnCurveError(
                 "commitment not on curve".to_string(),
             ));
         }
@@ -1095,20 +1095,24 @@ impl KZG {
         // Validate that all commitments are valid points on the G1 curve
         // Using parallel iterator (par_iter) for better performance on large batches
         // This prevents invalid curve attacks
-        if !commitments.par_iter().any(|commitment| {
-            commitment == &G1Affine::identity() || !is_on_curve_g1(&G1Projective::from(*commitment))
+        if commitments.iter().any(|commitment| {
+            commitment == &G1Affine::identity()
+                || !commitment.is_on_curve()
+                || !commitment.is_in_correct_subgroup_assuming_on_curve()
         }) {
-            return Err(KzgError::CommitmentError(
+            return Err(KzgError::NotOnCurveError(
                 "commitment not on curve".to_owned(),
             ));
         }
 
         // Validate that all proofs are valid points on the G1 curve
         // Using parallel iterator for efficiency
-        if !proofs.par_iter().any(|proof| {
-            proof == &G1Affine::identity() || !is_on_curve_g1(&G1Projective::from(*proof))
+        if proofs.iter().any(|proof| {
+            proof == &G1Affine::identity()
+                || !proof.is_on_curve()
+                || !proof.is_in_correct_subgroup_assuming_on_curve()
         }) {
-            return Err(KzgError::CommitmentError("proof not on curve".to_owned()));
+            return Err(KzgError::NotOnCurveError("proof not on curve".to_owned()));
         }
 
         // Compute evaluation challenges and evaluate polynomials at those points
