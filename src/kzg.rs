@@ -439,7 +439,7 @@ impl KZG {
     /// bytes from the file, and fans them out to worker threads (one per
     /// cpu) which parse the bytes into G1Affine points. The worker threads
     /// then fan in the parsed points to the main thread, which sorts them by
-    /// their original position in the file to maintain order. Not used anywhere 
+    /// their original position in the file to maintain order. Not used anywhere
     /// but kept as a reference.
     ///
     /// # Arguments
@@ -647,9 +647,7 @@ impl KZG {
             }
         }
 
-        let quotient_poly_eval_form = PolynomialEvalForm::new(
-            quotient_poly,
-        );
+        let quotient_poly_eval_form = PolynomialEvalForm::new(quotient_poly);
         self.commit_eval_form(&quotient_poly_eval_form)
     }
 
@@ -665,7 +663,6 @@ impl KZG {
         polynomial: &PolynomialEvalForm,
         index: u64,
     ) -> Result<G1Affine, KzgError> {
-
         // Convert u64 index to usize for array indexing
         let usized_index = index.to_usize().ok_or(KzgError::GenericError(
             "Index conversion to usize failed".to_string(),
@@ -898,7 +895,7 @@ impl KZG {
         // Step 3: Copy the blob data
         // Convert polynomial to bytes using helper function
         let blob_data = helpers::to_byte_array(
-            &blob_poly.evaluations(),
+            blob_poly.evaluations(),
             blob_poly.len() * BYTES_PER_FIELD_ELEMENT,
         );
         digest_bytes[offset..offset + blob_data.len()].copy_from_slice(&blob_data);
@@ -1127,9 +1124,7 @@ impl KZG {
         // This length value is needed for computing the challenge
         let blobs_as_field_elements_length: Vec<u64> = blobs
             .iter()
-            .map(|blob| {
-                blob.to_polynomial_eval_form().evaluations().len() as u64
-            })
+            .map(|blob| blob.to_polynomial_eval_form().evaluations().len() as u64)
             .collect();
 
         // Perform the actual batch verification using the computed values:
