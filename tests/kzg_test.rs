@@ -795,6 +795,11 @@ mod tests {
                 vec![valid_proof.clone(), invalid_proof_from_valid_proof_plus_1],
                 "Invalid proof from valid proof",
             ),
+            (
+                vec![invalid_point_commitment, invalid_point_commitment],
+                vec![invalid_point_proof, invalid_proof_from_valid_proof_plus_1],
+                "all invalid commitments and proofs",
+            ),
         ];
 
         for (commitments, proofs, case_description) in test_cases {
