@@ -8,9 +8,9 @@ pub struct PolynomialEvalForm {
     /// evaluations contains the evaluations of the polynomial, padded with 0s
     /// to the next power of two. Hence if the polynomial is created with
     /// coefficients [1, 2, 3], the internal representation will be [1, 2,
-    /// 3, 0]. Note that this changes the polynomial! This is an inconsistency in our
-    /// current representations. Polynomials are the objects that get committed, not the
-    /// underlying Blobs.
+    /// 3, 0]. Note that this changes the polynomial! This is an inconsistency
+    /// in our current representations. Polynomials are the objects that get
+    /// committed, not the underlying Blobs.
     /// TODO: do we also want to force blobs to be of powers-of-two length?
     evaluations: Vec<Fr>,
     /// Number of bytes in the underlying blob, which was used to create the
@@ -26,10 +26,11 @@ pub struct PolynomialEvalForm {
 }
 
 impl PolynomialEvalForm {
-    /// Creates a new [PolynomialEvalForm] from the given coefficients, passed as a vector of `Fr`.
-    /// The coefficients are padded to the next power of two by appending zeros.
-    /// This typically wouldn't be used directly, but instead a [crate::blob::Blob] would be
-    /// converted to a [PolynomialEvalForm] using [crate::blob::Blob::to_polynomial_eval_form].
+    /// Creates a new [PolynomialEvalForm] from the given coefficients, passed
+    /// as a vector of `Fr`. The coefficients are padded to the next power
+    /// of two by appending zeros. This typically wouldn't be used directly,
+    /// but instead a [crate::blob::Blob] would be converted to a
+    /// [PolynomialEvalForm] using [crate::blob::Blob::to_polynomial_eval_form].
     pub fn new(evals: Vec<Fr>) -> Self {
         let underlying_blob_len_in_bytes = evals.len() * BYTES_PER_FIELD_ELEMENT;
         let next_power_of_two = evals.len().next_power_of_two();
@@ -110,10 +111,12 @@ pub struct PolynomialCoeffForm {
 }
 
 impl PolynomialCoeffForm {
-    /// Creates a new [PolynomialCoeffForm] from the given coefficients, passed as a vector of `Fr`.
-    /// The coefficients are padded to the next power of two by appending zeros.
-    /// This typically wouldn't be used directly, but instead a [crate::blob::Blob] would be
-    /// converted to a [PolynomialCoeffForm] using [crate::blob::Blob::to_polynomial_coeff_form].
+    /// Creates a new [PolynomialCoeffForm] from the given coefficients, passed
+    /// as a vector of `Fr`. The coefficients are padded to the next power
+    /// of two by appending zeros. This typically wouldn't be used directly,
+    /// but instead a [crate::blob::Blob] would be converted to a
+    /// [PolynomialCoeffForm] using
+    /// [crate::blob::Blob::to_polynomial_coeff_form].
     pub fn new(coeffs: Vec<Fr>) -> Self {
         let underlying_blob_len_in_bytes = coeffs.len() * BYTES_PER_FIELD_ELEMENT;
         let next_power_of_two = coeffs.len().next_power_of_two();

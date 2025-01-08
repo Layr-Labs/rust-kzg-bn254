@@ -21,12 +21,13 @@ use std::{
 
 /// Main interesting struct of the rust-kzg-bn254 crate.
 /// [Kzg] is a struct that holds the SRS points in monomial form, and
-/// provides methods for committing to a blob, (either via a [Blob] itself, 
-/// or a [PolynomialCoeffForm] or [PolynomialEvalForm]), and generating and verifying proofs.
-/// 
-/// The [Blob] and [PolynomialCoeffForm]/[PolynomialEvalForm] structs are mostly 
-/// <https://en.wikipedia.org/wiki/Passive_data_structure> with 
-/// constructor and few helper methods. 
+/// provides methods for committing to a blob, (either via a [Blob] itself,
+/// or a [PolynomialCoeffForm] or [PolynomialEvalForm]), and generating and
+/// verifying proofs.
+///
+/// The [Blob] and [PolynomialCoeffForm]/[PolynomialEvalForm] structs are mostly
+/// <https://en.wikipedia.org/wiki/Passive_data_structure> with
+/// constructor and few helper methods.
 #[derive(Debug, PartialEq, Clone)]
 pub struct KZG {
     // SRS points are stored in monomial form, ready to be used for commitments with polynomials
@@ -112,9 +113,10 @@ impl KZG {
         Ok(chunks)
     }
 
-    /// Similar to [Kzg::data_setup_mins], but mainly used for setting up Kzg for testing purposes.
-    /// Used to specify the number of chunks and chunk length.
-    /// These parameters are then used to calculate the FFT params required for FFT operations.
+    /// Similar to [Kzg::data_setup_mins], but mainly used for setting up Kzg
+    /// for testing purposes. Used to specify the number of chunks and chunk
+    /// length. These parameters are then used to calculate the FFT params
+    /// required for FFT operations.
     pub fn data_setup_custom(
         &mut self,
         num_of_nodes: u64,
@@ -128,7 +130,8 @@ impl KZG {
     }
 
     /// Used to specify the number of chunks and chunk length.
-    /// These parameters are then used to calculate the FFT params required for FFT operations.
+    /// These parameters are then used to calculate the FFT params required for
+    /// FFT operations.
     pub fn data_setup_mins(
         &mut self,
         min_chunk_length: u64,
@@ -519,8 +522,8 @@ impl KZG {
         }
     }
 
-    /// commit to a [Blob], by transforming it into a [PolynomialEvalForm] and then
-    /// calling [Kzg::commit_eval_form].
+    /// commit to a [Blob], by transforming it into a [PolynomialEvalForm] and
+    /// then calling [Kzg::commit_eval_form].
     pub fn commit_blob(&self, blob: &Blob) -> Result<G1Affine, KzgError> {
         let polynomial = blob.to_polynomial_eval_form();
         self.commit_eval_form(&polynomial)
