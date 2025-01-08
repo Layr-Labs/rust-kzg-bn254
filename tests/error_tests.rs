@@ -3,15 +3,6 @@ mod tests {
     use rust_kzg_bn254::errors::{KzgError, PolynomialError};
 
     #[test]
-    fn test_polynomial_error_serialization_from_string() {
-        let error = PolynomialError::SerializationFromStringError;
-        assert_eq!(
-            format!("{}", error),
-            "serialization from string to Fr vector failed"
-        );
-    }
-
-    #[test]
     fn test_polynomial_error_commit() {
         let msg = String::from("test commit error");
         let error = PolynomialError::CommitError(msg.clone());
@@ -39,15 +30,6 @@ mod tests {
             format!("{}", error),
             format!("incorrect form error: {}", msg)
         );
-    }
-
-    #[test]
-    fn test_polynomial_error_equality() {
-        let error1 = PolynomialError::SerializationFromStringError;
-        let error2 = PolynomialError::SerializationFromStringError;
-        let error3 = PolynomialError::CommitError(String::from("error"));
-        assert_eq!(error1, error2);
-        assert_ne!(error1, error3);
     }
 
     // KzgError tests

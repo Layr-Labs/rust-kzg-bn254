@@ -18,9 +18,6 @@ pub enum BlobError {
 /// and serialization errors.
 #[derive(Clone, Debug, PartialEq, Error)]
 pub enum PolynomialError {
-    /// Error during serialization from string to a vector of `Fr` elements.
-    #[error("serialization from string to Fr vector failed")]
-    SerializationFromStringError,
 
     /// Error related to commitment operations with a descriptive message.
     #[error("commitment error: {0}")]
