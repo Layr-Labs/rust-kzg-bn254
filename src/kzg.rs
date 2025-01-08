@@ -895,7 +895,7 @@ impl KZG {
 
         fr_element
     }
-    
+
     /// Computes the Fiat-Shamir challenge from a blob and its commitment.
     ///
     /// # Arguments
@@ -973,6 +973,7 @@ impl KZG {
         Ok(Self::hash_to_field_element(&digest_bytes))
     }
 
+    /// Ref: https://github.com/ethereum/consensus-specs/blob/master/specs/deneb/polynomial-commitments.md#evaluate_polynomial_in_evaluation_form
     fn evaluate_polynomial_in_evaluation_form(
         polynomial: &PolynomialEvalForm,
         z: &Fr,
@@ -1029,6 +1030,7 @@ impl KZG {
         Ok(f_z)
     }
 
+    /// A helper function for the `verify_blob_kzg_proof_batch` function.
     fn compute_challenges_and_evaluate_polynomial(
         blobs: &Vec<Blob>,
         commitments: &[G1Affine],
@@ -1078,6 +1080,7 @@ impl KZG {
         Ok((evaluation_challenges, ys))
     }
 
+    /// Ref: https://github.com/ethereum/consensus-specs/blob/master/specs/deneb/polynomial-commitments.md#verify_blob_kzg_proof_batch
     pub fn verify_blob_kzg_proof_batch(
         &self,
         blobs: &Vec<Blob>,
@@ -1144,6 +1147,11 @@ impl KZG {
         )
     }
 
+    /// Ref: https://github.com/ethereum/consensus-specs/blob/master/specs/deneb/polynomial-commitments.md#verify_kzg_proof_batch
+    /// A helper function to the `helpers::compute_powers` function. This does the below reference code from the 4844 spec.
+    /// Ref: `# Append all inputs to the transcript before we hash
+    ///      for commitment, z, y, proof in zip(commitments, zs, ys, proofs):
+    ///          data += commitment + bls_field_to_bytes(z) + bls_field_to_bytes(y) + proof``
     fn compute_r_powers(
         &self,
         commitment: &[G1Affine],
@@ -1243,7 +1251,7 @@ impl KZG {
     }
 
     /// Verifies multiple KZG proofs efficiently.
-    ///
+    /// Ref: https://github.com/ethereum/consensus-specs/blob/master/specs/deneb/polynomial-commitments.md#verify_kzg_proof_batch
     /// # Arguments
     ///
     /// * `commitments` - A slice of `G1Affine` commitments.
@@ -1256,6 +1264,7 @@ impl KZG {
     /// * `Ok(true)` if all proofs are valid.
     /// * `Ok(false)` if any proof is invalid.
     /// * `Err(KzgError)` if an error occurs during verification.
+    ///
     fn verify_kzg_proof_batch(
         &self,
         commitments: &[G1Affine],

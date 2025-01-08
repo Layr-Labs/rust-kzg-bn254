@@ -401,6 +401,7 @@ pub fn is_on_curve_g2(g2: &G2Projective) -> bool {
 }
 
 /// Computes powers of a field element up to a given exponent.
+/// Ref: https://github.com/ethereum/consensus-specs/blob/master/specs/deneb/polynomial-commitments.md#compute_powers
 ///
 /// For a given field element x, computes [1, x, x², x³, ..., x^(count-1)]
 ///
