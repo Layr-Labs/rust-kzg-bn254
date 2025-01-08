@@ -2,8 +2,8 @@ use crate::{
     blob::Blob,
     consts::{BYTES_PER_FIELD_ELEMENT, SIZE_OF_G1_AFFINE_COMPRESSED},
     errors::KzgError,
-    helpers::{self, is_on_curve_g2},
-    polynomial::{Polynomial, PolynomialFormat},
+    helpers,
+    polynomial::{PolynomialCoeffForm, PolynomialEvalForm},
     traits::ReadPointFromBytes,
 };
 
@@ -26,8 +26,20 @@ use std::{
     io::{self, BufReader},
 };
 
+/// Main interesting struct of the rust-kzg-bn254 crate.
+/// [Kzg] is a struct that holds the SRS points in monomial form, and
+/// provides methods for committing to a blob, (either via a [Blob] itself,
+/// or a [PolynomialCoeffForm] or [PolynomialEvalForm]), and generating and
+/// verifying proofs.
+///
+/// The [Blob] and [PolynomialCoeffForm]/[PolynomialEvalForm] structs are mostly
+/// <https://en.wikipedia.org/wiki/Passive_data_structure> with
+/// constructor and few helper methods.
 #[derive(Debug, PartialEq, Clone)]
-pub struct Kzg {
+pub struct KZG {
+    // SRS points are stored in monomial form, ready to be used for commitments with polynomials
+    // in coefficient form. To commit against a polynomial in evaluation form, we need to transform
+    // the SRS points to lagrange form using IFFT.
     g1: Vec<G1Affine>,
     g2: Vec<G2Affine>,
     params: Params,
@@ -43,7 +55,7 @@ struct Params {
     completed_setup: bool,
 }
 
-impl Kzg {
+impl KZG {
     pub fn setup(
         path_to_g1_points: &str,
         path_to_g2_points: &str,
@@ -177,7 +189,10 @@ impl Kzg {
         Ok((params, expanded_roots_of_unity))
     }
 
-    /// data_setup_custom is a helper function
+    /// Similar to [Kzg::data_setup_mins], but mainly used for setting up Kzg
+    /// for testing purposes. Used to specify the number of chunks and chunk
+    /// length. These parameters are then used to calculate the FFT params
+    /// required for FFT operations.
     pub fn data_setup_custom(
         &mut self,
         num_of_nodes: u64,
@@ -190,7 +205,9 @@ impl Kzg {
         self.data_setup_mins(min_num_chunks, num_of_nodes)
     }
 
-    /// data_setup_mins sets up the environment per the blob data
+    /// Used to specify the number of chunks and chunk length.
+    /// These parameters are then used to calculate the FFT params required for
+    /// FFT operations.
     pub fn data_setup_mins(
         &mut self,
         min_chunk_length: u64,
@@ -334,7 +351,8 @@ impl Kzg {
     }
 
     /// read files in chunks with specified length
-    /// TODO: chunks seems misleading here, since we read one field element at a time.
+    /// TODO: chunks seems misleading here, since we read one field element at a
+    /// time.
     fn read_file_chunks(
         file_path: &str,
         sender: Sender<(Vec<u8>, usize, bool)>,
@@ -349,8 +367,11 @@ impl Kzg {
 
         let mut i = 0;
         // We are making one syscall per field element, which is super inefficient.
-        // FIXME: Read the entire file (or large segments) into memory and then split it into field elements.
-        // Entire G1 file might be ~8GiB, so might not fit in RAM.
+        // FIXME: Read the entire file (or large segments) into memory and then split it
+        // into field elements. Entire G1 file might be ~8GiB, so might not fit
+        // in RAM. But we can only read the subset of the file that we need.
+        // For eg. for fault proof usage, only need to read 32MiB if our blob size is
+        // that large.
         while let Ok(bytes_read) = reader.read(&mut buffer) {
             if bytes_read == 0 {
                 break;
@@ -414,11 +435,12 @@ impl Kzg {
         Ok(all_points.iter().map(|(point, _)| *point).collect())
     }
 
-    /// read G1 points in parallel, by creating one reader thread, which reads bytes from the file,
-    /// and fans them out to worker threads (one per cpu) which parse the bytes into G1Affine points.
-    /// The worker threads then fan in the parsed points to the main thread, which sorts them by
-    /// their original position in the file to maintain order. This uses the arkworks `native` method
-    /// of decompressing the points after reading. Not used anywhere but kept as a reference.
+    /// read G1 points in parallel, by creating one reader thread, which reads
+    /// bytes from the file, and fans them out to worker threads (one per
+    /// cpu) which parse the bytes into G1Affine points. The worker threads
+    /// then fan in the parsed points to the main thread, which sorts them by
+    /// their original position in the file to maintain order. Not used anywhere 
+    /// but kept as a reference.
     ///
     /// # Arguments
     /// * `file_path` - The path to the file containing the G1 points
@@ -433,7 +455,8 @@ impl Kzg {
         srs_points_to_load: u32,
         is_native: bool,
     ) -> Result<Vec<G1Affine>, KzgError> {
-        // Channel contains (bytes, position, is_native) tuples. The position is used to reorder the points after processing them.
+        // Channel contains (bytes, position, is_native) tuples. The position is used to
+        // reorder the points after processing them.
         let (sender, receiver) = bounded::<(Vec<u8>, usize, bool)>(1000);
 
         // Spawning the reader thread
@@ -527,57 +550,48 @@ impl Kzg {
         self.g2.to_vec()
     }
 
-    /// commit the actual polynomial with the values setup
-    pub fn commit(&self, polynomial: &Polynomial) -> Result<G1Affine, KzgError> {
+    /// Commit the polynomial with the srs values loaded into [Kzg].
+    pub fn commit_eval_form(&self, polynomial: &PolynomialEvalForm) -> Result<G1Affine, KzgError> {
         if polynomial.len() > self.g1.len() {
             return Err(KzgError::SerializationError(
                 "polynomial length is not correct".to_string(),
             ));
         }
 
-        let bases = match polynomial.get_form() {
-            PolynomialFormat::InEvaluationForm => {
-                // If the polynomial is in evaluation form, use the original g1 points
-                self.g1[..polynomial.len()].to_vec()
-            },
-            PolynomialFormat::InCoefficientForm => {
-                // If the polynomial is in coefficient form, use inverse FFT
-                self.g1_ifft(polynomial.len())?
-            },
-        };
+        // When the polynomial is in evaluation form, use IFFT to transform monomial srs
+        // points to lagrange form.
+        let bases = self.g1_ifft(polynomial.len())?;
 
-        match G1Projective::msm(&bases, &polynomial.to_vec()) {
+        match G1Projective::msm(&bases, polynomial.evaluations()) {
             Ok(res) => Ok(res.into_affine()),
             Err(err) => Err(KzgError::CommitError(err.to_string())),
         }
     }
 
-    pub fn blob_to_kzg_commitment(
+    /// Commit the polynomial with the srs values loaded into [Kzg].
+    pub fn commit_coeff_form(
         &self,
-        blob: &Blob,
-        form: PolynomialFormat,
+        polynomial: &PolynomialCoeffForm,
     ) -> Result<G1Affine, KzgError> {
-        // Step 1: Convert blob to polynomial representation
-        // The blob is converted to a polynomial in the specified form (evaluation or coefficient)
-        // This step is crucial as KZG commitments work with polynomial representations
-        let polynomial = blob
-            .to_polynomial(form)
-            .map_err(|err| KzgError::SerializationError(err.to_string()))?;
+        if polynomial.len() > self.g1.len() {
+            return Err(KzgError::SerializationError(
+                "polynomial length is not correct".to_string(),
+            ));
+        }
+        // When the polynomial is in coefficient form, use the original srs points (in
+        // monomial form).
+        let bases = self.g1[..polynomial.len()].to_vec();
 
-        // Step 2: Generate KZG commitment to the polynomial
-        // This creates a single G1 point that commits to the entire polynomial
-        // The commitment preserves the polynomial's properties while being constant-size
-        let commitment = self.commit(&polynomial)?;
-
-        // Return the commitment point in affine form
-        // The commitment can be used later for proof generation and verification
-        Ok(commitment)
+        match G1Projective::msm(&bases, polynomial.coeffs()) {
+            Ok(res) => Ok(res.into_affine()),
+            Err(err) => Err(KzgError::CommitError(err.to_string())),
+        }
     }
 
     /// Helper function for `compute_kzg_proof()` and `compute_blob_kzg_proof()`
     fn compute_kzg_proof_impl(
         &self,
-        polynomial: &Polynomial,
+        polynomial: &PolynomialEvalForm,
         z_fr: &Fr,
     ) -> Result<G1Affine, KzgError> {
         if !self.params.completed_setup {
@@ -593,7 +607,7 @@ impl Kzg {
             ));
         }
 
-        let eval_fr = polynomial.to_vec();
+        let eval_fr = polynomial.evaluations();
         // Pre-allocate vector for shifted polynomial p(x) - y
         let mut poly_shift: Vec<Fr> = Vec::with_capacity(eval_fr.len());
 
@@ -603,7 +617,7 @@ impl Kzg {
 
         // Compute p(x) - y for each evaluation point
         // This is the numerator of the quotient polynomial
-        for fr in &eval_fr {
+        for fr in eval_fr {
             poly_shift.push(*fr - y_fr);
         }
 
@@ -623,7 +637,7 @@ impl Kzg {
                 // Compute the derivative evaluation instead
                 quotient_poly.push(self.compute_quotient_eval_on_domain(
                     z_fr,
-                    &eval_fr,
+                    eval_fr,
                     &y_fr,
                     &self.expanded_roots_of_unity,
                 ));
@@ -633,21 +647,22 @@ impl Kzg {
             }
         }
 
-        let bases = match polynomial.get_form() {
-            PolynomialFormat::InEvaluationForm => self.g1[..polynomial.len()].to_vec(),
-            PolynomialFormat::InCoefficientForm => self.g1_ifft(polynomial.len())?,
-        };
+        let quotient_poly_eval_form = PolynomialEvalForm::new(
+            quotient_poly,
+        );
+        self.commit_eval_form(&quotient_poly_eval_form)
+    }
 
-        // Compute the final proof using multi-scalar multiplication (MSM)
-        match G1Projective::msm(&bases, &quotient_poly) {
-            Ok(res) => Ok(G1Affine::from(res)),
-            Err(err) => Err(KzgError::SerializationError(err.to_string())),
-        }
+    /// commit to a [Blob], by transforming it into a [PolynomialEvalForm] and
+    /// then calling [Kzg::commit_eval_form].
+    pub fn commit_blob(&self, blob: &Blob) -> Result<G1Affine, KzgError> {
+        let polynomial = blob.to_polynomial_eval_form();
+        self.commit_eval_form(&polynomial)
     }
 
     pub fn compute_kzg_proof_with_known_z_fr_index(
         &self,
-        polynomial: &Polynomial,
+        polynomial: &PolynomialEvalForm,
         index: u64,
     ) -> Result<G1Affine, KzgError> {
 
@@ -662,21 +677,17 @@ impl Kzg {
         // Compute the KZG proof at the selected root of unity
         // This delegates to the main proof computation function
         // using our selected evaluation point
-        self.compute_kzg_proof(polynomial, &z_fr)
+        self.compute_proof(polynomial, &z_fr)
     }
 
-    /// Compute KZG proof at point `z` for the polynomial represented by `Polynomial`.
-    /// The proof is a commitment to the quotient polynomial q(x) = (p(x) - p(z)) / (x - z).
-    ///
-    /// # Arguments
-    /// * `polynomial` - The polynomial for which to generate the proof
-    /// * `z_fr` - The point at which to evaluate the polynomial
-    ///
-    /// # Returns
-    /// * Result containing the KZG proof as a G1 point, or an error
-    pub fn compute_kzg_proof(
+    /// Compute a kzg proof from a polynomial in evaluation form.
+    /// We don't currently support proofs for polynomials in coefficient form,
+    /// but one can take the FFT of the polynomial in coefficient form to
+    /// get the polynomial in evaluation form. This is available via the
+    /// method [PolynomialCoeffForm::to_eval_form].
+    pub fn compute_proof(
         &self,
-        polynomial: &Polynomial,
+        polynomial: &PolynomialEvalForm,
         z_fr: &Fr,
     ) -> Result<G1Affine, KzgError> {
         if !self.params.completed_setup {
@@ -754,7 +765,7 @@ impl Kzg {
         Ok(ifft_result)
     }
 
-    pub fn verify_kzg_proof(
+    pub fn verify_proof(
         &self,
         commitment: G1Affine,
         proof: G1Affine,
@@ -852,7 +863,7 @@ impl Kzg {
     fn compute_challenge(blob: &Blob, commitment: &G1Affine) -> Result<Fr, KzgError> {
         // Convert the blob to a polynomial in evaluation form
         // This is needed to process the blob data for the challenge
-        let blob_poly = blob.to_polynomial(PolynomialFormat::InCoefficientForm)?;
+        let blob_poly = blob.to_polynomial_eval_form();
 
         // Calculate total size needed for the challenge input buffer:
         // - Length of domain separator
@@ -887,7 +898,7 @@ impl Kzg {
         // Step 3: Copy the blob data
         // Convert polynomial to bytes using helper function
         let blob_data = helpers::to_byte_array(
-            &blob_poly.to_vec(),
+            &blob_poly.evaluations(),
             blob_poly.len() * BYTES_PER_FIELD_ELEMENT,
         );
         digest_bytes[offset..offset + blob_data.len()].copy_from_slice(&blob_data);
@@ -916,12 +927,12 @@ impl Kzg {
     }
 
     fn evaluate_polynomial_in_evaluation_form(
-        polynomial: &Polynomial,
+        polynomial: &PolynomialEvalForm,
         z: &Fr,
         srs_order: u64,
     ) -> Result<Fr, KzgError> {
         // Step 1: Retrieve the length of the padded blob
-        let blob_size = polynomial.get_length_of_padded_blob();
+        let blob_size = polynomial.len_underlying_blob_bytes();
 
         // Step 2: Calculate roots of unity for the given blob size and SRS order
         let (_, roots_of_unity) =
@@ -951,7 +962,7 @@ impl Kzg {
 
         // Step 6: Use the barycentric formula to compute the evaluation
         let sum = polynomial
-            .to_vec()
+            .evaluations()
             .iter()
             .zip(roots_of_unity.iter())
             .map(|(f_i, &domain_i)| {
@@ -990,7 +1001,7 @@ impl Kzg {
         for i in 0..blobs.len() {
             // Step 1: Convert blob to polynomial form
             // This is necessary because we need to evaluate the polynomial
-            let polynomial = blobs[i].to_polynomial(PolynomialFormat::InCoefficientForm)?;
+            let polynomial = blobs[i].to_polynomial_eval_form();
 
             // Step 2: Generate Fiat-Shamir challenge
             // This creates a "random" evaluation point based on the blob and commitment
@@ -1027,7 +1038,7 @@ impl Kzg {
         proof: &G1Affine,
     ) -> Result<bool, KzgError> {
         // Convert blob to polynomial
-        let polynomial = blob.to_polynomial(PolynomialFormat::InCoefficientForm)?;
+        let polynomial = blob.to_polynomial_eval_form();
 
         // Compute the evaluation challenge for the blob and commitment
         let evaluation_challenge = Self::compute_challenge(blob, commitment)?;
@@ -1040,7 +1051,7 @@ impl Kzg {
         )?;
 
         // Verify the KZG proof
-        self.verify_kzg_proof(*commitment, *proof, y, evaluation_challenge)
+        self.verify_proof(*commitment, *proof, y, evaluation_challenge)
     }
 
     pub fn compute_blob_kzg_proof(
@@ -1058,7 +1069,7 @@ impl Kzg {
 
         // Convert the blob to a polynomial in evaluation form
         // This is necessary because KZG proofs work with polynomials
-        let blob_poly = blob.to_polynomial(PolynomialFormat::InCoefficientForm)?;
+        let blob_poly = blob.to_polynomial_eval_form();
 
         // Compute the evaluation challenge using Fiat-Shamir heuristic
         // This challenge determines the point at which we evaluate the polynomial
@@ -1114,12 +1125,10 @@ impl Kzg {
 
         // Convert each blob to its polynomial evaluation form and get the length of number of field elements
         // This length value is needed for computing the challenge
-        let blobs_as_field_elements_length: Result<Vec<u64>, KzgError> = blobs
+        let blobs_as_field_elements_length: Vec<u64> = blobs
             .iter()
             .map(|blob| {
-                blob.to_polynomial(PolynomialFormat::InCoefficientForm)
-                    .map(|poly| poly.len() as u64)
-                    .map_err(|err| KzgError::SerializationError(err.to_string()))
+                blob.to_polynomial_eval_form().evaluations().len() as u64
             })
             .collect();
 
@@ -1134,7 +1143,7 @@ impl Kzg {
             &evaluation_challenges,
             &ys,
             proofs,
-            &blobs_as_field_elements_length?,
+            &blobs_as_field_elements_length,
         )
     }
 
@@ -1286,7 +1295,7 @@ impl Kzg {
         }
 
         // Verify that the trusted setup point τ*G2 is on the G2 curve
-        if !is_on_curve_g2(&G2Projective::from(*self.get_g2_tau()?)) {
+        if !helpers::is_on_curve_g2(&G2Projective::from(*self.get_g2_tau()?)) {
             return Err(KzgError::NotOnCurveError("g2 tau".to_owned()));
         }
 

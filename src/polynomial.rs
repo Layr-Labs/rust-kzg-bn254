@@ -1,92 +1,68 @@
-use crate::{errors::PolynomialError, helpers};
+use crate::{consts::BYTES_PER_FIELD_ELEMENT, errors::PolynomialError, helpers};
 use ark_bn254::Fr;
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 use ark_std::Zero;
 
-/// Represents the format in which a polynomial is stored.
-#[derive(Clone, Debug, PartialEq, Copy)]
-pub enum PolynomialFormat {
-    /// Polynomial is in coefficient form.
-    InCoefficientForm,
-    /// Polynomial is in evaluation form.
-    InEvaluationForm,
-}
-
-/// A polynomial over the BN254 field.
 #[derive(Clone, Debug, PartialEq)]
-pub struct Polynomial {
-    /// The elements of the polynomial, either in coefficient or evaluation form.
-    elements: Vec<Fr>,
-    /// The size of the blob after padding with zeros to match BN254 field element sizes.
-    length_of_padded_blob: usize,
-    /// The current format of the polynomial.
-    form: PolynomialFormat,
+pub struct PolynomialEvalForm {
+    /// evaluations contains the evaluations of the polynomial, padded with 0s
+    /// to the next power of two. Hence if the polynomial is created with
+    /// coefficients [1, 2, 3], the internal representation will be [1, 2,
+    /// 3, 0]. Note that this changes the polynomial! This is an inconsistency
+    /// in our current representations. Polynomials are the objects that get
+    /// committed, not the underlying Blobs.
+    /// TODO: do we also want to force blobs to be of powers-of-two length?
+    evaluations: Vec<Fr>,
+    /// Number of bytes in the underlying blob, which was used to create the
+    /// polynomial. This is passed as is when converting between Coefficient
+    /// and Evaluation forms, so that the blob can be reconstructed with the
+    /// same length.
+    ///
+    /// TODO: We should get rid of this: polynomial should not know about the
+    /// blob.       This len is equivalent to the coeffs len before it gets
+    /// padded.       Perhaps we can store the original coeffs and only pad
+    /// when needed?
+    len_underlying_blob_bytes: usize,
 }
 
-impl Polynomial {
-    /// Constructs a new `Polynomial` with the provided elements.
-    ///
-    /// This function pads the input elements with zeros to the next power of two to
-    /// facilitate FFT operations. The `length_of_padded_blob` specifies the size
-    /// of the blob after padding.
-    ///
-    /// # Arguments
-    ///
-    /// * `elements` - A slice of `Fr` elements representing the polynomial.
-    /// * `length_of_padded_blob` - The length of the padded blob.
-    /// * `form` - The format of the polynomial (`InCoefficientForm` or `InEvaluationForm`).
-    ///
-    /// # Errors
-    ///
-    /// Returns a `PolynomialError::GenericError` if the `elements` slice is empty.
-    pub fn new(
-        elements: &[Fr],
-        length_of_padded_blob: usize,
-        form: PolynomialFormat,
-    ) -> Result<Self, PolynomialError> {
-        if elements.is_empty() {
-            return Err(PolynomialError::GenericError(
-                "elements are empty".to_string(),
-            ));
+impl PolynomialEvalForm {
+    /// Creates a new [PolynomialEvalForm] from the given coefficients, passed
+    /// as a vector of `Fr`. The coefficients are padded to the next power
+    /// of two by appending zeros. This typically wouldn't be used directly,
+    /// but instead a [crate::blob::Blob] would be converted to a
+    /// [PolynomialEvalForm] using [crate::blob::Blob::to_polynomial_eval_form].
+    pub fn new(evals: Vec<Fr>) -> Self {
+        let underlying_blob_len_in_bytes = evals.len() * BYTES_PER_FIELD_ELEMENT;
+        let next_power_of_two = evals.len().next_power_of_two();
+        let mut padded_evals = evals;
+        padded_evals.resize(next_power_of_two, Fr::zero());
+
+        Self {
+            evaluations: padded_evals,
+            len_underlying_blob_bytes: underlying_blob_len_in_bytes,
         }
-
-        // Optimize padding by resizing the vector with zeros up to the next power of two.
-        let next_pow = elements.len().next_power_of_two();
-        let mut padded_input_fr = elements.to_vec();
-        padded_input_fr.resize(next_pow, Fr::zero());
-
-        Ok(Polynomial {
-            elements: padded_input_fr,
-            length_of_padded_blob,
-            form,
-        })
     }
 
-    /// Returns the length of the padded blob.
-    ///
-    /// # Returns
-    ///
-    /// The size of the padded blob as a `usize`.
-    pub fn get_length_of_padded_blob(&self) -> usize {
-        self.length_of_padded_blob
+    pub fn evaluations(&self) -> &[Fr] {
+        &self.evaluations
     }
 
-    /// Returns the current format of the polynomial.
-    ///
-    /// # Returns
-    ///
-    /// A `PolynomialFormat` indicating whether the polynomial is in coefficient or evaluation form.
-    pub fn get_form(&self) -> PolynomialFormat {
-        self.form
-    }
-
-    /// Returns the number of elements in the polynomial.
-    ///
-    /// # Returns
-    ///
-    /// The length of the `elements` vector as a `usize`.
+    /// Returns the number of evaluations in the polynomial. Note that this
+    /// returns the number of evaluations in the padded polynomial, not the
+    /// number of evaluations in the original polynomial.
     pub fn len(&self) -> usize {
-        self.elements.len()
+        self.evaluations.len()
+    }
+
+    /// TODO: we should deprecate this. See comment in the struct.
+    pub fn len_underlying_blob_bytes(&self) -> usize {
+        self.len_underlying_blob_bytes
+    }
+
+    /// Similar to [Self::len_underlying_blob_bytes], but returns the number of
+    /// field elements instead of bytes
+    pub fn len_underlying_blob_field_elements(&self) -> usize {
+        self.len_underlying_blob_bytes / BYTES_PER_FIELD_ELEMENT
     }
 
     /// Retrieves a reference to the element at the specified index.
@@ -99,7 +75,7 @@ impl Polynomial {
     ///
     /// An `Option` containing a reference to the `Fr` element if the index is within bounds, or `None` otherwise.
     pub fn get_at_index(&self, i: usize) -> Option<&Fr> {
-        self.elements.get(i)
+        self.evaluations.get(i)
     }
 
     /// Checks whether the polynomial has no elements.
@@ -108,7 +84,7 @@ impl Polynomial {
     ///
     /// `true` if the `elements` vector is empty, `false` otherwise.
     pub fn is_empty(&self) -> bool {
-        self.elements.is_empty()
+        self.evaluations.is_empty()
     }
 
     /// Converts all `Fr` elements in the polynomial to a single big-endian byte vector.
@@ -120,95 +96,103 @@ impl Polynomial {
     ///
     /// A `Vec<u8>` containing the big-endian byte representation of the polynomial elements.
     pub fn to_bytes_be(&self) -> Vec<u8> {
-        helpers::to_byte_array(&self.elements, self.length_of_padded_blob)
+        helpers::to_byte_array(&self.evaluations, self.len_underlying_blob_bytes)
     }
 
-    /// Returns a clone of the elements as a `Vec<Fr>`.
-    ///
-    /// # Returns
-    ///
-    /// A `Vec<Fr>` containing the elements of the polynomial.
-    pub fn to_vec(&self) -> Vec<Fr> {
-        self.elements.clone()
+    /// Converts the polynomial to coefficient form. This is done by performing
+    /// an IFFT on the evaluations.
+    pub fn to_coeff_form(&self) -> Result<PolynomialCoeffForm, PolynomialError> {
+        let coeffs = GeneralEvaluationDomain::<Fr>::new(self.len())
+            .ok_or(PolynomialError::FFTError(
+                "Failed to construct domain for IFFT".to_string(),
+            ))?
+            .ifft(&self.evaluations);
+        Ok(PolynomialCoeffForm::new(coeffs))
     }
+}
 
-    /// Transforms the polynomial to the specified format.
+#[derive(Clone, Debug, PartialEq)]
+pub struct PolynomialCoeffForm {
+    /// coeffs contains the coefficients of the polynomial, padded with 0s to
+    /// the next power of two. Hence if the polynomial is created with
+    /// coefficients [1, 2, 3], the internal representation will be [1, 2,
+    /// 3, 0].
+    coeffs: Vec<Fr>,
+    /// Number of bytes in the underlying blob, which was used to create the
+    /// polynomial. This is passed as is when converting between Coefficient
+    /// and Evaluation forms, so that the blob can be reconstructed with the
+    /// same length.
     ///
-    /// If the polynomial is already in the desired format, an error is returned.
-    /// Otherwise, it performs an FFT or inverse FFT to convert between coefficient and evaluation forms.
-    ///
-    /// # Arguments
-    ///
-    /// * `form` - The target `PolynomialFormat` to transform the polynomial into.
-    ///
-    /// # Errors
-    ///
-    /// Returns a `PolynomialError::IncorrectFormError` if the polynomial is already in the desired form.
-    /// Propagates errors from FFT operations.
-    pub fn transform_to_form(&mut self, form: PolynomialFormat) -> Result<(), PolynomialError> {
-        if self.form == form {
-            return Err(PolynomialError::IncorrectFormError(
-                "Polynomial is already in the given form".to_string(),
-            ));
+    /// TODO: We should get rid of this: polynomial should not know about the
+    /// blob.       This len is equivalent to the coeffs len before it gets
+    /// padded.       Perhaps we can store the original coeffs and only pad
+    /// when needed?
+    len_underlying_blob_bytes: usize,
+}
+
+impl PolynomialCoeffForm {
+    /// Creates a new [PolynomialCoeffForm] from the given coefficients, passed
+    /// as a vector of `Fr`. The coefficients are padded to the next power
+    /// of two by appending zeros. This typically wouldn't be used directly,
+    /// but instead a [crate::blob::Blob] would be converted to a
+    /// [PolynomialCoeffForm] using
+    /// [crate::blob::Blob::to_polynomial_coeff_form].
+    pub fn new(coeffs: Vec<Fr>) -> Self {
+        let underlying_blob_len_in_bytes = coeffs.len() * BYTES_PER_FIELD_ELEMENT;
+        let next_power_of_two = coeffs.len().next_power_of_two();
+        let mut padded_coeffs = coeffs;
+        padded_coeffs.resize(next_power_of_two, Fr::zero());
+
+        Self {
+            coeffs: padded_coeffs,
+            len_underlying_blob_bytes: underlying_blob_len_in_bytes,
         }
-
-        match form {
-            PolynomialFormat::InCoefficientForm => {
-                // Transform from evaluation form to coefficient form using inverse FFT
-                self.fft_on_elements(false)?;
-            },
-            PolynomialFormat::InEvaluationForm => {
-                // Transform from coefficient form to evaluation form using FFT
-                self.fft_on_elements(true)?;
-            },
-        }
-
-        self.form = form;
-        Ok(())
     }
 
-    /// Performs an FFT or inverse FFT on the polynomial's elements.
-    ///
-    /// This method modifies the `elements` vector in place by applying the FFT or inverse FFT.
-    ///
-    /// # Arguments
-    ///
-    /// * `inverse` - If `true`, performs an inverse FFT; otherwise, performs a forward FFT.
-    ///
-    /// # Errors
-    ///
-    /// Returns a `PolynomialError` if the FFT operation fails.
-    pub fn fft_on_elements(&mut self, inverse: bool) -> Result<(), PolynomialError> {
-        let fft_result = Self::fft(&self.elements, inverse);
-        self.elements = fft_result?;
-        Ok(())
+    pub fn coeffs(&self) -> &[Fr] {
+        &self.coeffs
     }
 
-    /// Performs an FFT or inverse FFT on a vector of `Fr` elements.
-    ///
-    /// This is a helper function that utilizes the `ark-poly` crate to perform the FFT operations.
-    ///
-    /// # Arguments
-    ///
-    /// * `vals` - A reference to the vector of `Fr` elements to transform.
-    /// * `inverse` - If `true`, performs an inverse FFT; otherwise, performs a forward FFT.
-    ///
-    /// # Returns
-    ///
-    /// A `Result` containing the transformed vector of `Fr` elements or a `PolynomialError` if the operation fails.
-    pub fn fft(vals: &Vec<Fr>, inverse: bool) -> Result<Vec<Fr>, PolynomialError> {
-        let length = vals.len();
+    /// Returns the number of coefficients in the polynomial. Note that this
+    /// returns the number of coefficients in the padded polynomial, not the
+    /// number of coefficients in the original polynomial.
+    pub fn len(&self) -> usize {
+        self.coeffs.len()
+    }
 
-        let domain = GeneralEvaluationDomain::<Fr>::new(length).ok_or_else(|| {
-            PolynomialError::FFTError("Failed to construct domain for FFT".to_string())
-        })?;
+    /// TODO: we should deprecate this. See comment in the struct.
+    pub fn len_underlying_blob_bytes(&self) -> usize {
+        self.len_underlying_blob_bytes
+    }
 
-        let result = if inverse {
-            domain.ifft(vals)
-        } else {
-            domain.fft(vals)
-        };
+    /// Similar to [Self::len_underlying_blob_bytes], but returns the number of
+    /// field elements instead of bytes
+    pub fn len_underlying_blob_field_elements(&self) -> usize {
+        self.len_underlying_blob_bytes / BYTES_PER_FIELD_ELEMENT
+    }
 
-        Ok(result)
+    pub fn get_at_index(&self, i: usize) -> Option<&Fr> {
+        self.coeffs.get(i)
+    }
+
+    /// Checks if the polynomial has no elements.
+    pub fn is_empty(&self) -> bool {
+        self.coeffs.is_empty()
+    }
+
+    /// Converts all `Fr` elements in the `Polynomial` to a single byte vector.
+    pub fn to_bytes_be(&self) -> Vec<u8> {
+        helpers::to_byte_array(&self.coeffs, self.len_underlying_blob_bytes)
+    }
+
+    /// Converts the polynomial to evaluation form. This is done by performing
+    /// an FFT on the coefficients.
+    pub fn to_eval_form(&self) -> Result<PolynomialEvalForm, PolynomialError> {
+        let evals = GeneralEvaluationDomain::<Fr>::new(self.len())
+            .ok_or(PolynomialError::FFTError(
+                "Failed to construct domain for FFT".to_string(),
+            ))?
+            .fft(&self.coeffs);
+        Ok(PolynomialEvalForm::new(evals))
     }
 }
