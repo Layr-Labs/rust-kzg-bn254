@@ -74,7 +74,7 @@
 //!
 //! ### Generate a proof for a piece of data
 //! ```rust
-//! TODO
+//! // TODO:
 //! ```
 //!
 
