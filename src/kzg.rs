@@ -305,6 +305,7 @@ impl KZG {
     }
 
     /// Precompute the primitive roots of unity for binary powers that divide r - 1
+    /// TODO(anupsv): Move this to the constants file. Ref: https://github.com/Layr-Labs/rust-kzg-bn254/issues/31
     fn get_primitive_roots_of_unity() -> Result<Vec<Fr>, KzgError> {
         let data: [&str; 29] = [
             "1",
@@ -635,12 +636,7 @@ impl KZG {
             if denom_poly[i].is_zero() {
                 // Special case: when x = z, use L'Hôpital's rule
                 // Compute the derivative evaluation instead
-                quotient_poly.push(self.compute_quotient_eval_on_domain(
-                    z_fr,
-                    eval_fr,
-                    &y_fr,
-                    &self.expanded_roots_of_unity,
-                ));
+                quotient_poly.push(self.compute_quotient_eval_on_domain(z_fr, eval_fr, &y_fr));
             } else {
                 // Normal case: direct polynomial division
                 quotient_poly.push(poly_shift[i].div(denom_poly[i]));
@@ -682,6 +678,7 @@ impl KZG {
     /// but one can take the FFT of the polynomial in coefficient form to
     /// get the polynomial in evaluation form. This is available via the
     /// method [PolynomialCoeffForm::to_eval_form].
+    /// TODO(anupsv): Accept bytes instead of Fr element. Ref: https://github.com/Layr-Labs/rust-kzg-bn254/issues/29
     pub fn compute_proof(
         &self,
         polynomial: &PolynomialEvalForm,
@@ -709,30 +706,27 @@ impl KZG {
     }
 
     /// refer to DA for more context
-    pub fn compute_quotient_eval_on_domain(
-        &self,
-        z_fr: &Fr,
-        eval_fr: &[Fr],
-        value_fr: &Fr,
-        roots_of_unity: &[Fr],
-    ) -> Fr {
+    pub fn compute_quotient_eval_on_domain(&self, z_fr: &Fr, eval_fr: &[Fr], value_fr: &Fr) -> Fr {
         let mut quotient = Fr::zero();
         let mut fi: Fr = Fr::zero();
         let mut numerator: Fr = Fr::zero();
         let mut denominator: Fr = Fr::zero();
         let mut temp: Fr = Fr::zero();
 
-        roots_of_unity.iter().enumerate().for_each(|(i, omega_i)| {
-            if *omega_i == *z_fr {
-                return;
-            }
-            fi = eval_fr[i] - value_fr;
-            numerator = fi * omega_i;
-            denominator = z_fr - omega_i;
-            denominator *= z_fr;
-            temp = numerator.div(denominator);
-            quotient += temp;
-        });
+        self.expanded_roots_of_unity
+            .iter()
+            .enumerate()
+            .for_each(|(i, omega_i)| {
+                if *omega_i == *z_fr {
+                    return;
+                }
+                fi = eval_fr[i] - value_fr;
+                numerator = fi * omega_i;
+                denominator = z_fr - omega_i;
+                denominator *= z_fr;
+                temp = numerator.div(denominator);
+                quotient += temp;
+            });
 
         quotient
     }
@@ -762,6 +756,7 @@ impl KZG {
         Ok(ifft_result)
     }
 
+    /// TODO(anupsv): Accept bytes instead of Fr element and Affine points. Ref: https://github.com/Layr-Labs/rust-kzg-bn254/issues/30
     pub fn verify_proof(
         &self,
         commitment: G1Affine,
@@ -823,6 +818,7 @@ impl KZG {
         result.is_zero()
     }
 
+    /// TODO(anupsv): Accept bytes instead of Affine points. Ref: https://github.com/Layr-Labs/rust-kzg-bn254/issues/31
     pub fn verify_blob_kzg_proof(
         &self,
         blob: &Blob,
@@ -846,6 +842,7 @@ impl KZG {
         self.verify_proof(*commitment, *proof, y, evaluation_challenge)
     }
 
+    /// TODO(anupsv): Match 4844 specs w.r.t to the inputs. Ref: https://github.com/Layr-Labs/rust-kzg-bn254/issues/30
     pub fn compute_blob_kzg_proof(
         &self,
         blob: &Blob,
@@ -888,6 +885,7 @@ impl KZG {
         let msg_digest = Sha256::digest(msg);
         let hash_elements = msg_digest.as_slice();
 
+        // TODO(anupsv): To be removed and default to Big endian. Ref: https://github.com/Layr-Labs/rust-kzg-bn254/issues/27
         let fr_element: Fr = match KZG_ENDIANNESS {
             Endianness::Big => Fr::from_be_bytes_mod_order(hash_elements),
             Endianness::Little => Fr::from_le_bytes_mod_order(hash_elements),
@@ -907,7 +905,7 @@ impl KZG {
     ///
     /// * `Ok(Fr)` - The resulting field element challenge.
     /// * `Err(KzgError)` - If any step fails.
-    fn compute_challenge(blob: &Blob, commitment: &G1Affine) -> Result<Fr, KzgError> {
+    pub fn compute_challenge(blob: &Blob, commitment: &G1Affine) -> Result<Fr, KzgError> {
         // Convert the blob to a polynomial in evaluation form
         // This is needed to process the blob data for the challenge
         let blob_poly = blob.to_polynomial_eval_form();
@@ -935,6 +933,7 @@ impl KZG {
 
         // Step 2: Copy the number of field elements (blob polynomial length)
         // Convert to bytes using the configured endianness
+        // TODO(anupsv): To be removed and default to Big endian. Ref: https://github.com/Layr-Labs/rust-kzg-bn254/issues/27
         let number_of_field_elements = match KZG_ENDIANNESS {
             Endianness::Big => blob_poly.len().to_be_bytes(),
             Endianness::Little => blob_poly.len().to_le_bytes(),
@@ -974,7 +973,7 @@ impl KZG {
     }
 
     /// Ref: https://github.com/ethereum/consensus-specs/blob/master/specs/deneb/polynomial-commitments.md#evaluate_polynomial_in_evaluation_form
-    fn evaluate_polynomial_in_evaluation_form(
+    pub fn evaluate_polynomial_in_evaluation_form(
         polynomial: &PolynomialEvalForm,
         z: &Fr,
         srs_order: u64,
@@ -1154,14 +1153,14 @@ impl KZG {
     ///          data += commitment + bls_field_to_bytes(z) + bls_field_to_bytes(y) + proof``
     fn compute_r_powers(
         &self,
-        commitment: &[G1Affine],
+        commitments: &[G1Affine],
         zs: &[Fr],
         ys: &[Fr],
         proofs: &[G1Affine],
         blobs_as_field_elements_length: &[u64],
     ) -> Result<Vec<Fr>, KzgError> {
         // Get the number of commitments/proofs we're processing
-        let n = commitment.len();
+        let n = commitments.len();
 
         // Initial data length includes:
         // - 24 bytes for domain separator
@@ -1171,12 +1170,16 @@ impl KZG {
 
         // Calculate total input size:
         // - initial_data_length (40 bytes)
-        // - For each commitment:
+        // - For the number of commitments/zs/ys/proofs/blobs_as_field_elements_length (which are all the same length):
         //   * BYTES_PER_FIELD_ELEMENT for commitment
         //   * 2 * BYTES_PER_FIELD_ELEMENT for z and y values
         //   * BYTES_PER_FIELD_ELEMENT for proof
+        //   * 8 bytes for blob length
         let input_size = initial_data_length
-            + n * (BYTES_PER_FIELD_ELEMENT + 2 * BYTES_PER_FIELD_ELEMENT + BYTES_PER_FIELD_ELEMENT);
+            + n * (BYTES_PER_FIELD_ELEMENT
+                + 2 * BYTES_PER_FIELD_ELEMENT
+                + BYTES_PER_FIELD_ELEMENT
+                + 8);
 
         // Initialize buffer for data to be hashed
         let mut data_to_be_hashed: Vec<u8> = vec![0; input_size];
@@ -1187,26 +1190,31 @@ impl KZG {
 
         // Convert number of commitments to bytes and copy to buffer
         // Uses configured endianness (Big or Little)
+        // TODO(anupsv): To be removed and default to Big endian. Ref: https://github.com/Layr-Labs/rust-kzg-bn254/issues/27
         let n_bytes: [u8; 8] = match KZG_ENDIANNESS {
             Endianness::Big => n.to_be_bytes(),
             Endianness::Little => n.to_le_bytes(),
         };
         data_to_be_hashed[32..40].copy_from_slice(&n_bytes);
 
-        // Process each commitment, proof, and evaluation point/value
         for i in 0..n {
             // Convert blob length to bytes using configured endianness
-            let number_of_field_elements = match KZG_ENDIANNESS {
-                Endianness::Big => blobs_as_field_elements_length[i].to_be_bytes(),
-                Endianness::Little => blobs_as_field_elements_length[i].to_le_bytes(),
-            };
+            let number_of_field_elements: [u8; 8] = blobs_as_field_elements_length[i].to_be_bytes();
 
             // Copy blob length to buffer
-            data_to_be_hashed[24..32].copy_from_slice(&number_of_field_elements);
+            let start = 24 + (i * 8);
+            let end: usize = start + 8;
+            data_to_be_hashed[start..end].copy_from_slice(&number_of_field_elements);
+            initial_data_length += 8;
+        }
 
+        // Process each commitment, proof, and evaluation point/value
+        for i in 0..n {
             // Serialize and copy commitment
             let mut v = vec![];
-            commitment[i].serialize_compressed(&mut v).map_err(|_| {
+
+            // TODO(anupsv): Move serialization to helper function. Ref: https://github.com/Layr-Labs/rust-kzg-bn254/issues/32
+            commitments[i].serialize_compressed(&mut v).map_err(|_| {
                 KzgError::SerializationError("Failed to serialize commitment".to_string())
             })?;
             data_to_be_hashed[initial_data_length..(v.len() + initial_data_length)]
@@ -1240,6 +1248,9 @@ impl KZG {
         // Verify we filled the entire buffer
         // This ensures we didn't make any buffer overflow or underflow errors
         if initial_data_length != input_size {
+            println!("initial_data_length: {}", initial_data_length);
+
+            println!("input_size: {}", input_size);
             return Err(KzgError::InvalidInputLength);
         }
 

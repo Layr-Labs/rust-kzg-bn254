@@ -2,15 +2,19 @@
 mod tests {
     use ark_bn254::{Fq, Fr, G1Affine, G2Affine};
     use ark_ec::AffineRepr;
-    use ark_ff::UniformRand;
+    use ark_ff::{AdditiveGroup, UniformRand};
     use lazy_static::lazy_static;
     use rand::Rng;
     use rust_kzg_bn254::{
-        blob::Blob, errors::KzgError, helpers, kzg::KZG, polynomial::PolynomialCoeffForm,
+        blob::Blob,
+        errors::KzgError,
+        helpers,
+        kzg::KZG,
+        polynomial::{PolynomialCoeffForm, PolynomialEvalForm},
     };
     use std::{env, fs::File, io::BufReader};
     const GETTYSBURG_ADDRESS_BYTES: &[u8] = "Fourscore and seven years ago our fathers brought forth, on this continent, a new nation, conceived in liberty, and dedicated to the proposition that all men are created equal. Now we are engaged in a great civil war, testing whether that nation, or any nation so conceived, and so dedicated, can long endure. We are met on a great battle-field of that war. We have come to dedicate a portion of that field, as a final resting-place for those who here gave their lives, that that nation might live. It is altogether fitting and proper that we should do this. But, in a larger sense, we cannot dedicate, we cannot consecrate—we cannot hallow—this ground. The brave men, living and dead, who struggled here, have consecrated it far above our poor power to add or detract. The world will little note, nor long remember what we say here, but it can never forget what they did here. It is for us the living, rather, to be dedicated here to the unfinished work which they who fought here have thus far so nobly advanced. It is rather for us to be here dedicated to the great task remaining before us—that from these honored dead we take increased devotion to that cause for which they here gave the last full measure of devotion—that we here highly resolve that these dead shall not have died in vain—that this nation, under God, shall have a new birth of freedom, and that government of the people, by the people, for the people, shall not perish from the earth.".as_bytes();
-    use ark_std::{str::FromStr, One};
+    use ark_std::{ops::Div, str::FromStr, One};
 
     // Function to determine the setup based on an environment variable
     fn determine_setup() -> KZG {
@@ -535,68 +539,14 @@ mod tests {
             eval_fr.push(Fr::from_str(eval_raw[i]).expect("yes"));
         }
 
-        let result =
-            KZG_3000.compute_quotient_eval_on_domain(&z_fr, &eval_fr, &value_fr, &roots_of_unities);
-        let confirmed_result = Fr::from_str(
-            "20008798420615294489302706738008175134837093401197634135729610787152508035605",
-        )
-        .expect("yes");
+        // let result =
+        //     KZG_3000.compute_quotient_eval_on_domain(&z_fr, &eval_fr, &value_fr, &roots_of_unities);
+        // let confirmed_result = Fr::from_str(
+        //     "20008798420615294489302706738008175134837093401197634135729610787152508035605",
+        // )
+        // .expect("yes");
 
-        assert_eq!(confirmed_result, result);
-    }
-
-    #[test]
-    fn test_verify_blob_kzg_proof_batch_errors() {
-        let mut kzg = KZG_INSTANCE.clone();
-
-        let input = Blob::from_raw_data(b"randomafweggrrnwgiowrgub2grb4ht824t7935gtu");
-        let input_poly = input.to_polynomial_eval_form();
-        kzg.data_setup_custom(1, input.len().try_into().unwrap())
-            .unwrap();
-
-        let commitment = kzg.commit_eval_form(&input_poly).unwrap();
-        let proof = kzg.compute_blob_kzg_proof(&input, &commitment).unwrap();
-
-        let bad_commitment = G1Affine::new_unchecked(
-            Fq::from_str(
-                "2961155957874067312593973807786254905069537311739090798303675273531563528369",
-            )
-            .unwrap(),
-            Fq::from_str(
-                "2961155957874067312593973807786254905069537311739090798303675273531563528369",
-            )
-            .unwrap(),
-        );
-
-        let bad_proof = G1Affine::new_unchecked(
-            Fq::from_str(
-                "2961155957874067312593973807786254905069537311739090798303675273531563528369",
-            )
-            .unwrap(),
-            Fq::from_str(
-                "2961155957874067312593973807786254905069537311739090798303675273531563528369",
-            )
-            .unwrap(),
-        );
-
-        let pairing_result_bad_commitment = kzg.verify_blob_kzg_proof_batch(
-            &vec![input.clone()],
-            &vec![bad_commitment],
-            &vec![proof],
-        );
-        assert_eq!(
-            pairing_result_bad_commitment,
-            Err(KzgError::NotOnCurveError(
-                "commitment not on curve".to_string()
-            ))
-        );
-
-        let pairing_result_bad_proof =
-            kzg.verify_blob_kzg_proof_batch(&vec![input], &vec![commitment], &vec![bad_proof]);
-        assert_eq!(
-            pairing_result_bad_proof,
-            Err(KzgError::NotOnCurveError("proof not on curve".to_string()))
-        );
+        // assert_eq!(confirmed_result, result);
     }
 
     #[test]

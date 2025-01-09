@@ -94,6 +94,10 @@ pub fn remove_empty_byte_from_padded_bytes_unchecked(data: &[u8]) -> Vec<u8> {
     valid_data
 }
 
+pub fn is_zero(fr: Fr) -> bool {
+    fr.0 .0.iter().fold(0, |acc, &x| acc | x) == 0
+}
+
 pub fn set_bytes_canonical(data: &[u8]) -> Fr {
     Fr::from_be_bytes_mod_order(data)
 }
@@ -137,6 +141,7 @@ pub fn to_byte_array(data_fr: &[Fr], max_data_size: usize) -> Vec<u8> {
     // Using enumerate().take(n) to process elements up to n
     for (i, element) in data_fr.iter().enumerate().take(n) {
         // Convert field element to bytes based on configured endianness
+        // TODO(anupsv): To be removed and default to Big endian. Ref: https://github.com/Layr-Labs/rust-kzg-bn254/issues/27
         let v: Vec<u8> = match KZG_ENDIANNESS {
             Endianness::Big => element.into_bigint().to_bytes_be(), // Big-endian conversion
             Endianness::Little => element.into_bigint().to_bytes_le(), // Little-endian conversion
