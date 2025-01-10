@@ -204,26 +204,6 @@ mod tests {
         );
         assert_eq!(commitment_from_da, fn_output);
     }
-    
-    #[test]
-    fn test_evaluate_polynomial_in_evaluation_form_random_blob_all_indexes(){
-        let mut rng = rand::thread_rng();
-        let mut kzg = KZG_INSTANCE.clone();
-
-        let random_blob: Vec<u8> = (0..320)
-                .map(|_| rng.gen_range(32..=126) as u8)
-                .collect();
-
-        let input = Blob::from_raw_data(&random_blob);
-        let input_poly = input.to_polynomial_eval_form();
-
-        for i in 0..input_poly.len_underlying_blob_field_elements() {
-            kzg.calculate_roots_of_unity(input.len().try_into().unwrap()).unwrap();
-            let z_fr = kzg.get_nth_root_of_unity(i).unwrap();
-            let claimed_y_fr = KZG::evaluate_polynomial_in_evaluation_form(&input_poly, z_fr, 3000).unwrap();
-            assert_eq!(claimed_y_fr, input_poly.evaluations()[i]);
-        }
-    }
 
     #[test]
     fn test_compute_kzg_proof_random_100_blobs() {
@@ -620,6 +600,26 @@ mod tests {
                 "Failed to detect invalid curve point - {}",
                 case_description
             );
+        }
+    }
+
+    #[test]
+    fn test_evaluate_polynomial_in_evaluation_form_random_blob_all_indexes(){
+        let mut rng = rand::thread_rng();
+        let mut kzg = KZG_INSTANCE.clone();
+        let blob_length: u64 = rand::thread_rng().gen_range(35..40000);
+        let random_blob: Vec<u8> = (0..blob_length)
+                .map(|_| rng.gen_range(32..=126) as u8)
+                .collect();
+
+        let input = Blob::from_raw_data(&random_blob);
+        let input_poly = input.to_polynomial_eval_form();
+
+        for i in 0..input_poly.len_underlying_blob_field_elements() {
+            kzg.calculate_roots_of_unity(input.len().try_into().unwrap()).unwrap();
+            let z_fr = kzg.get_nth_root_of_unity(i).unwrap();
+            let claimed_y_fr = KZG::evaluate_polynomial_in_evaluation_form(&input_poly, z_fr, 3000).unwrap();
+            assert_eq!(claimed_y_fr, input_poly.evaluations()[i]);
         }
     }
 
