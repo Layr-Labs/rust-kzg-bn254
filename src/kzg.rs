@@ -658,7 +658,7 @@ impl KZG {
         self.commit_eval_form(&polynomial)
     }
 
-    pub fn compute_kzg_proof_with_known_z_fr_index(
+    pub fn compute_proof_with_known_z_fr_index(
         &self,
         polynomial: &PolynomialEvalForm,
         index: u64,
