@@ -225,7 +225,7 @@ mod tests {
             let proof = kzg
                 .compute_proof_with_known_z_fr_index(&input_poly, index.try_into().unwrap())
                 .unwrap();
-            let value_fr = input_poly.get_at_index(index).unwrap();
+            let value_fr = input_poly.get_evalualtion(index).unwrap();
             let z_fr = kzg.get_nth_root_of_unity(index).unwrap();
             let pairing_result = kzg
                 .verify_proof(commitment, proof, value_fr.clone(), z_fr.clone())
@@ -277,7 +277,7 @@ mod tests {
                 .compute_proof_with_known_z_fr_index(&input_poly, index.try_into().unwrap())
                 .unwrap();
 
-            let value_fr = input_poly.get_at_index(index).unwrap();
+            let value_fr = input_poly.get_evalualtion(index).unwrap();
             let z_fr = kzg.get_nth_root_of_unity(index).unwrap();
             let pairing_result = kzg
                 .verify_proof(commitment, proof, value_fr.clone(), z_fr.clone())

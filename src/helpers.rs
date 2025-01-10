@@ -94,10 +94,6 @@ pub fn remove_empty_byte_from_padded_bytes_unchecked(data: &[u8]) -> Vec<u8> {
     valid_data
 }
 
-pub fn is_zero(fr: Fr) -> bool {
-    fr.0 .0.iter().fold(0, |acc, &x| acc | x) == 0
-}
-
 pub fn set_bytes_canonical(data: &[u8]) -> Fr {
     Fr::from_be_bytes_mod_order(data)
 }
@@ -139,21 +135,24 @@ pub fn to_fr_array(data: &[u8]) -> Vec<Fr> {
 ///
 /// # Example
 /// ```
-/// use ark_std::One;
-/// use rust_kzg_bn254::helpers::to_byte_array;
-/// use ark_bn254::Fr;
+/// use rust_kzg_bn254::kzg::KZG;
+/// use rust_kzg_bn254::blob::Blob;
 ///
-/// let elements = vec![Fr::one(), Fr::one(), Fr::one()];
-/// let max_size = 64;
-/// let bytes = to_byte_array(&elements, max_size);
-/// assert_eq!(bytes.len(), 64);
-/// // bytes will contain up to max_size bytes from the encoded elements
+/// let mut kzg = KZG::setup(
+///                 "tests/test-files/mainnet-data/g1.131072.point",
+///                  "",
+///                  "tests/test-files/mainnet-data/g2.point.powerOf2",
+///                  268435456,
+///                  131072,
+///                  ).unwrap();
+/// let input = Blob::from_raw_data(b"random data for blob");
+/// kzg.calculate_roots_of_unity(input.len().try_into().unwrap()).unwrap();
 /// ```
-pub fn to_byte_array(data_fr: &[Fr], max_data_size: usize) -> Vec<u8> {
+pub fn to_byte_array(data_fr: &[Fr], max_output_size: usize) -> Vec<u8> {
     // Calculate the number of field elements in input
     let n = data_fr.len();
 
-    let data_size = cmp::min(n * BYTES_PER_FIELD_ELEMENT, max_data_size);
+    let data_size = cmp::min(n * BYTES_PER_FIELD_ELEMENT, max_output_size);
 
     let mut data = vec![0u8; data_size];
 
@@ -171,17 +170,17 @@ pub fn to_byte_array(data_fr: &[Fr], max_data_size: usize) -> Vec<u8> {
         let start = i * BYTES_PER_FIELD_ELEMENT;
         let end = (i + 1) * BYTES_PER_FIELD_ELEMENT;
 
-        if end > max_data_size {
-            // Handle case where this element would exceed max_data_size
+        if end > max_output_size {
+            // Handle case where this element would exceed max_output_size
             // Calculate how many bytes we can actually copy
-            let slice_end = cmp::min(v.len(), max_data_size - start);
+            let slice_end = cmp::min(v.len(), max_output_size - start);
 
             // Copy partial element and break the loop
             // We can't fit any more complete elements
             data[start..start + slice_end].copy_from_slice(&v[..slice_end]);
             break;
         } else {
-            // Normal case: element fits within max_data_size
+            // Normal case: element fits within max_output_size
             // Calculate actual end index considering data_size limit
             let actual_end = cmp::min(end, data_size);
 

@@ -1,16 +1,5 @@
 use thiserror::Error;
 
-/// Errors related to Blob operations.
-///
-/// The `BlobError` enum encapsulates all possible errors that can occur during
-/// operations on the `Blob` struct, such as padding and conversion errors.
-#[derive(Clone, Debug, PartialEq, Error)]
-pub enum BlobError {
-    /// A generic error with a descriptive message.
-    #[error("generic error: {0}")]
-    GenericError(String),
-}
-
 /// Errors related to Polynomial operations.
 ///
 /// The `PolynomialError` enum encapsulates all possible errors that can occur
@@ -29,10 +18,6 @@ pub enum PolynomialError {
     /// A generic error with a descriptive message.
     #[error("generic error: {0}")]
     GenericError(String),
-
-    /// Error indicating that the polynomial is already in the desired form.
-    #[error("incorrect form error: {0}")]
-    IncorrectFormError(String),
 }
 
 /// Errors related to KZG operations.
@@ -48,10 +33,6 @@ pub enum KzgError {
 
     #[error("MSM error: {0}")]
     MsmError(String),
-
-    /// Wraps errors originating from Blob operations.
-    #[error("blob error: {0}")]
-    BlobError(#[from] BlobError),
 
     /// Error related to serialization with a descriptive message.
     #[error("serialization error: {0}")]
