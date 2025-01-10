@@ -133,8 +133,6 @@ pub fn to_byte_array(data_fr: &[Fr], max_data_size: usize) -> Vec<u8> {
     // - Maximum allowed size
     let data_size = cmp::min(n * BYTES_PER_FIELD_ELEMENT, max_data_size);
 
-    // Initialize output buffer with zeros
-    // Size is determined by data_size calculation above
     let mut data = vec![0u8; data_size];
 
     // Iterate through each field element
