@@ -594,7 +594,7 @@ impl KZG {
     }
 
     /// Helper function for `compute_kzg_proof()` and `compute_blob_kzg_proof()`
-    fn compute_kzg_proof_impl(
+    fn compute_proof_impl(
         &self,
         polynomial: &PolynomialEvalForm,
         z_fr: &Fr,
