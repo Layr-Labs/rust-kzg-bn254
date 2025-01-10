@@ -124,6 +124,31 @@ pub fn to_fr_array(data: &[u8]) -> Vec<Fr> {
     eles
 }
 
+/// Converts a slice of field elements to a byte array with size constraints
+///
+/// # Arguments
+/// * `data_fr` - Slice of field elements to convert to bytes
+/// * `max_data_size` - Maximum allowed size in bytes for the output buffer
+///
+/// # Returns
+/// * `Vec<u8>` - Byte array containing the encoded field elements, truncated if needed
+///
+/// # Details
+/// - Each field element is converted to BYTES_PER_FIELD_ELEMENT bytes
+/// - Output is truncated to max_data_size if total bytes would exceed it
+///
+/// # Example
+/// ```
+/// use ark_std::One;
+/// use rust_kzg_bn254::helpers::to_byte_array;
+/// use ark_bn254::Fr;
+///
+/// let elements = vec![Fr::one(), Fr::one(), Fr::one()];
+/// let max_size = 64;
+/// let bytes = to_byte_array(&elements, max_size);
+/// assert_eq!(bytes.len(), 64);
+/// // bytes will contain up to max_size bytes from the encoded elements
+/// ```
 pub fn to_byte_array(data_fr: &[Fr], max_data_size: usize) -> Vec<u8> {
     // Calculate the number of field elements in input
     let n = data_fr.len();
