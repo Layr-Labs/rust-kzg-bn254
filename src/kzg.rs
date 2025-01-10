@@ -849,7 +849,7 @@ impl KZG {
     }
 
     /// TODO(anupsv): Match 4844 specs w.r.t to the inputs. Ref: https://github.com/Layr-Labs/rust-kzg-bn254/issues/30
-    pub fn compute_blob_kzg_proof(
+    pub fn compute_blob_proof(
         &self,
         blob: &Blob,
         commitment: &G1Affine,
