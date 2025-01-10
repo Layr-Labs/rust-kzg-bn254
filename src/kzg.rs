@@ -16,7 +16,7 @@ use ark_ec::{pairing::Pairing, AffineRepr, CurveGroup, VariableBaseMSM};
 use ark_ff::{BigInteger, Field, PrimeField};
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 use ark_serialize::{CanonicalSerialize, Read};
-use ark_std::{iterable::Iterable, ops::Div, str::FromStr, One, Zero};
+use ark_std::{iterable::Iterable, ops::Div, One, Zero};
 use crossbeam_channel::{bounded, Sender};
 use num_traits::ToPrimitive;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
@@ -169,16 +169,12 @@ impl KZG {
             ));
         }
 
-        // Get the primitive roots of unity
-        let primitive_roots_of_unity = Self::get_primitive_roots_of_unity()?;
-
         // Find the root of unity corresponding to the calculated log2 value
-        let found_root_of_unity = primitive_roots_of_unity
-            .get(log2_of_evals as usize)
-            .ok_or_else(|| KzgError::GenericError("Root of unity not found".to_string()))?;
+        let found_root_of_unity =
+            helpers::get_and_convert_primitive_root_to_fr(log2_of_evals.into())?;
 
         // Expand the root to get all the roots of unity
-        let mut expanded_roots_of_unity = Self::expand_root_of_unity(found_root_of_unity);
+        let mut expanded_roots_of_unity = Self::expand_root_of_unity(&found_root_of_unity);
 
         // Remove the last element to avoid duplication
         expanded_roots_of_unity.truncate(expanded_roots_of_unity.len() - 1);
@@ -254,13 +250,9 @@ impl KZG {
             ));
         }
 
-        let primitive_roots_of_unity = Self::get_primitive_roots_of_unity()?;
-        let found_root_of_unity = primitive_roots_of_unity
-            .get(log2_of_evals.to_usize().ok_or_else(|| {
-                KzgError::GenericError("Failed to convert log2_of_evals to usize".to_string())
-            })?)
-            .ok_or_else(|| KzgError::GenericError("Root of unity not found".to_string()))?;
-        let mut expanded_roots_of_unity = Self::expand_root_of_unity(found_root_of_unity);
+        let found_root_of_unity =
+            helpers::get_and_convert_primitive_root_to_fr(log2_of_evals.into())?;
+        let mut expanded_roots_of_unity = Self::expand_root_of_unity(&found_root_of_unity);
         expanded_roots_of_unity.truncate(expanded_roots_of_unity.len() - 1);
 
         params.completed_setup = true;
@@ -307,48 +299,6 @@ impl KZG {
                                               // of unity
         }
         roots
-    }
-
-    /// Precompute the primitive roots of unity for binary powers that divide r - 1
-    /// TODO(anupsv): Move this to the constants file. Ref: https://github.com/Layr-Labs/rust-kzg-bn254/issues/31
-    fn get_primitive_roots_of_unity() -> Result<Vec<Fr>, KzgError> {
-        let data: [&str; 29] = [
-            "1",
-            "21888242871839275222246405745257275088548364400416034343698204186575808495616",
-            "21888242871839275217838484774961031246007050428528088939761107053157389710902",
-            "19540430494807482326159819597004422086093766032135589407132600596362845576832",
-            "14940766826517323942636479241147756311199852622225275649687664389641784935947",
-            "4419234939496763621076330863786513495701855246241724391626358375488475697872",
-            "9088801421649573101014283686030284801466796108869023335878462724291607593530",
-            "10359452186428527605436343203440067497552205259388878191021578220384701716497",
-            "3478517300119284901893091970156912948790432420133812234316178878452092729974",
-            "6837567842312086091520287814181175430087169027974246751610506942214842701774",
-            "3161067157621608152362653341354432744960400845131437947728257924963983317266",
-            "1120550406532664055539694724667294622065367841900378087843176726913374367458",
-            "4158865282786404163413953114870269622875596290766033564087307867933865333818",
-            "197302210312744933010843010704445784068657690384188106020011018676818793232",
-            "20619701001583904760601357484951574588621083236087856586626117568842480512645",
-            "20402931748843538985151001264530049874871572933694634836567070693966133783803",
-            "421743594562400382753388642386256516545992082196004333756405989743524594615",
-            "12650941915662020058015862023665998998969191525479888727406889100124684769509",
-            "11699596668367776675346610687704220591435078791727316319397053191800576917728",
-            "15549849457946371566896172786938980432421851627449396898353380550861104573629",
-            "17220337697351015657950521176323262483320249231368149235373741788599650842711",
-            "13536764371732269273912573961853310557438878140379554347802702086337840854307",
-            "12143866164239048021030917283424216263377309185099704096317235600302831912062",
-            "934650972362265999028062457054462628285482693704334323590406443310927365533",
-            "5709868443893258075976348696661355716898495876243883251619397131511003808859",
-            "19200870435978225707111062059747084165650991997241425080699860725083300967194",
-            "7419588552507395652481651088034484897579724952953562618697845598160172257810",
-            "2082940218526944230311718225077035922214683169814847712455127909555749686340",
-            "19103219067921713944291392827692070036145651957329286315305642004821462161904",
-        ];
-        data.iter()
-            .map(Fr::from_str)
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|_| {
-                KzgError::GenericError("Failed to parse primitive roots of unity".to_string())
-            })
     }
 
     /// helper function to get g1 points

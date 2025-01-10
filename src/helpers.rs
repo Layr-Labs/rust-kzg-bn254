@@ -8,8 +8,8 @@ use std::cmp;
 use crate::{
     arith,
     consts::{
-        Endianness, BYTES_PER_FIELD_ELEMENT, KZG_ENDIANNESS, SIZE_OF_G1_AFFINE_COMPRESSED,
-        SIZE_OF_G2_AFFINE_COMPRESSED,
+        Endianness, BYTES_PER_FIELD_ELEMENT, KZG_ENDIANNESS, PRIMITIVE_ROOTS_OF_UNITY,
+        SIZE_OF_G1_AFFINE_COMPRESSED, SIZE_OF_G2_AFFINE_COMPRESSED,
     },
     errors::KzgError,
     traits::ReadPointFromBytes,
@@ -478,4 +478,41 @@ pub fn g1_lincomb(points: &[G1Affine], scalars: &[Fr]) -> Result<G1Affine, KzgEr
     // Convert result back to affine coordinates
     // This is typically needed as most protocols expect points in affine form
     Ok(lincomb.into_affine())
+}
+
+/// Retrieves and converts a primitive root of unity to a field element
+///
+/// # Arguments
+/// * `index` - Index of the primitive root to retrieve from PRIMITIVE_ROOTS_OF_UNITY array
+///
+/// # Returns
+/// * `Result<Fr, KzgError>` - Field element representation of the primitive root if successful,
+///                           or KzgError if index is invalid or conversion fails
+///
+/// # Errors
+/// - Returns KzgError::GenericError if:
+///   - Index is out of bounds for PRIMITIVE_ROOTS_OF_UNITY array
+///   - BigInt conversion to field element fails
+///
+/// # Details
+/// - Looks up a primitive root of unity from a predefined array using the given index
+/// - Converts the BigInt representation to an Fr field element
+/// - Commonly used in FFT and polynomial operations requiring roots of unity
+///
+/// # Example
+/// ```
+/// use rust_kzg_bn254::helpers::get_and_convert_primitive_root_to_fr;
+/// let root = get_and_convert_primitive_root_to_fr(0); // Gets first primitive root
+/// ```
+pub fn get_and_convert_primitive_root_to_fr(index: usize) -> Result<Fr, KzgError> {
+    let found_root_of_unity_bigint = PRIMITIVE_ROOTS_OF_UNITY
+        .get(index)
+        .ok_or_else(|| KzgError::GenericError("Root of unity not found".to_string()))?;
+
+    let found_root_of_unity = Fr::from_bigint(BigInt::new(*found_root_of_unity_bigint))
+        .ok_or_else(|| {
+            KzgError::GenericError("Failed to convert root of unity from bigint to Fr".to_string())
+        })?;
+
+    Ok(found_root_of_unity)
 }
