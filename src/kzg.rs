@@ -129,6 +129,7 @@ impl KZG {
     // This function calculates the roots of unities but doesn't assign it to the struct
     // Used in batch verification process as the roots need to be calculated for each blob
     // because of different length.
+    // length_of_data_after_padding: Length of the blob data after padding in bytes.
     fn calculate_roots_of_unity_standalone(
         length_of_data_after_padding: u64,
         srs_order: u64,
@@ -1037,7 +1038,7 @@ impl KZG {
 
     /// A helper function for the `verify_blob_kzg_proof_batch` function.
     fn compute_challenges_and_evaluate_polynomial(
-        blobs: &Vec<Blob>,
+        blobs: &[Blob],
         commitments: &[G1Affine],
         srs_order: u64,
     ) -> Result<(Vec<Fr>, Vec<Fr>), KzgError> {
@@ -1204,7 +1205,10 @@ impl KZG {
         data_to_be_hashed[32..40].copy_from_slice(&n_bytes);
 
         let target_slice = &mut data_to_be_hashed[24..24 + (n * 8)];
-        for (chunk, &length) in target_slice.chunks_mut(8).zip(blobs_as_field_elements_length) {
+        for (chunk, &length) in target_slice
+            .chunks_mut(8)
+            .zip(blobs_as_field_elements_length)
+        {
             chunk.copy_from_slice(&length.to_be_bytes());
         }
         initial_data_length += n * 8;
