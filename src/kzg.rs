@@ -709,7 +709,7 @@ impl KZG {
         // 1. Evaluate polynomial at z
         // 2. Compute quotient polynomial q(x) = (p(x) - p(z)) / (x - z)
         // 3. Generate KZG proof as commitment to q(x)
-        self.compute_kzg_proof_impl(polynomial, z_fr)
+        self.compute_proof_impl(polynomial, z_fr)
     }
 
     /// refer to DA for more context
@@ -874,7 +874,7 @@ impl KZG {
         // Compute the actual KZG proof using the polynomial and evaluation point
         // This creates a proof that the polynomial evaluates to a specific value at the challenge point
         // The proof is a single G1 point that can be used to verify the evaluation
-        self.compute_kzg_proof_impl(&blob_poly, &evaluation_challenge)
+        self.compute_proof_impl(&blob_poly, &evaluation_challenge)
     }
 
     /// Maps a byte slice to a field element (`Fr`) using SHA-256 from SHA3 family as the

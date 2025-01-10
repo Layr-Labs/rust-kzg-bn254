@@ -223,7 +223,7 @@ mod tests {
                 rand::thread_rng().gen_range(0..input_poly.len_underlying_blob_field_elements());
             let commitment = kzg.commit_eval_form(&input_poly.clone()).unwrap();
             let proof = kzg
-                .compute_kzg_proof_with_known_z_fr_index(&input_poly, index.try_into().unwrap())
+                .compute_proof_with_known_z_fr_index(&input_poly, index.try_into().unwrap())
                 .unwrap();
             let value_fr = input_poly.get_at_index(index).unwrap();
             let z_fr = kzg.get_nth_root_of_unity(index).unwrap();
@@ -274,7 +274,7 @@ mod tests {
             }
             let commitment = kzg.commit_eval_form(&input_poly).unwrap();
             let proof = kzg
-                .compute_kzg_proof_with_known_z_fr_index(&input_poly, index.try_into().unwrap())
+                .compute_proof_with_known_z_fr_index(&input_poly, index.try_into().unwrap())
                 .unwrap();
 
             let value_fr = input_poly.get_at_index(index).unwrap();
@@ -404,7 +404,7 @@ mod tests {
                 .unwrap();
 
             let commitment = kzg.commit_eval_form(&input_poly).unwrap();
-            let proof = kzg.compute_blob_kzg_proof(&input, &commitment).unwrap();
+            let proof = kzg.compute_blob_proof(&input, &commitment).unwrap();
 
             blobs.push(input);
             commitments.push(commitment);
@@ -459,7 +459,7 @@ mod tests {
         let input_poly1 = input1.to_polynomial_eval_form();
 
         let commitment1 = kzg.commit_eval_form(&input_poly1.clone()).unwrap();
-        let proof_1 = kzg.compute_blob_kzg_proof(&input1, &commitment1).unwrap();
+        let proof_1 = kzg.compute_blob_proof(&input1, &commitment1).unwrap();
 
         let mut reversed_input: Vec<u8> = vec![0; GETTYSBURG_ADDRESS_BYTES.len()];
         reversed_input.clone_from_slice(GETTYSBURG_ADDRESS_BYTES);
@@ -474,7 +474,7 @@ mod tests {
 
         let commitment2 = kzg2.commit_eval_form(&input_poly2).unwrap();
 
-        let proof_2 = kzg2.compute_blob_kzg_proof(&input2, &commitment2).unwrap();
+        let proof_2 = kzg2.compute_blob_proof(&input2, &commitment2).unwrap();
 
         let blobs = vec![input1, input2];
         let commitments = vec![commitment1, commitment2];
@@ -501,7 +501,7 @@ mod tests {
         let input1 = Blob::from_raw_data(GETTYSBURG_ADDRESS_BYTES);
         let input_poly1 = input1.to_polynomial_eval_form();
         let commitment1 = kzg.commit_eval_form(&input_poly1).unwrap();
-        let proof_1 = kzg.compute_blob_kzg_proof(&input1, &commitment1).unwrap();
+        let proof_1 = kzg.compute_blob_proof(&input1, &commitment1).unwrap();
 
         // Create a proof point at infinity
         let proof_at_infinity = G1Affine::identity();
@@ -539,9 +539,7 @@ mod tests {
         let input = Blob::from_raw_data(GETTYSBURG_ADDRESS_BYTES);
         let input_poly = input.to_polynomial_eval_form();
         let valid_commitment = kzg.commit_eval_form(&input_poly).unwrap();
-        let valid_proof = kzg
-            .compute_blob_kzg_proof(&input, &valid_commitment)
-            .unwrap();
+        let valid_proof = kzg.compute_blob_proof(&input, &valid_commitment).unwrap();
 
         // Create points not on the curve
         let invalid_point_commitment = generate_point_wrong_subgroup();
