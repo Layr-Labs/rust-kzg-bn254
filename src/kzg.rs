@@ -283,6 +283,10 @@ impl KZG {
         Ok(())
     }
 
+    pub fn get_roots_of_unities(&self) -> Vec<Fr> {
+        self.expanded_roots_of_unity.clone()
+    }
+
     /// helper function to get the
     pub fn get_nth_root_of_unity(&self, i: usize) -> Option<&Fr> {
         self.expanded_roots_of_unity.get(i)
@@ -665,12 +669,14 @@ impl KZG {
         ))?;
 
         // Get the root of unity at the specified index
-        let z_fr = self.expanded_roots_of_unity[usized_index];
+        let z_fr = self
+            .get_nth_root_of_unity(usized_index)
+            .ok_or_else(|| KzgError::GenericError("Root of unity not found".to_string()))?;
 
         // Compute the KZG proof at the selected root of unity
         // This delegates to the main proof computation function
         // using our selected evaluation point
-        self.compute_proof(polynomial, &z_fr)
+        self.compute_proof(polynomial, z_fr)
     }
 
     /// Compute a kzg proof from a polynomial in evaluation form.
@@ -1197,16 +1203,11 @@ impl KZG {
         };
         data_to_be_hashed[32..40].copy_from_slice(&n_bytes);
 
-        for i in 0..n {
-            // Convert blob length to bytes using configured endianness
-            let number_of_field_elements: [u8; 8] = blobs_as_field_elements_length[i].to_be_bytes();
-
-            // Copy blob length to buffer
-            let start = 24 + (i * 8);
-            let end: usize = start + 8;
-            data_to_be_hashed[start..end].copy_from_slice(&number_of_field_elements);
-            initial_data_length += 8;
+        let target_slice = &mut data_to_be_hashed[24..24 + (n * 8)];
+        for (chunk, &length) in target_slice.chunks_mut(8).zip(blobs_as_field_elements_length) {
+            chunk.copy_from_slice(&length.to_be_bytes());
         }
+        initial_data_length += n * 8;
 
         // Process each commitment, proof, and evaluation point/value
         for i in 0..n {
@@ -1248,9 +1249,6 @@ impl KZG {
         // Verify we filled the entire buffer
         // This ensures we didn't make any buffer overflow or underflow errors
         if initial_data_length != input_size {
-            println!("initial_data_length: {}", initial_data_length);
-
-            println!("input_size: {}", input_size);
             return Err(KzgError::InvalidInputLength);
         }
 
