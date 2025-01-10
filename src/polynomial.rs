@@ -89,9 +89,6 @@ impl PolynomialEvalForm {
 
     /// Converts all `Fr` elements in the polynomial to a single big-endian byte vector.
     ///
-    /// This method delegates the conversion to the `helpers::to_byte_array` function,
-    /// passing the elements and the length of the padded blob.
-    ///
     /// # Returns
     ///
     /// A `Vec<u8>` containing the big-endian byte representation of the polynomial elements.
