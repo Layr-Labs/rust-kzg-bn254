@@ -7,9 +7,7 @@ use crate::{
     traits::ReadPointFromBytes,
 };
 
-use crate::consts::{
-    Endianness, FIAT_SHAMIR_PROTOCOL_DOMAIN, KZG_ENDIANNESS, RANDOM_CHALLENGE_KZG_BATCH_DOMAIN,
-};
+use crate::consts::{FIAT_SHAMIR_PROTOCOL_DOMAIN, RANDOM_CHALLENGE_KZG_BATCH_DOMAIN};
 use crate::helpers::is_on_curve_g1;
 use ark_bn254::{Bn254, Fr, G1Affine, G1Projective, G2Affine, G2Projective};
 use ark_ec::{pairing::Pairing, AffineRepr, CurveGroup, VariableBaseMSM};
@@ -842,11 +840,7 @@ impl KZG {
         let msg_digest = Sha256::digest(msg);
         let hash_elements = msg_digest.as_slice();
 
-        // TODO(anupsv): To be removed and default to Big endian. Ref: https://github.com/Layr-Labs/rust-kzg-bn254/issues/27
-        let fr_element: Fr = match KZG_ENDIANNESS {
-            Endianness::Big => Fr::from_be_bytes_mod_order(hash_elements),
-            Endianness::Little => Fr::from_le_bytes_mod_order(hash_elements),
-        };
+        let fr_element: Fr = Fr::from_be_bytes_mod_order(hash_elements);
 
         fr_element
     }
@@ -889,12 +883,8 @@ impl KZG {
         offset += FIAT_SHAMIR_PROTOCOL_DOMAIN.len();
 
         // Step 2: Copy the number of field elements (blob polynomial length)
-        // Convert to bytes using the configured endianness
-        // TODO(anupsv): To be removed and default to Big endian. Ref: https://github.com/Layr-Labs/rust-kzg-bn254/issues/27
-        let number_of_field_elements = match KZG_ENDIANNESS {
-            Endianness::Big => blob_poly.len().to_be_bytes(),
-            Endianness::Little => blob_poly.len().to_le_bytes(),
-        };
+        // Convert to bytes in big endian format and copy to the buffer
+        let number_of_field_elements = blob_poly.len().to_be_bytes();
         digest_bytes[offset..offset + 8].copy_from_slice(&number_of_field_elements);
         offset += 8;
 
@@ -1145,13 +1135,8 @@ impl KZG {
         // This provides domain separation for the hash function
         data_to_be_hashed[0..24].copy_from_slice(RANDOM_CHALLENGE_KZG_BATCH_DOMAIN);
 
-        // Convert number of commitments to bytes and copy to buffer
-        // Uses configured endianness (Big or Little)
-        // TODO(anupsv): To be removed and default to Big endian. Ref: https://github.com/Layr-Labs/rust-kzg-bn254/issues/27
-        let n_bytes: [u8; 8] = match KZG_ENDIANNESS {
-            Endianness::Big => n.to_be_bytes(),
-            Endianness::Little => n.to_le_bytes(),
-        };
+        // Convert number of commitments to bytes and copy to buffer in big endian format.
+        let n_bytes: [u8; 8] = n.to_be_bytes();
         data_to_be_hashed[32..40].copy_from_slice(&n_bytes);
 
         let target_slice = &mut data_to_be_hashed[24..24 + (n * 8)];
