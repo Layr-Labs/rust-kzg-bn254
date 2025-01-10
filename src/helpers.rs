@@ -1,9 +1,10 @@
 use ark_bn254::{Fq, Fq2, Fr, G1Affine, G1Projective, G2Affine, G2Projective};
 use ark_ec::{AffineRepr, CurveGroup, VariableBaseMSM};
 use ark_ff::{sbb, BigInt, BigInteger, Field, LegendreSymbol, PrimeField};
+use ark_serialize::CanonicalSerialize;
 use ark_std::{str::FromStr, vec::Vec, One, Zero};
 use crossbeam_channel::Receiver;
-use std::cmp;
+use std::{cmp, io::Write};
 
 use crate::{
     arith,
@@ -515,4 +516,43 @@ pub fn get_and_convert_primitive_root_to_fr(index: usize) -> Result<Fr, KzgError
         })?;
 
     Ok(found_root_of_unity)
+}
+
+/// Serializes a G1 affine point to compressed bytes
+/// 
+/// # Arguments
+/// * `g1` - Reference to a G1 affine point to be serialized
+/// * `out` - Mutable reference to output byte vector where serialized data will be written
+///
+/// # Returns
+/// * `Result<(), KzgError>` - Unit type on success, KzgError if serialization fails
+///
+/// # Errors
+/// - Returns KzgError::SerializationError if the point compression fails
+///
+/// # Details
+/// - Performs compressed point serialization, which is more space-efficient than uncompressed
+/// - Output is written directly to the provided vector, modifying it in place
+/// - Uses the underlying curve's compressed point format
+///
+/// # Example
+/// ```
+/// use rust_kzg_bn254::helpers::g1_affine_serialze_compressed;
+/// use ark_bn254::G1Affine;
+/// use ark_ec::AffineRepr;
+/// 
+/// let mut bytes = Vec::new();
+/// let point = G1Affine::generator(); // Get a point on curve
+/// g1_affine_serialze_compressed(&point, &mut bytes);
+/// ```
+pub fn g1_affine_serialze_compressed(g1: &G1Affine, out: &mut Vec<u8>) -> Result<(), KzgError> {
+    let mut le_bytes: Vec<u8> = Vec::with_capacity(SIZE_OF_G1_AFFINE_COMPRESSED);
+    g1.serialize_compressed(&mut le_bytes).map_err(|_| {
+        KzgError::SerializationError("Failed to serialize commitment".to_string())
+    })?;
+
+    out.write(&le_bytes).map_err(|_| {
+        KzgError::SerializationError("Failed to write serialized commitment".to_string())
+    })?;
+    Ok(())
 }
