@@ -72,25 +72,7 @@ mod tests {
             ))
         );
 
-        let mut kzg2 = KZG::setup(
-            "tests/test-files/g1.point",
-            "tests/test-files/g2.point",
-            "tests/test-files/g2.point.powerOf2",
-            2,
-            2,
-        )
-        .unwrap();
-
-        let result = kzg2.data_setup_mins(4, 4);
-        assert_eq!(
-            result,
-            Err(KzgError::SerializationError(
-                "the supplied encoding parameters are not valid with respect to the SRS."
-                    .to_string()
-            ))
-        );
-
-        let kzg3 = KZG::setup(
+        let kzg2 = KZG::setup(
             "tests/test-files/g1.point",
             "tests/test-files/g2.point",
             "tests/test-files/g2.point.powerOf2",
@@ -98,7 +80,7 @@ mod tests {
             3001,
         );
         assert_eq!(
-            kzg3,
+            kzg2,
             Err(KzgError::GenericError(
                 "number of points to load is more than the srs order".to_string()
             ))
@@ -148,40 +130,6 @@ mod tests {
     }
 
     #[test]
-    fn test_roots_of_unity_setup() {
-        use rand::Rng;
-        let mut rng = rand::thread_rng();
-
-        let mut kzg_clone1: KZG = KZG_3000.clone();
-        let mut kzg_clone2: KZG = KZG_3000.clone();
-
-        (0..10000).for_each(|_| {
-            let blob_length: u64 = rand::thread_rng().gen_range(35..40000);
-            let random_blob: Vec<u8> = (0..blob_length)
-                .map(|_| rng.gen_range(32..=126) as u8)
-                .collect();
-
-            let input = Blob::from_raw_data(&random_blob);
-            kzg_clone1
-                .data_setup_custom(1, input.len().try_into().unwrap())
-                .unwrap();
-            kzg_clone2
-                .calculate_roots_of_unity(input.len().try_into().unwrap())
-                .unwrap();
-
-            let polynomial_input = input.to_polynomial_coeff_form();
-            let expanded_roots_of_unity_vec_1: Vec<&Fr> = (0..polynomial_input.len())
-                .map(|i| kzg_clone1.get_nth_root_of_unity(i).unwrap())
-                .collect();
-            let expanded_roots_of_unity_vec_2: Vec<&Fr> = (0..polynomial_input.len())
-                .map(|i| kzg_clone2.get_nth_root_of_unity(i).unwrap())
-                .collect();
-
-            assert_eq!(expanded_roots_of_unity_vec_1, expanded_roots_of_unity_vec_2);
-        });
-    }
-
-    #[test]
     fn test_blob_to_kzg_commitment() {
         use ark_bn254::Fq;
 
@@ -216,7 +164,7 @@ mod tests {
 
             let input = Blob::from_raw_data(&random_blob);
             let input_poly = input.to_polynomial_eval_form();
-            kzg.data_setup_custom(1, input.len().try_into().unwrap())
+            kzg.calculate_roots_of_unity(input.len().try_into().unwrap())
                 .unwrap();
 
             let index =
@@ -260,7 +208,7 @@ mod tests {
         let input_poly = input.to_polynomial_eval_form();
 
         for index in 0..input_poly.len() - 1 {
-            kzg.data_setup_custom(4, input.len().try_into().unwrap())
+            kzg.calculate_roots_of_unity(input.len().try_into().unwrap())
                 .unwrap();
             let mut rand_index =
                 rand::thread_rng().gen_range(0..input_poly.len_underlying_blob_field_elements());
@@ -400,7 +348,7 @@ mod tests {
 
             let input = Blob::from_raw_data(&random_blob);
             let input_poly = input.to_polynomial_eval_form();
-            kzg.data_setup_custom(1, input.len().try_into().unwrap())
+            kzg.calculate_roots_of_unity(input.len().try_into().unwrap())
                 .unwrap();
 
             let commitment = kzg.commit_eval_form(&input_poly).unwrap();
@@ -453,7 +401,7 @@ mod tests {
         let mut kzg2 = KZG_INSTANCE.clone();
 
         let input1 = Blob::from_raw_data(GETTYSBURG_ADDRESS_BYTES);
-        kzg.data_setup_custom(4, input1.len().try_into().unwrap())
+        kzg.calculate_roots_of_unity(input1.len().try_into().unwrap())
             .unwrap();
 
         let input_poly1 = input1.to_polynomial_eval_form();
@@ -494,7 +442,7 @@ mod tests {
 
         // Setup with consistent domain size
         let input_size = GETTYSBURG_ADDRESS_BYTES.len();
-        kzg.data_setup_custom(4, input_size.try_into().unwrap())
+        kzg.calculate_roots_of_unity(input_size.try_into().unwrap())
             .unwrap();
 
         // First blob and proof - regular case
@@ -532,11 +480,11 @@ mod tests {
     #[test]
     fn test_kzg_batch_proof_invalid_curve_points() {
         let mut kzg = KZG_INSTANCE.clone();
-        kzg.data_setup_custom(4, GETTYSBURG_ADDRESS_BYTES.len().try_into().unwrap())
-            .unwrap();
 
         // Create valid inputs first
         let input = Blob::from_raw_data(GETTYSBURG_ADDRESS_BYTES);
+        kzg.calculate_roots_of_unity(input.len().try_into().unwrap())
+            .unwrap();
         let input_poly = input.to_polynomial_eval_form();
         let valid_commitment = kzg.commit_eval_form(&input_poly).unwrap();
         let valid_proof = kzg.compute_blob_proof(&input, &valid_commitment).unwrap();
