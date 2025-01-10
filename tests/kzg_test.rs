@@ -5,12 +5,7 @@ mod tests {
     use ark_ff::UniformRand;
     use lazy_static::lazy_static;
     use rand::Rng;
-    use rust_kzg_bn254::{
-        blob::Blob,
-        errors::KzgError,
-        kzg::KZG,
-        polynomial::PolynomialCoeffForm,
-    };
+    use rust_kzg_bn254::{blob::Blob, errors::KzgError, kzg::KZG, polynomial::PolynomialCoeffForm};
     use std::{env, fs::File, io::BufReader};
     const GETTYSBURG_ADDRESS_BYTES: &[u8] = "Fourscore and seven years ago our fathers brought forth, on this continent, a new nation, conceived in liberty, and dedicated to the proposition that all men are created equal. Now we are engaged in a great civil war, testing whether that nation, or any nation so conceived, and so dedicated, can long endure. We are met on a great battle-field of that war. We have come to dedicate a portion of that field, as a final resting-place for those who here gave their lives, that that nation might live. It is altogether fitting and proper that we should do this. But, in a larger sense, we cannot dedicate, we cannot consecrate—we cannot hallow—this ground. The brave men, living and dead, who struggled here, have consecrated it far above our poor power to add or detract. The world will little note, nor long remember what we say here, but it can never forget what they did here. It is for us the living, rather, to be dedicated here to the unfinished work which they who fought here have thus far so nobly advanced. It is rather for us to be here dedicated to the great task remaining before us—that from these honored dead we take increased devotion to that cause for which they here gave the last full measure of devotion—that we here highly resolve that these dead shall not have died in vain—that this nation, under God, shall have a new birth of freedom, and that government of the people, by the people, for the people, shall not perish from the earth.".as_bytes();
     use ark_std::{str::FromStr, One};
@@ -604,21 +599,23 @@ mod tests {
     }
 
     #[test]
-    fn test_evaluate_polynomial_in_evaluation_form_random_blob_all_indexes(){
+    fn test_evaluate_polynomial_in_evaluation_form_random_blob_all_indexes() {
         let mut rng = rand::thread_rng();
         let mut kzg = KZG_INSTANCE.clone();
         let blob_length: u64 = rand::thread_rng().gen_range(35..40000);
         let random_blob: Vec<u8> = (0..blob_length)
-                .map(|_| rng.gen_range(32..=126) as u8)
-                .collect();
+            .map(|_| rng.gen_range(32..=126) as u8)
+            .collect();
 
         let input = Blob::from_raw_data(&random_blob);
         let input_poly = input.to_polynomial_eval_form();
 
         for i in 0..input_poly.len_underlying_blob_field_elements() {
-            kzg.calculate_roots_of_unity(input.len().try_into().unwrap()).unwrap();
+            kzg.calculate_roots_of_unity(input.len().try_into().unwrap())
+                .unwrap();
             let z_fr = kzg.get_nth_root_of_unity(i).unwrap();
-            let claimed_y_fr = KZG::evaluate_polynomial_in_evaluation_form(&input_poly, z_fr, 3000).unwrap();
+            let claimed_y_fr =
+                KZG::evaluate_polynomial_in_evaluation_form(&input_poly, z_fr, 3000).unwrap();
             assert_eq!(claimed_y_fr, input_poly.evaluations()[i]);
         }
     }

@@ -18,7 +18,6 @@ pub enum BlobError {
 /// and serialization errors.
 #[derive(Clone, Debug, PartialEq, Error)]
 pub enum PolynomialError {
-
     /// Error related to commitment operations with a descriptive message.
     #[error("commitment error: {0}")]
     CommitError(String),
