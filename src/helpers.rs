@@ -44,7 +44,7 @@ pub fn convert_by_padding_empty_byte(data: &[u8]) -> Vec<u8> {
     let parse_size = BYTES_PER_FIELD_ELEMENT - 1;
     let put_size = BYTES_PER_FIELD_ELEMENT;
 
-    let data_len = (data_size + parse_size - 1) / parse_size;
+    let data_len = data_size.div_ceil(parse_size);
     let mut valid_data = vec![0u8; data_len * put_size];
     let mut valid_end = valid_data.len();
 
@@ -70,7 +70,7 @@ pub fn convert_by_padding_empty_byte(data: &[u8]) -> Vec<u8> {
 pub fn remove_empty_byte_from_padded_bytes_unchecked(data: &[u8]) -> Vec<u8> {
     let data_size = data.len();
     let parse_size = BYTES_PER_FIELD_ELEMENT;
-    let data_len = (data_size + parse_size - 1) / parse_size;
+    let data_len = data_size.div_ceil(parse_size);
 
     let put_size = BYTES_PER_FIELD_ELEMENT - 1;
     let mut valid_data = vec![0u8; data_len * put_size];
@@ -103,7 +103,7 @@ pub fn set_bytes_canonical(data: &[u8]) -> Fr {
 }
 
 pub fn get_num_element(data_len: usize, symbol_size: usize) -> usize {
-    (data_len + symbol_size - 1) / symbol_size
+    data_len.div_ceil(symbol_size)
 }
 
 pub fn to_fr_array(data: &[u8]) -> Vec<Fr> {
