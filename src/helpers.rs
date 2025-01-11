@@ -1,5 +1,5 @@
 use ark_bn254::{Fq, Fq2, Fr, G1Affine, G1Projective, G2Affine, G2Projective};
-use ark_ec::AffineRepr;
+use ark_ec::{AffineRepr, CurveGroup, VariableBaseMSM};
 use ark_ff::{sbb, BigInt, BigInteger, Field, LegendreSymbol, PrimeField};
 use ark_std::{str::FromStr, vec::Vec, One, Zero};
 use crossbeam_channel::Receiver;
@@ -7,7 +7,11 @@ use std::cmp;
 
 use crate::{
     arith,
-    consts::{BYTES_PER_FIELD_ELEMENT, SIZE_OF_G1_AFFINE_COMPRESSED, SIZE_OF_G2_AFFINE_COMPRESSED},
+    consts::{
+        Endianness, BYTES_PER_FIELD_ELEMENT, KZG_ENDIANNESS, SIZE_OF_G1_AFFINE_COMPRESSED,
+        SIZE_OF_G2_AFFINE_COMPRESSED,
+    },
+    errors::KzgError,
     traits::ReadPointFromBytes,
 };
 use ark_ec::AdditiveGroup;
@@ -40,7 +44,7 @@ pub fn convert_by_padding_empty_byte(data: &[u8]) -> Vec<u8> {
     let parse_size = BYTES_PER_FIELD_ELEMENT - 1;
     let put_size = BYTES_PER_FIELD_ELEMENT;
 
-    let data_len = (data_size + parse_size - 1) / parse_size;
+    let data_len = data_size.div_ceil(parse_size);
     let mut valid_data = vec![0u8; data_len * put_size];
     let mut valid_end = valid_data.len();
 
@@ -66,7 +70,7 @@ pub fn convert_by_padding_empty_byte(data: &[u8]) -> Vec<u8> {
 pub fn remove_empty_byte_from_padded_bytes_unchecked(data: &[u8]) -> Vec<u8> {
     let data_size = data.len();
     let parse_size = BYTES_PER_FIELD_ELEMENT;
-    let data_len = (data_size + parse_size - 1) / parse_size;
+    let data_len = data_size.div_ceil(parse_size);
 
     let put_size = BYTES_PER_FIELD_ELEMENT - 1;
     let mut valid_data = vec![0u8; data_len * put_size];
@@ -95,7 +99,7 @@ pub fn set_bytes_canonical(data: &[u8]) -> Fr {
 }
 
 pub fn get_num_element(data_len: usize, symbol_size: usize) -> usize {
-    (data_len + symbol_size - 1) / symbol_size
+    data_len.div_ceil(symbol_size)
 }
 
 pub fn to_fr_array(data: &[u8]) -> Vec<Fr> {
@@ -116,26 +120,76 @@ pub fn to_fr_array(data: &[u8]) -> Vec<Fr> {
     eles
 }
 
-pub fn to_byte_array(data_fr: &[Fr], max_data_size: usize) -> Vec<u8> {
+/// Converts a slice of field elements to a byte array with size constraints
+///
+/// # Arguments
+/// * `data_fr` - Slice of field elements to convert to bytes
+/// * `max_data_size` - Maximum allowed size in bytes for the output buffer
+///
+/// # Returns
+/// * `Vec<u8>` - Byte array containing the encoded field elements, truncated if needed
+///
+/// # Details
+/// - Each field element is converted to BYTES_PER_FIELD_ELEMENT bytes
+/// - Output is truncated to max_data_size if total bytes would exceed it
+///
+/// # Example
+/// ```
+/// use rust_kzg_bn254::kzg::KZG;
+/// use rust_kzg_bn254::blob::Blob;
+///
+/// let mut kzg = KZG::setup(
+///                 "tests/test-files/mainnet-data/g1.131072.point",
+///                  "",
+///                  "tests/test-files/mainnet-data/g2.point.powerOf2",
+///                  268435456,
+///                  131072,
+///                  ).unwrap();
+/// let input = Blob::from_raw_data(b"random data for blob");
+/// kzg.calculate_roots_of_unity(input.len().try_into().unwrap()).unwrap();
+/// ```
+pub fn to_byte_array(data_fr: &[Fr], max_output_size: usize) -> Vec<u8> {
+    // Calculate the number of field elements in input
     let n = data_fr.len();
-    let data_size = cmp::min(n * BYTES_PER_FIELD_ELEMENT, max_data_size);
+
+    let data_size = cmp::min(n * BYTES_PER_FIELD_ELEMENT, max_output_size);
+
     let mut data = vec![0u8; data_size];
 
+    // Iterate through each field element
+    // Using enumerate().take(n) to process elements up to n
     for (i, element) in data_fr.iter().enumerate().take(n) {
-        let v: Vec<u8> = element.into_bigint().to_bytes_be();
+        // Convert field element to bytes based on configured endianness
+        // TODO(anupsv): To be removed and default to Big endian. Ref: https://github.com/Layr-Labs/rust-kzg-bn254/issues/27
+        let v: Vec<u8> = match KZG_ENDIANNESS {
+            Endianness::Big => element.into_bigint().to_bytes_be(), // Big-endian conversion
+            Endianness::Little => element.into_bigint().to_bytes_le(), // Little-endian conversion
+        };
 
+        // Calculate start and end indices for this element in output buffer
         let start = i * BYTES_PER_FIELD_ELEMENT;
         let end = (i + 1) * BYTES_PER_FIELD_ELEMENT;
 
-        if end > max_data_size {
-            let slice_end = cmp::min(v.len(), max_data_size - start);
+        if end > max_output_size {
+            // Handle case where this element would exceed max_output_size
+            // Calculate how many bytes we can actually copy
+            let slice_end = cmp::min(v.len(), max_output_size - start);
+
+            // Copy partial element and break the loop
+            // We can't fit any more complete elements
             data[start..start + slice_end].copy_from_slice(&v[..slice_end]);
             break;
         } else {
+            // Normal case: element fits within max_output_size
+            // Calculate actual end index considering data_size limit
             let actual_end = cmp::min(end, data_size);
+
+            // Copy element bytes to output buffer
+            // Only copy up to actual_end in case this is the last partial element
             data[start..actual_end].copy_from_slice(&v[..actual_end - start]);
         }
     }
+
     data
 }
 
@@ -178,11 +232,6 @@ pub fn lexicographically_largest(z: &Fq) -> bool {
     // First, because self is in Montgomery form we need to reduce it
     let tmp = arith::montgomery_reduce(&z.0 .0[0], &z.0 .0[1], &z.0 .0[2], &z.0 .0[3]);
     let mut borrow: u64 = 0;
-
-    // (_, borrow) = sbb(tmp.0, 0x9E10460B6C3E7EA4, 0);
-    // (_, borrow) = sbb(tmp.1, 0xCBC0B548B438E546, borrow);
-    // (_, borrow) = sbb(tmp.2, 0xDC2822DB40C0AC2E, borrow);
-    // (_, borrow) = sbb(tmp.3, 0x183227397098D014, borrow);
 
     sbb!(tmp.0, 0x9E10460B6C3E7EA4, &mut borrow);
     sbb!(tmp.1, 0xCBC0B548B438E546, &mut borrow);
@@ -373,4 +422,56 @@ pub fn is_on_curve_g2(g2: &G2Projective) -> bool {
     tmp *= &get_b_twist_curve_coeff();
     right += &tmp;
     left == right
+}
+
+/// Computes powers of a field element up to a given exponent.
+/// Ref: https://github.com/ethereum/consensus-specs/blob/master/specs/deneb/polynomial-commitments.md#compute_powers
+///
+/// For a given field element x, computes [1, x, x², x³, ..., x^(count-1)]
+///
+/// # Arguments
+/// * `base` - The field element to compute powers of
+/// * `count` - The number of powers to compute (0 to count-1)
+///
+/// # Returns
+/// * Vector of field elements containing powers: [x⁰, x¹, x², ..., x^(count-1)]
+pub fn compute_powers(base: &Fr, count: usize) -> Vec<Fr> {
+    // Pre-allocate vector to avoid reallocations
+    let mut powers = Vec::with_capacity(count);
+
+    // Start with x⁰ = 1
+    let mut current = Fr::one();
+
+    // Compute successive powers by multiplying by base
+    for _ in 0..count {
+        // Add current power to vector
+        powers.push(current);
+        // Compute next power: x^(i+1) = x^i * x
+        current *= base;
+    }
+
+    powers
+}
+
+/// Computes a linear combination of G1 points weighted by scalar coefficients.
+///
+/// Given points P₁, P₂, ..., Pₙ and scalars s₁, s₂, ..., sₙ
+/// Computes: s₁P₁ + s₂P₂ + ... + sₙPₙ
+/// Uses Multi-Scalar Multiplication (MSM) for efficient computation.
+///
+/// # Arguments
+/// * `points` - Array of G1 points in affine form
+/// * `scalars` - Array of field elements as scalar weights
+///
+/// # Returns
+/// * Single G1 point in affine form representing the linear combination
+pub fn g1_lincomb(points: &[G1Affine], scalars: &[Fr]) -> Result<G1Affine, KzgError> {
+    // Use MSM (Multi-Scalar Multiplication) for efficient linear combination
+    // MSM is much faster than naive point addition and scalar multiplication
+    let lincomb =
+        G1Projective::msm(points, scalars).map_err(|e| KzgError::MsmError(e.to_string()))?;
+
+    // Convert result back to affine coordinates
+    // This is typically needed as most protocols expect points in affine form
+    Ok(lincomb.into_affine())
 }

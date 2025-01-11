@@ -65,16 +65,33 @@ impl PolynomialEvalForm {
         self.len_underlying_blob_bytes / BYTES_PER_FIELD_ELEMENT
     }
 
-    pub fn get_at_index(&self, i: usize) -> Option<&Fr> {
+    /// Retrieves a reference to the element at the specified index.
+    ///
+    /// # Arguments
+    ///
+    /// * `i` - The index of the element to retrieve.
+    ///
+    /// # Returns
+    ///
+    /// An `Option` containing a reference to the `Fr` element if the index is within bounds, or `None` otherwise.
+    pub fn get_evalualtion(&self, i: usize) -> Option<&Fr> {
         self.evaluations.get(i)
     }
 
-    /// Checks if the polynomial has no elements.
+    /// Checks whether the polynomial has no elements.
+    ///
+    /// # Returns
+    ///
+    /// `true` if the `elements` vector is empty, `false` otherwise.
     pub fn is_empty(&self) -> bool {
         self.evaluations.is_empty()
     }
 
-    /// Converts all `Fr` elements in the `Polynomial` to a single byte vector.
+    /// Converts all `Fr` elements in the polynomial to a single big-endian byte vector.
+    ///
+    /// # Returns
+    ///
+    /// A `Vec<u8>` containing the big-endian byte representation of the polynomial elements.
     pub fn to_bytes_be(&self) -> Vec<u8> {
         helpers::to_byte_array(&self.evaluations, self.len_underlying_blob_bytes)
     }

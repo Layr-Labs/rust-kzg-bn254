@@ -1,64 +1,64 @@
-use std::{error::Error, fmt};
+use thiserror::Error;
 
-#[derive(Clone, Debug, PartialEq)]
-pub enum BlobError {
-    GenericError(String),
-}
-
-impl fmt::Display for BlobError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match *self {
-            BlobError::GenericError(ref msg) => write!(f, "generic error: {}", msg),
-        }
-    }
-}
-
-impl Error for BlobError {}
-
-#[derive(Clone, Debug, PartialEq)]
+/// Errors related to Polynomial operations.
+///
+/// The `PolynomialError` enum encapsulates all possible errors that can occur
+/// during operations on the `Polynomial` struct, such as FFT transformations
+/// and serialization errors.
+#[derive(Clone, Debug, PartialEq, Error)]
 pub enum PolynomialError {
-    SerializationFromStringError,
+    /// Error related to commitment operations with a descriptive message.
+    #[error("commitment error: {0}")]
     CommitError(String),
-    GenericError(String),
+
+    /// Error related to Fast Fourier Transform (FFT) operations with a descriptive message.
+    #[error("FFT error: {0}")]
     FFTError(String),
-    IncorrectFormError(String),
-}
 
-impl fmt::Display for PolynomialError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match *self {
-            PolynomialError::SerializationFromStringError => {
-                write!(f, "couldn't load string to fr vector")
-            },
-            PolynomialError::CommitError(ref msg) => write!(f, "Commitment error: {}", msg),
-            PolynomialError::FFTError(ref msg) => write!(f, "FFT error: {}", msg),
-            PolynomialError::GenericError(ref msg) => write!(f, "generic error: {}", msg),
-            PolynomialError::IncorrectFormError(ref msg) => {
-                write!(f, "Incorrect form error: {}", msg)
-            },
-        }
-    }
-}
-
-impl Error for PolynomialError {}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum KzgError {
-    CommitError(String),
-    SerializationError(String),
-    FftError(String),
+    /// A generic error with a descriptive message.
+    #[error("generic error: {0}")]
     GenericError(String),
 }
 
-impl fmt::Display for KzgError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match *self {
-            KzgError::CommitError(ref msg) => write!(f, "Commitment error: {}", msg),
-            KzgError::SerializationError(ref msg) => write!(f, "Serialization error: {}", msg),
-            KzgError::FftError(ref msg) => write!(f, "FFT error: {}", msg),
-            KzgError::GenericError(ref msg) => write!(f, "Generic error: {}", msg),
-        }
-    }
-}
+/// Errors related to KZG operations.
+///
+/// The `KzgError` enum encapsulates all possible errors that can occur during
+/// KZG-related operations, including those from `PolynomialError` and `BlobError`.
+/// It also includes additional errors specific to KZG operations.
+#[derive(Clone, Debug, PartialEq, Error)]
+pub enum KzgError {
+    /// Wraps errors originating from Polynomial operations.
+    #[error("polynomial error: {0}")]
+    PolynomialError(#[from] PolynomialError),
 
-impl Error for KzgError {}
+    #[error("MSM error: {0}")]
+    MsmError(String),
+
+    /// Error related to serialization with a descriptive message.
+    #[error("serialization error: {0}")]
+    SerializationError(String),
+
+    /// Error related to commitment processes with a descriptive message.
+    #[error("not on curve error: {0}")]
+    NotOnCurveError(String),
+
+    /// Error indicating an invalid commit operation with a descriptive message.
+    #[error("commit error: {0}")]
+    CommitError(String),
+
+    /// Error related to Fast Fourier Transform (FFT) operations with a descriptive message.
+    #[error("FFT error: {0}")]
+    FFTError(String),
+
+    /// A generic error with a descriptive message.
+    #[error("generic error: {0}")]
+    GenericError(String),
+
+    /// Error indicating an invalid denominator scenario, typically in mathematical operations.
+    #[error("invalid denominator")]
+    InvalidDenominator,
+
+    /// Error indicating an invalid input length scenario, typically in data processing.
+    #[error("invalid input length")]
+    InvalidInputLength,
+}

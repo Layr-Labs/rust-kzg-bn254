@@ -3,11 +3,12 @@ use crate::{
     polynomial::{PolynomialCoeffForm, PolynomialEvalForm},
 };
 
-/// A blob which is Eigen DA spec aligned.
+/// A blob aligned with the Eigen DA specification.
 /// TODO: we should probably move to a transparent repr like
 ///       <https://docs.rs/alloy-primitives/latest/alloy_primitives/struct.FixedBytes.html>
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Blob {
+    /// The binary data contained within the blob.
     blob_data: Vec<u8>,
 }
 
@@ -48,12 +49,22 @@ impl Blob {
         &self.blob_data
     }
 
-    /// Returns the length of the data in the blob.
+    /// Returns the length of the blob data.
+    ///
+    /// This length reflects the size of the data, including any padding if applied.
+    ///
+    /// # Returns
+    ///
+    /// The length of the blob data as a `usize`.
     pub fn len(&self) -> usize {
         self.blob_data.len()
     }
 
-    /// Checks if the blob data is empty.
+    /// Checks whether the blob data is empty.
+    ///
+    /// # Returns
+    ///
+    /// `true` if the blob data is empty, `false` otherwise.
     pub fn is_empty(&self) -> bool {
         self.blob_data.is_empty()
     }
