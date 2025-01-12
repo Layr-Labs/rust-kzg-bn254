@@ -126,10 +126,34 @@ impl KZG {
         Ok(chunks)
     }
 
-    // This function calculates the roots of unities but doesn't assign it to the struct
-    // Used in batch verification process as the roots need to be calculated for each blob
-    // because of different length.
-    // length_of_data_after_padding: Length of the blob data after padding in bytes.
+    /// Calculates the roots of unities but doesn't assign it to the struct
+    /// Used in batch verification process as the roots need to be calculated for each blob
+    /// because of different length.
+    ///
+    /// # Arguments
+    /// * `length_of_data_after_padding` - Length of the blob data after padding in bytes.
+    ///
+    /// # Returns
+    /// * `Result<(Params, Vec<Fr>), KzgError>` - Tuple containing:
+    ///   - Params: KZG library operational parameters
+    ///   - Vec<Fr>: Vector of roots of unity
+    ///
+    /// # Details
+    /// - Generates roots of unity needed for FFT operations
+    /// - Calculates KZG operational parameters for commitment scheme
+    ///
+    /// # Example
+    /// ```
+    /// use ark_std::One;
+    /// use rust_kzg_bn254::helpers::to_byte_array;
+    /// use ark_bn254::Fr;
+    ///
+    /// let elements = vec![Fr::one(), Fr::one(), Fr::one()];
+    /// let max_size = 64;
+    /// let bytes = to_byte_array(&elements, max_size);
+    /// assert_eq!(bytes.len(), 64);
+    /// // bytes will contain up to max_size bytes from the encoded elements
+    /// ```
     fn calculate_roots_of_unity_standalone(
         length_of_data_after_padding: u64,
         srs_order: u64,
@@ -927,7 +951,7 @@ impl KZG {
         // Step 5: Check if `z` is in the domain
         if let Some(index) = roots_of_unity.iter().position(|&domain_i| domain_i == *z) {
             return polynomial
-                .get_at_index(index)
+                .get_evalualtion(index)
                 .cloned()
                 .ok_or(KzgError::GenericError(
                     "Polynomial element missing at the found index.".to_string(),
