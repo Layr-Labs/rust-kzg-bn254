@@ -2,7 +2,7 @@
 mod tests {
     use ark_bn254::{Fq, Fr, G1Affine};
     use ark_ec::AffineRepr;
-    use ark_ff::{PrimeField, UniformRand};
+    use ark_ff::UniformRand;
     use lazy_static::lazy_static;
     use rand::Rng;
     use rust_kzg_bn254::{blob::Blob, errors::KzgError, kzg::KZG, polynomial::PolynomialCoeffForm};
@@ -73,8 +73,8 @@ mod tests {
         use rand::Rng;
         let mut rng = rand::thread_rng();
 
-        let mut kzg_clone1: KZG = KZG_3000.clone();
-        let mut kzg_clone2: KZG = KZG_3000.clone();
+        let mut kzg_clone1: KZG = KZG_INSTANCE.clone();
+        let mut kzg_clone2: KZG = KZG_INSTANCE.clone();
 
         (0..10000).for_each(|_| {
             let blob_length: u64 = rand::thread_rng().gen_range(35..40000);
