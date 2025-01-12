@@ -7,10 +7,7 @@ use std::cmp;
 
 use crate::{
     arith,
-    consts::{
-        Endianness, BYTES_PER_FIELD_ELEMENT, KZG_ENDIANNESS, SIZE_OF_G1_AFFINE_COMPRESSED,
-        SIZE_OF_G2_AFFINE_COMPRESSED,
-    },
+    consts::{BYTES_PER_FIELD_ELEMENT, SIZE_OF_G1_AFFINE_COMPRESSED, SIZE_OF_G2_AFFINE_COMPRESSED},
     errors::KzgError,
     traits::ReadPointFromBytes,
 };
@@ -194,11 +191,7 @@ pub fn to_byte_array(data_fr: &[Fr], max_output_size: usize) -> Vec<u8> {
     // Using enumerate().take(n) to process elements up to n
     for (i, element) in data_fr.iter().enumerate().take(n) {
         // Convert field element to bytes based on configured endianness
-        // TODO(anupsv): To be removed and default to Big endian. Ref: https://github.com/Layr-Labs/rust-kzg-bn254/issues/27
-        let v: Vec<u8> = match KZG_ENDIANNESS {
-            Endianness::Big => element.into_bigint().to_bytes_be(), // Big-endian conversion
-            Endianness::Little => element.into_bigint().to_bytes_le(), // Little-endian conversion
-        };
+        let v: Vec<u8> = element.into_bigint().to_bytes_be();
 
         // Calculate start and end indices for this element in output buffer
         let start = i * BYTES_PER_FIELD_ELEMENT;
