@@ -7,8 +7,6 @@ fn bench_kzg_commit(c: &mut Criterion) {
     let mut rng = rand::thread_rng();
     let mut kzg = KZG::setup(
         "tests/test-files/mainnet-data/g1.131072.point",
-        "",
-        "tests/test-files/mainnet-data/g2.point.powerOf2",
         268435456,
         131072,
     )

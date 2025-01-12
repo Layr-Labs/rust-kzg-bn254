@@ -237,7 +237,7 @@ fn test_convert_by_padding_empty_byte() {
 
 #[cfg(test)]
 mod tests {
-    use rust_kzg_bn254::helpers::{is_zeroed, read_g2_point_from_bytes_be};
+    use rust_kzg_bn254::helpers::is_zeroed;
 
     #[test]
     fn test_is_zeroed_all_zeroes() {
@@ -300,13 +300,5 @@ mod tests {
             !is_zeroed(first_byte, buf),
             "Expected false for an empty buffer with a non-zero first byte"
         );
-    }
-
-    #[test]
-    fn test_read_g2_point_from_bytes_be_errors() {
-        // Case where the buffer is empty and the first byte is non-zero
-        let binding = vec![];
-        let result = read_g2_point_from_bytes_be(&binding);
-        assert_eq!(result, Err("not enough bytes for g2 point"));
     }
 }
