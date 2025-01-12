@@ -74,7 +74,7 @@ impl PolynomialEvalForm {
     /// # Returns
     ///
     /// An `Option` containing a reference to the `Fr` element if the index is within bounds, or `None` otherwise.
-    pub fn get_at_index(&self, i: usize) -> Option<&Fr> {
+    pub fn get_evalualtion(&self, i: usize) -> Option<&Fr> {
         self.evaluations.get(i)
     }
 
