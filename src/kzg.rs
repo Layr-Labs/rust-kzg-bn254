@@ -49,8 +49,6 @@ pub struct KZG {
 
 #[derive(Debug, PartialEq, Clone)]
 struct Params {
-    chunk_length: u64,
-    num_chunks: u64,
     max_fft_width: u64,
     completed_setup: bool,
 }
@@ -93,8 +91,6 @@ impl KZG {
             g1: g1_points,
             g2: g2_points,
             params: Params {
-                chunk_length: 0,
-                num_chunks: 0,
                 max_fft_width: 0,
                 completed_setup: false,
             },
@@ -160,8 +156,6 @@ impl KZG {
     ) -> Result<(Params, Vec<Fr>), KzgError> {
         // Initialize parameters
         let mut params = Params {
-            num_chunks: 0_u64,
-            chunk_length: 0_u64,
             max_fft_width: 0_u64,
             completed_setup: false,
         };
