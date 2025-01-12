@@ -1,19 +1,21 @@
 use crate::{
     blob::Blob,
-    consts::{BYTES_PER_FIELD_ELEMENT, SIZE_OF_G1_AFFINE_COMPRESSED},
+    consts::{
+        BYTES_PER_FIELD_ELEMENT, G2_TAU_FOR_MAINNET_SRS, G2_TAU_FOR_TEST_SRS_3000,
+        MAINNET_SRS_G1_SIZE, SIZE_OF_G1_AFFINE_COMPRESSED,
+    },
     errors::KzgError,
     helpers,
     polynomial::{PolynomialCoeffForm, PolynomialEvalForm},
-    traits::ReadPointFromBytes,
 };
 
 use crate::consts::{
     Endianness, FIAT_SHAMIR_PROTOCOL_DOMAIN, KZG_ENDIANNESS, RANDOM_CHALLENGE_KZG_BATCH_DOMAIN,
 };
 use crate::helpers::is_on_curve_g1;
-use ark_bn254::{Bn254, Fr, G1Affine, G1Projective, G2Affine, G2Projective};
+use ark_bn254::{Bn254, Fq, Fq2, Fr, G1Affine, G1Projective, G2Affine, G2Projective};
 use ark_ec::{pairing::Pairing, AffineRepr, CurveGroup, VariableBaseMSM};
-use ark_ff::{BigInteger, Field, PrimeField};
+use ark_ff::{BigInt, BigInteger, Field, PrimeField};
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 use ark_serialize::{CanonicalSerialize, Read};
 use ark_std::{iterable::Iterable, ops::Div, str::FromStr, One, Zero};
@@ -41,7 +43,6 @@ pub struct KZG {
     // in coefficient form. To commit against a polynomial in evaluation form, we need to transform
     // the SRS points to lagrange form using IFFT.
     g1: Vec<G1Affine>,
-    g2: Vec<G2Affine>,
     params: Params,
     srs_order: u64,
     expanded_roots_of_unity: Vec<Fr>,
@@ -58,8 +59,6 @@ struct Params {
 impl KZG {
     pub fn setup(
         path_to_g1_points: &str,
-        path_to_g2_points: &str,
-        g2_power_of2_path: &str,
         srs_order: u32,
         srs_points_to_load: u32,
     ) -> Result<Self, KzgError> {
@@ -73,25 +72,8 @@ impl KZG {
             Self::parallel_read_g1_points(path_to_g1_points.to_owned(), srs_points_to_load, false)
                 .map_err(|e| KzgError::SerializationError(e.to_string()))?;
 
-        let g2_points: Vec<G2Affine> =
-            match (path_to_g2_points.is_empty(), g2_power_of2_path.is_empty()) {
-                (false, _) => Self::parallel_read_g2_points(
-                    path_to_g2_points.to_owned(),
-                    srs_points_to_load,
-                    false,
-                )
-                .map_err(|e| KzgError::SerializationError(e.to_string()))?,
-                (_, false) => Self::read_g2_point_on_power_of_2(g2_power_of2_path)?,
-                (true, true) => {
-                    return Err(KzgError::GenericError(
-                        "both g2 point files are empty, need the proper file specified".to_string(),
-                    ))
-                },
-            };
-
         Ok(Self {
             g1: g1_points,
-            g2: g2_points,
             params: Params {
                 chunk_length: 0,
                 num_chunks: 0,
@@ -101,29 +83,6 @@ impl KZG {
             srs_order: srs_order.into(),
             expanded_roots_of_unity: vec![],
         })
-    }
-
-    pub fn read_g2_point_on_power_of_2(g2_power_of2_path: &str) -> Result<Vec<G2Affine>, KzgError> {
-        let mut file =
-            File::open(g2_power_of2_path).map_err(|e| KzgError::GenericError(e.to_string()))?;
-
-        // Calculate the start position in bytes and seek to that position
-        // Read in 64-byte chunks
-        let mut chunks = Vec::new();
-        let mut buffer = [0u8; 64];
-        loop {
-            let bytes_read = file
-                .read(&mut buffer)
-                .map_err(|e| KzgError::GenericError(e.to_string()))?;
-            if bytes_read == 0 {
-                break; // End of file reached
-            }
-            chunks.push(
-                G2Affine::read_point_from_bytes_be(&buffer[..bytes_read])
-                    .map_err(|e| KzgError::GenericError(e.to_string()))?,
-            );
-        }
-        Ok(chunks)
     }
 
     /// Calculates the roots of unities but doesn't assign it to the struct
@@ -419,52 +378,6 @@ impl KZG {
         Ok(())
     }
 
-    /// read G2 points in parallel
-    pub fn parallel_read_g2_points(
-        file_path: String,
-        srs_points_to_load: u32,
-        is_native: bool,
-    ) -> Result<Vec<G2Affine>, KzgError> {
-        let (sender, receiver) = bounded::<(Vec<u8>, usize, bool)>(1000);
-
-        // Spawning the reader thread
-        let reader_thread = std::thread::spawn(
-            move || -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-                Self::read_file_chunks(&file_path, sender, 64, srs_points_to_load, is_native)
-                    .map_err(|e| -> Box<dyn std::error::Error + Send + Sync> { Box::new(e) })
-            },
-        );
-
-        let num_workers = num_cpus::get();
-
-        let workers: Vec<_> = (0..num_workers)
-            .map(|_| {
-                let receiver = receiver.clone();
-                std::thread::spawn(move || helpers::process_chunks::<G2Affine>(receiver))
-            })
-            .collect();
-
-        // Wait for the reader thread to finish
-        match reader_thread.join() {
-            Ok(result) => match result {
-                Ok(_) => {},
-                Err(e) => return Err(KzgError::GenericError(e.to_string())),
-            },
-            Err(_) => return Err(KzgError::GenericError("Thread panicked".to_string())),
-        }
-
-        // Collect and sort results
-        let mut all_points = Vec::new();
-        for worker in workers {
-            let points = worker.join().expect("Worker thread panicked");
-            all_points.extend(points);
-        }
-
-        // Sort by original position to maintain order
-        all_points.sort_by_key(|&(_, position)| position);
-        Ok(all_points.iter().map(|(point, _)| *point).collect())
-    }
-
     /// read G1 points in parallel, by creating one reader thread, which reads
     /// bytes from the file, and fans them out to worker threads (one per
     /// cpu) which parse the bytes into G1Affine points. The worker threads
@@ -573,11 +486,6 @@ impl KZG {
         all_points.sort_by_key(|&(_, position)| position);
 
         Ok(all_points.iter().map(|(point, _)| *point).collect())
-    }
-
-    /// obtain copy of g2 points
-    pub fn get_g2_points(&self) -> Vec<G2Affine> {
-        self.g2.to_vec()
     }
 
     /// Commit the polynomial with the srs values loaded into [Kzg].
@@ -815,7 +723,7 @@ impl KZG {
         // Compute [τ - z]*G2
         // This represents (X - z) in the polynomial equation
         // τ is the secret from the trusted setup representing the variable X
-        let x_minus_z = (*g2_tau - z_g2).into_affine();
+        let x_minus_z = (g2_tau - z_g2).into_affine();
 
         // Verify the pairing equation:
         // e([C - value*G1], G2) = e(proof, [τ - z]*G2)
@@ -829,16 +737,32 @@ impl KZG {
         ))
     }
 
-    pub fn get_g2_tau(&self) -> Result<&G2Affine, KzgError> {
-        if self.g2.len() > 28 {
-            self.g2
-                .get(1)
-                .ok_or(KzgError::GenericError("g2 tau not found".to_string()))
+    pub fn get_g2_tau(&self) -> Result<G2Affine, KzgError> {
+        let x: Fq2;
+        let y: Fq2;
+        if self.g1.len() == MAINNET_SRS_G1_SIZE {
+            x = Fq2::new(
+                Fq::from_bigint(BigInt::new(G2_TAU_FOR_MAINNET_SRS[0])).unwrap(),
+                Fq::from_bigint(BigInt::new(G2_TAU_FOR_MAINNET_SRS[1])).unwrap(),
+            );
+
+            y = Fq2::new(
+                Fq::from_bigint(BigInt::new(G2_TAU_FOR_MAINNET_SRS[2])).unwrap(),
+                Fq::from_bigint(BigInt::new(G2_TAU_FOR_MAINNET_SRS[3])).unwrap(),
+            );
         } else {
-            self.g2
-                .first()
-                .ok_or(KzgError::GenericError("g2 tau not found".to_string()))
+            x = Fq2::new(
+                Fq::from_bigint(BigInt::new(G2_TAU_FOR_TEST_SRS_3000[0])).unwrap(),
+                Fq::from_bigint(BigInt::new(G2_TAU_FOR_TEST_SRS_3000[1])).unwrap(),
+            );
+
+            y = Fq2::new(
+                Fq::from_bigint(BigInt::new(G2_TAU_FOR_TEST_SRS_3000[2])).unwrap(),
+                Fq::from_bigint(BigInt::new(G2_TAU_FOR_TEST_SRS_3000[3])).unwrap(),
+            );
         }
+
+        Ok(G2Affine::new(x, y))
     }
 
     fn pairings_verify(a1: G1Affine, a2: G2Affine, b1: G1Affine, b2: G2Affine) -> bool {
@@ -1338,7 +1262,7 @@ impl KZG {
         }
 
         // Verify that the trusted setup point τ*G2 is on the G2 curve
-        if !helpers::is_on_curve_g2(&G2Projective::from(*self.get_g2_tau()?)) {
+        if !helpers::is_on_curve_g2(&G2Projective::from(self.get_g2_tau()?)) {
             return Err(KzgError::NotOnCurveError("g2 tau".to_owned()));
         }
 
@@ -1382,7 +1306,7 @@ impl KZG {
         // e(Σ(r^i * proof_i), [τ]) = e(Σ(r^i * (C_i - [y_i])) + Σ(r^i * z_i * proof_i), [1])
         let result = Self::pairings_verify(
             proof_lincomb,
-            *self.get_g2_tau()?,
+            self.get_g2_tau()?,
             rhs_g1.into(),
             G2Affine::generator(),
         );
