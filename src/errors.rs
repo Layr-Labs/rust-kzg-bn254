@@ -14,7 +14,6 @@ pub enum PolynomialError {
     /// Error related to Fast Fourier Transform (FFT) operations with a descriptive message.
     #[error("FFT error: {0}")]
     FFTError(String),
-
     /// A generic error with a descriptive message.
     #[error("generic error: {0}")]
     GenericError(String),
