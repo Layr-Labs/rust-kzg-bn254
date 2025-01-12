@@ -94,6 +94,10 @@ pub fn remove_empty_byte_from_padded_bytes_unchecked(data: &[u8]) -> Vec<u8> {
     valid_data
 }
 
+pub fn is_zero(fr: Fr) -> bool {
+    fr.0 .0.iter().fold(0, |acc, &x| acc | x) == 0
+}
+
 pub fn set_bytes_canonical(data: &[u8]) -> Fr {
     Fr::from_be_bytes_mod_order(data)
 }
@@ -124,14 +128,14 @@ pub fn to_fr_array(data: &[u8]) -> Vec<Fr> {
 ///
 /// # Arguments
 /// * `data_fr` - Slice of field elements to convert to bytes
-/// * `max_data_size` - Maximum allowed size in bytes for the output buffer
+/// * `max_output_size` - Maximum allowed size in bytes for the output buffer
 ///
 /// # Returns
 /// * `Vec<u8>` - Byte array containing the encoded field elements, truncated if needed
 ///
 /// # Details
 /// - Each field element is converted to BYTES_PER_FIELD_ELEMENT bytes
-/// - Output is truncated to max_data_size if total bytes would exceed it
+/// - Output is truncated to max_output_size if total bytes would exceed it
 ///
 /// # Example
 /// ```
