@@ -7,10 +7,12 @@ use crate::{
     traits::ReadPointFromBytes,
 };
 
-use crate::consts::{
-    Endianness, FIAT_SHAMIR_PROTOCOL_DOMAIN, KZG_ENDIANNESS, RANDOM_CHALLENGE_KZG_BATCH_DOMAIN,
+use crate::{
+    consts::{
+        Endianness, FIAT_SHAMIR_PROTOCOL_DOMAIN, KZG_ENDIANNESS, RANDOM_CHALLENGE_KZG_BATCH_DOMAIN,
+    },
+    helpers::is_on_curve_g1,
 };
-use crate::helpers::is_on_curve_g1;
 use ark_bn254::{Bn254, Fr, G1Affine, G1Projective, G2Affine, G2Projective};
 use ark_ec::{pairing::Pairing, AffineRepr, CurveGroup, VariableBaseMSM};
 use ark_ff::{BigInteger, Field, PrimeField};
@@ -127,11 +129,12 @@ impl KZG {
     }
 
     /// Calculates the roots of unities but doesn't assign it to the struct
-    /// Used in batch verification process as the roots need to be calculated for each blob
-    /// because of different length.
+    /// Used in batch verification process as the roots need to be calculated
+    /// for each blob because of different length.
     ///
     /// # Arguments
-    /// * `length_of_data_after_padding` - Length of the blob data after padding in bytes.
+    /// * `length_of_data_after_padding` - Length of the blob data after padding
+    ///   in bytes.
     ///
     /// # Returns
     /// * `Result<(Params, Vec<Fr>), KzgError>` - Tuple containing:
@@ -181,7 +184,8 @@ impl KZG {
         // Set the maximum FFT width
         params.max_fft_width = 1_u64 << log2_of_evals;
 
-        // Check if the length of data after padding is valid with respect to the SRS order
+        // Check if the length of data after padding is valid with respect to the SRS
+        // order
         if length_of_data_after_padding
             .div_ceil(BYTES_PER_FIELD_ELEMENT as u64)
             .next_power_of_two()
@@ -333,8 +337,8 @@ impl KZG {
         roots
     }
 
-    /// Precompute the primitive roots of unity for binary powers that divide r - 1
-    /// TODO(anupsv): Move this to the constants file. Ref: https://github.com/Layr-Labs/rust-kzg-bn254/issues/31
+    /// Precompute the primitive roots of unity for binary powers that divide r
+    /// - 1 TODO(anupsv): Move this to the constants file. Ref: https://github.com/Layr-Labs/rust-kzg-bn254/issues/31
     fn get_primitive_roots_of_unity() -> Result<Vec<Fr>, KzgError> {
         let data: [&str; 29] = [
             "1",
@@ -896,13 +900,14 @@ impl KZG {
         let evaluation_challenge = Self::compute_challenge(blob, commitment)?;
 
         // Compute the actual KZG proof using the polynomial and evaluation point
-        // This creates a proof that the polynomial evaluates to a specific value at the challenge point
-        // The proof is a single G1 point that can be used to verify the evaluation
+        // This creates a proof that the polynomial evaluates to a specific value at the
+        // challenge point The proof is a single G1 point that can be used to
+        // verify the evaluation
         self.compute_proof_impl(&blob_poly, &evaluation_challenge)
     }
 
-    /// Maps a byte slice to a field element (`Fr`) using SHA-256 from SHA3 family as the
-    /// hash function.
+    /// Maps a byte slice to a field element (`Fr`) using SHA-256 from SHA3
+    /// family as the hash function.
     ///
     /// # Arguments
     ///
@@ -1084,7 +1089,8 @@ impl KZG {
 
             // Step 2: Generate Fiat-Shamir challenge
             // This creates a "random" evaluation point based on the blob and commitment
-            // The challenge is deterministic but unpredictable, making the proof non-interactive
+            // The challenge is deterministic but unpredictable, making the proof
+            // non-interactive
             let evaluation_challenge = Self::compute_challenge(&blobs[i], &commitments[i])?;
 
             // Step 3: Evaluate the polynomial at the challenge point
@@ -1155,8 +1161,9 @@ impl KZG {
         let (evaluation_challenges, ys) =
             Self::compute_challenges_and_evaluate_polynomial(blobs, commitments, self.srs_order)?;
 
-        // Convert each blob to its polynomial evaluation form and get the length of number of field elements
-        // This length value is needed for computing the challenge
+        // Convert each blob to its polynomial evaluation form and get the length of
+        // number of field elements This length value is needed for computing
+        // the challenge
         let blobs_as_field_elements_length: Vec<u64> = blobs
             .iter()
             .map(|blob| blob.to_polynomial_eval_form().evaluations().len() as u64)
@@ -1178,10 +1185,11 @@ impl KZG {
     }
 
     /// Ref: https://github.com/ethereum/consensus-specs/blob/master/specs/deneb/polynomial-commitments.md#verify_kzg_proof_batch
-    /// A helper function to the `helpers::compute_powers` function. This does the below reference code from the 4844 spec.
-    /// Ref: `# Append all inputs to the transcript before we hash
-    ///      for commitment, z, y, proof in zip(commitments, zs, ys, proofs):
-    ///          data += commitment + bls_field_to_bytes(z) + bls_field_to_bytes(y) + proof``
+    /// A helper function to the `helpers::compute_powers` function. This does
+    /// the below reference code from the 4844 spec. Ref: `# Append all
+    /// inputs to the transcript before we hash      for commitment, z, y,
+    /// proof in zip(commitments, zs, ys, proofs):          data +=
+    /// commitment + bls_field_to_bytes(z) + bls_field_to_bytes(y) + proof``
     fn compute_r_powers(
         &self,
         commitments: &[G1Affine],
@@ -1201,7 +1209,8 @@ impl KZG {
 
         // Calculate total input size:
         // - initial_data_length (40 bytes)
-        // - For the number of commitments/zs/ys/proofs/blobs_as_field_elements_length (which are all the same length):
+        // - For the number of commitments/zs/ys/proofs/blobs_as_field_elements_length
+        //   (which are all the same length):
         //   * BYTES_PER_FIELD_ELEMENT for commitment
         //   * 2 * BYTES_PER_FIELD_ELEMENT for z and y values
         //   * BYTES_PER_FIELD_ELEMENT for proof
@@ -1301,7 +1310,6 @@ impl KZG {
     /// * `Ok(true)` if all proofs are valid.
     /// * `Ok(false)` if any proof is invalid.
     /// * `Err(KzgError)` if an error occurs during verification.
-    ///
     fn verify_kzg_proof_batch(
         &self,
         commitments: &[G1Affine],
@@ -1346,7 +1354,8 @@ impl KZG {
 
         // Initialize vectors to store:
         // c_minus_y: [C_i - [y_i]]  (commitment minus the evaluation point encrypted)
-        // r_times_z: [r^i * z_i]    (powers of random challenge times evaluation points)
+        // r_times_z: [r^i * z_i]    (powers of random challenge times evaluation
+        // points)
         let mut c_minus_y: Vec<G1Affine> = Vec::with_capacity(n);
         let mut r_times_z: Vec<Fr> = Vec::with_capacity(n);
 
@@ -1379,7 +1388,8 @@ impl KZG {
         let rhs_g1 = c_minus_y_lincomb + proof_z_lincomb;
 
         // Verify the pairing equation:
-        // e(Σ(r^i * proof_i), [τ]) = e(Σ(r^i * (C_i - [y_i])) + Σ(r^i * z_i * proof_i), [1])
+        // e(Σ(r^i * proof_i), [τ]) = e(Σ(r^i * (C_i - [y_i])) + Σ(r^i * z_i * proof_i),
+        // [1])
         let result = Self::pairings_verify(
             proof_lincomb,
             *self.get_g2_tau()?,

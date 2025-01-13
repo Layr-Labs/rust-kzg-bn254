@@ -11,7 +11,8 @@ pub enum PolynomialError {
     #[error("commitment error: {0}")]
     CommitError(String),
 
-    /// Error related to Fast Fourier Transform (FFT) operations with a descriptive message.
+    /// Error related to Fast Fourier Transform (FFT) operations with a
+    /// descriptive message.
     #[error("FFT error: {0}")]
     FFTError(String),
 
@@ -23,8 +24,8 @@ pub enum PolynomialError {
 /// Errors related to KZG operations.
 ///
 /// The `KzgError` enum encapsulates all possible errors that can occur during
-/// KZG-related operations, including those from `PolynomialError` and `BlobError`.
-/// It also includes additional errors specific to KZG operations.
+/// KZG-related operations, including those from `PolynomialError` and
+/// `BlobError`. It also includes additional errors specific to KZG operations.
 #[derive(Clone, Debug, PartialEq, Error)]
 pub enum KzgError {
     /// Wraps errors originating from Polynomial operations.
@@ -46,7 +47,8 @@ pub enum KzgError {
     #[error("commit error: {0}")]
     CommitError(String),
 
-    /// Error related to Fast Fourier Transform (FFT) operations with a descriptive message.
+    /// Error related to Fast Fourier Transform (FFT) operations with a
+    /// descriptive message.
     #[error("FFT error: {0}")]
     FFTError(String),
 
@@ -54,11 +56,13 @@ pub enum KzgError {
     #[error("generic error: {0}")]
     GenericError(String),
 
-    /// Error indicating an invalid denominator scenario, typically in mathematical operations.
+    /// Error indicating an invalid denominator scenario, typically in
+    /// mathematical operations.
     #[error("invalid denominator")]
     InvalidDenominator,
 
-    /// Error indicating an invalid input length scenario, typically in data processing.
+    /// Error indicating an invalid input length scenario, typically in data
+    /// processing.
     #[error("invalid input length")]
     InvalidInputLength,
 }

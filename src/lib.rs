@@ -76,7 +76,6 @@
 //! ```rust
 //! // TODO:
 //! ```
-//!
 
 mod arith;
 pub mod blob;
