@@ -67,6 +67,55 @@ pub fn convert_by_padding_empty_byte(data: &[u8]) -> Vec<u8> {
     valid_data
 }
 
+// slowest (even slower than original)
+pub fn remove_empty_byte_from_padded_bytes_unchecked_functional(input: &[u8]) -> Vec<u8> {
+    let output: Vec<u8> = input
+        .chunks(BYTES_PER_FIELD_ELEMENT)
+        .flat_map(|chunk| &chunk[1..])
+        .copied()
+        .collect();
+    output
+}
+
+// faster than original / slower than _fast on 32MiB input, faster on 32KiB
+pub fn remove_empty_byte_from_padded_bytes_unchecked_functional_fast(input: &[u8]) -> Vec<u8> {
+    let empty_bytes_to_remove = input.len().div_ceil(BYTES_PER_FIELD_ELEMENT);
+    let mut output = Vec::with_capacity(input.len() - empty_bytes_to_remove);
+    for chunk in input.chunks_exact(BYTES_PER_FIELD_ELEMENT) {
+        output.extend_from_slice(&chunk[1..]);
+    }
+    let remainder = input.chunks_exact(BYTES_PER_FIELD_ELEMENT).remainder();
+    if !remainder.is_empty() {
+        output.extend_from_slice(&remainder[1..]);
+    }
+    output
+}
+
+// faster than original / faster than _functional_fast on 32MiB input, slower 32KiB
+pub fn remove_empty_byte_from_padded_bytes_unchecked_fast(data: &[u8]) -> Vec<u8> {
+    let num_fes = data.len() / BYTES_PER_FIELD_ELEMENT;
+    let trailing_bytes = if data.len() % BYTES_PER_FIELD_ELEMENT == 0 {
+        0
+    } else {
+        data.len() % BYTES_PER_FIELD_ELEMENT - 1
+    };
+
+    let output_chunk_len = BYTES_PER_FIELD_ELEMENT - 1;
+    let output_len = num_fes * (BYTES_PER_FIELD_ELEMENT - 1) + trailing_bytes;
+    let mut output = vec![0u8; output_len];
+
+    for i in 0..num_fes {
+        output[i * output_chunk_len..(i + 1) * output_chunk_len].copy_from_slice(
+            &data[i * BYTES_PER_FIELD_ELEMENT + 1..(i + 1) * BYTES_PER_FIELD_ELEMENT],
+        );
+    }
+    if trailing_bytes > 0 {
+        output[num_fes * output_chunk_len..]
+            .copy_from_slice(&data[num_fes * BYTES_PER_FIELD_ELEMENT + 1..]);
+    }
+    output
+}
+
 pub fn remove_empty_byte_from_padded_bytes_unchecked(data: &[u8]) -> Vec<u8> {
     let data_size = data.len();
     let parse_size = BYTES_PER_FIELD_ELEMENT;

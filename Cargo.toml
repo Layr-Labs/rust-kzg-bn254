@@ -57,10 +57,14 @@ name = "helpers"
 path = "tests/helpers_test.rs"
 
 [[bench]]
+name = "bench_helpers"
+harness = false
+path = "benches/bench_helpers.rs"
+
+[[bench]]
 name = "bench_g1_ifft"
 harness = false
 path = "benches/bench_g1_ifft.rs"
-
 
 [[bench]]
 name = "bench_kzg_setup"
