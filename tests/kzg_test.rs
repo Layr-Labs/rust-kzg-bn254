@@ -479,7 +479,8 @@ mod tests {
         let blobs = vec![input1, input2];
         let commitments = vec![commitment1, commitment2];
         let proofs = vec![proof_1, proof_2];
-        // let res = kzg.verify_blob_kzg_proof(&input1, &commitment1, &auto_proof).unwrap();
+        // let res = kzg.verify_blob_kzg_proof(&input1, &commitment1,
+        // &auto_proof).unwrap();
 
         let pairing_result = kzg
             .verify_blob_kzg_proof_batch(&blobs, &commitments, &proofs)
