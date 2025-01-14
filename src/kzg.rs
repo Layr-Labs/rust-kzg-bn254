@@ -864,7 +864,6 @@ impl KZG {
 
         // Step 2: Copy the number of field elements (blob polynomial length)
         // Convert to bytes using the configured endianness
-        // TODO(anupsv): To be removed and default to Big endian. Ref: https://github.com/Layr-Labs/rust-kzg-bn254/issues/27
         let number_of_field_elements = blob_poly.len().to_be_bytes();
         digest_bytes[offset..offset + 8].copy_from_slice(&number_of_field_elements);
         offset += 8;
@@ -1117,7 +1116,6 @@ impl KZG {
 
         // Convert number of commitments to bytes and copy to buffer
         // Uses configured endianness (Big or Little)
-        // TODO(anupsv): To be removed and default to Big endian. Ref: https://github.com/Layr-Labs/rust-kzg-bn254/issues/27
         let n_bytes: [u8; 8] = n.to_be_bytes();
         data_to_be_hashed[32..40].copy_from_slice(&n_bytes);
 
