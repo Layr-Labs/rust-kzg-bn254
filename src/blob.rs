@@ -51,8 +51,7 @@ impl Blob {
 
     /// Returns the length of the blob data.
     ///
-    /// This length reflects the size of the data, including any padding if
-    /// applied.
+    /// This length reflects the size of the data, including any padding if applied.
     ///
     /// # Returns
     ///
