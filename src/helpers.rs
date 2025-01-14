@@ -155,14 +155,14 @@ pub fn to_fr_array(data: &[u8]) -> Vec<Fr> {
 ///
 /// # Arguments
 /// * `data_fr` - Slice of field elements to convert to bytes
-/// * `max_data_size` - Maximum allowed size in bytes for the output buffer
+/// * `max_output_size` - Maximum allowed size in bytes for the output buffer
 ///
 /// # Returns
 /// * `Vec<u8>` - Byte array containing the encoded field elements, truncated if needed
 ///
 /// # Details
 /// - Each field element is converted to BYTES_PER_FIELD_ELEMENT bytes
-/// - Output is truncated to max_data_size if total bytes would exceed it
+/// - Output is truncated to max_output_size if total bytes would exceed it
 ///
 /// # Example
 /// ```
@@ -175,7 +175,7 @@ pub fn to_fr_array(data: &[u8]) -> Vec<Fr> {
 ///                  131072,
 ///                  ).unwrap();
 /// let input = Blob::from_raw_data(b"random data for blob");
-/// kzg.calculate_roots_of_unity(input.len().try_into().unwrap()).unwrap();
+/// kzg.calculate_and_store_roots_of_unity(input.len().try_into().unwrap()).unwrap();
 /// ```
 pub fn to_byte_array(data_fr: &[Fr], max_output_size: usize) -> Vec<u8> {
     // Calculate the number of field elements in input
