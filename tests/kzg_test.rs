@@ -660,10 +660,9 @@ mod tests {
             .collect::<Vec<_>>();
 
         for i in 0..PRIMITIVE_ROOTS_OF_UNITY.len() {
-            let found_root_of_unity_bigint = PRIMITIVE_ROOTS_OF_UNITY[i];
-            let found_root_of_unity =
-                Fr::from_bigint(BigInt::new(found_root_of_unity_bigint)).unwrap();
-            assert_eq!(found_root_of_unity, fr_s[i]);
+            let root_of_unity_at_index = PRIMITIVE_ROOTS_OF_UNITY[i];
+            let root_of_unity_fr = Fr::from_bigint(BigInt::new(root_of_unity_at_index)).unwrap();
+            assert_eq!(root_of_unity_fr, fr_s[i]);
         }
     }
 

@@ -537,7 +537,7 @@ pub fn g1_lincomb(points: &[G1Affine], scalars: &[Fr]) -> Result<G1Affine, KzgEr
 pub fn get_and_convert_primitive_root_to_fr(index: usize) -> Result<Fr, KzgError> {
     let found_root_of_unity_bigint = PRIMITIVE_ROOTS_OF_UNITY
         .get(index)
-        .ok_or_else(|| KzgError::GenericError("Root of unity not found".to_string()))?;
+        .ok_or_else(|| KzgError::GenericError("the provided index must <= 29".to_string()))?;
 
     let found_root_of_unity = Fr::from_bigint(BigInt::new(*found_root_of_unity_bigint))
         .ok_or_else(|| {
