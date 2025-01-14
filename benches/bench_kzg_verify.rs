@@ -18,7 +18,7 @@ fn bench_kzg_verify(c: &mut Criterion) {
         let random_blob: Vec<u8> = (0..10000).map(|_| rng.gen_range(32..=126) as u8).collect();
         let input = Blob::from_raw_data(&random_blob);
         let input_poly = input.to_polynomial_eval_form();
-        kzg.data_setup_custom(1, input.len().try_into().unwrap())
+        kzg.calculate_and_store_roots_of_unity(input.len().try_into().unwrap())
             .unwrap();
         let index =
             rand::thread_rng().gen_range(0..input_poly.len_underlying_blob_field_elements());
@@ -35,7 +35,7 @@ fn bench_kzg_verify(c: &mut Criterion) {
         let random_blob: Vec<u8> = (0..30000).map(|_| rng.gen_range(32..=126) as u8).collect();
         let input = Blob::from_raw_data(&random_blob);
         let input_poly = input.to_polynomial_eval_form();
-        kzg.data_setup_custom(1, input.len().try_into().unwrap())
+        kzg.calculate_and_store_roots_of_unity(input.len().try_into().unwrap())
             .unwrap();
         let index =
             rand::thread_rng().gen_range(0..input_poly.len_underlying_blob_field_elements());
@@ -52,7 +52,7 @@ fn bench_kzg_verify(c: &mut Criterion) {
         let random_blob: Vec<u8> = (0..50000).map(|_| rng.gen_range(32..=126) as u8).collect();
         let input = Blob::from_raw_data(&random_blob);
         let input_poly = input.to_polynomial_eval_form();
-        kzg.data_setup_custom(1, input.len().try_into().unwrap())
+        kzg.calculate_and_store_roots_of_unity(input.len().try_into().unwrap())
             .unwrap();
         let index =
             rand::thread_rng().gen_range(0..input_poly.len_underlying_blob_field_elements());
