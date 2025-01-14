@@ -133,7 +133,6 @@ impl KZG {
         length_of_data_after_padding: u64,
         srs_order: u64,
     ) -> Result<Vec<Fr>, KzgError> {
-
         // Calculate log2 of the next power of two of the length of data after padding
         let log2_of_evals = (length_of_data_after_padding
             .div_ceil(32)
@@ -208,10 +207,8 @@ impl KZG {
         &mut self,
         length_of_data_after_padding: u64,
     ) -> Result<(), KzgError> {
-        let roots_of_unity = Self::calculate_roots_of_unity(
-            length_of_data_after_padding,
-            self.srs_order,
-        )?;
+        let roots_of_unity =
+            Self::calculate_roots_of_unity(length_of_data_after_padding, self.srs_order)?;
         self.completed_setup = true;
         self.expanded_roots_of_unity = roots_of_unity;
         Ok(())
@@ -922,8 +919,7 @@ impl KZG {
         let blob_size = polynomial.len_underlying_blob_bytes();
 
         // Step 2: Calculate roots of unity for the given blob size and SRS order
-        let roots_of_unity =
-            Self::calculate_roots_of_unity(blob_size as u64, srs_order)?;
+        let roots_of_unity = Self::calculate_roots_of_unity(blob_size as u64, srs_order)?;
 
         // Step 3: Ensure the polynomial length matches the domain length
         if polynomial.len() != roots_of_unity.len() {

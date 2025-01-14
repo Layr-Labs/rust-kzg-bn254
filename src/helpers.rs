@@ -150,7 +150,7 @@ pub fn to_fr_array(data: &[u8]) -> Vec<Fr> {
 ///                  131072,
 ///                  ).unwrap();
 /// let input = Blob::from_raw_data(b"random data for blob");
-/// kzg.calculate_roots_of_unity(input.len().try_into().unwrap()).unwrap();
+/// kzg.calculate_and_store_roots_of_unity(input.len().try_into().unwrap()).unwrap();
 /// ```
 pub fn to_byte_array(data_fr: &[Fr], max_output_size: usize) -> Vec<u8> {
     // Calculate the number of field elements in input
