@@ -20,7 +20,7 @@ fn bench_kzg_commit(c: &mut Criterion) {
             .collect();
         let input = Blob::from_raw_data(&random_blob);
         let input_poly = input.to_polynomial_coeff_form();
-        kzg.calculate_roots_of_unity(input.len().try_into().unwrap())
+        kzg.calculate_and_store_roots_of_unity(input.len().try_into().unwrap())
             .unwrap();
         b.iter(|| kzg.commit_coeff_form(&input_poly).unwrap());
     });
@@ -31,7 +31,7 @@ fn bench_kzg_commit(c: &mut Criterion) {
             .collect();
         let input = Blob::from_raw_data(&random_blob);
         let input_poly = input.to_polynomial_coeff_form();
-        kzg.calculate_roots_of_unity(input.len().try_into().unwrap())
+        kzg.calculate_and_store_roots_of_unity(input.len().try_into().unwrap())
             .unwrap();
         b.iter(|| kzg.commit_coeff_form(&input_poly).unwrap());
     });
