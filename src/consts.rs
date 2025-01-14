@@ -7,14 +7,6 @@ pub const FIAT_SHAMIR_PROTOCOL_DOMAIN: &[u8] = b"EIGENDA_FSBLOBVERIFY_V1_"; // A
 /// Ref: https://github.com/ethereum/consensus-specs/blob/master/specs/deneb/polynomial-commitments.md#blob
 pub const RANDOM_CHALLENGE_KZG_BATCH_DOMAIN: &[u8] = b"EIGENDA_RCKZGBATCH___V1_"; // Adapted from 4844
 
-pub const KZG_ENDIANNESS: Endianness = Endianness::Big; // Choose between Big or Little.
-
-#[derive(Debug, Clone, Copy)]
-pub enum Endianness {
-    Big,
-    Little,
-}
-
 // This is the G2 Tau for the SRS of size 3000. These is only meant for testing purposes.
 pub const G2_TAU_FOR_TEST_SRS_3000: [[u64; 4]; 4] = [
     [
