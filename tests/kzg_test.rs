@@ -164,7 +164,7 @@ mod tests {
 
             let input = Blob::from_raw_data(&random_blob);
             let input_poly = input.to_polynomial_eval_form();
-            kzg.calculate_roots_of_unity(input.len().try_into().unwrap())
+            kzg.calculate_and_store_roots_of_unity(input.len().try_into().unwrap())
                 .unwrap();
 
             let index =
@@ -208,7 +208,7 @@ mod tests {
         let input_poly = input.to_polynomial_eval_form();
 
         for index in 0..input_poly.len() - 1 {
-            kzg.calculate_roots_of_unity(input.len().try_into().unwrap())
+            kzg.calculate_and_store_roots_of_unity(input.len().try_into().unwrap())
                 .unwrap();
             let mut rand_index =
                 rand::thread_rng().gen_range(0..input_poly.len_underlying_blob_field_elements());
@@ -348,7 +348,7 @@ mod tests {
 
             let input = Blob::from_raw_data(&random_blob);
             let input_poly = input.to_polynomial_eval_form();
-            kzg.calculate_roots_of_unity(input.len().try_into().unwrap())
+            kzg.calculate_and_store_roots_of_unity(input.len().try_into().unwrap())
                 .unwrap();
 
             let commitment = kzg.commit_eval_form(&input_poly).unwrap();
@@ -401,7 +401,7 @@ mod tests {
         let mut kzg2 = KZG_INSTANCE.clone();
 
         let input1 = Blob::from_raw_data(GETTYSBURG_ADDRESS_BYTES);
-        kzg.calculate_roots_of_unity(input1.len().try_into().unwrap())
+        kzg.calculate_and_store_roots_of_unity(input1.len().try_into().unwrap())
             .unwrap();
 
         let input_poly1 = input1.to_polynomial_eval_form();
@@ -416,7 +416,7 @@ mod tests {
         let input2 = Blob::from_raw_data(
             b"17704588942648532530972307366230787358793284390049200127770755029903181125533",
         );
-        kzg2.calculate_roots_of_unity(input2.len().try_into().unwrap())
+        kzg2.calculate_and_store_roots_of_unity(input2.len().try_into().unwrap())
             .unwrap();
         let input_poly2 = input2.to_polynomial_eval_form();
 
@@ -442,7 +442,7 @@ mod tests {
 
         // Setup with consistent domain size
         let input_size = GETTYSBURG_ADDRESS_BYTES.len();
-        kzg.calculate_roots_of_unity(input_size.try_into().unwrap())
+        kzg.calculate_and_store_roots_of_unity(input_size.try_into().unwrap())
             .unwrap();
 
         // First blob and proof - regular case
@@ -480,7 +480,7 @@ mod tests {
     #[test]
     fn test_kzg_batch_proof_invalid_curve_points() {
         let mut kzg = KZG_INSTANCE.clone();
-        kzg.calculate_roots_of_unity(GETTYSBURG_ADDRESS_BYTES.len().try_into().unwrap())
+        kzg.calculate_and_store_roots_of_unity(GETTYSBURG_ADDRESS_BYTES.len().try_into().unwrap())
             .unwrap();
 
         // Create valid inputs first
@@ -557,7 +557,7 @@ mod tests {
         let input_poly = input.to_polynomial_eval_form();
 
         for i in 0..input_poly.len_underlying_blob_field_elements() {
-            kzg.calculate_roots_of_unity(input.len().try_into().unwrap())
+            kzg.calculate_and_store_roots_of_unity(input.len().try_into().unwrap())
                 .unwrap();
             let z_fr = kzg.get_nth_root_of_unity(i).unwrap();
             let claimed_y_fr =
