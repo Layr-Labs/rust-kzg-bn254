@@ -90,7 +90,7 @@ pub fn convert_by_padding_empty_byte(data: &[u8]) -> Vec<u8> {
 /// ```text
 /// [0, 1, 2, 3, ..., 31, 0, 1, 2, 3] -> [1, 2, 3, ..., 31, 1, 2, 3]
 /// ```
-/// 
+///
 /// ```
 /// # use rust_kzg_bn254::helpers::remove_empty_byte_from_padded_bytes_unchecked;
 /// let mut input = vec![1u8; 70]; // Two complete 32-byte element plus 6 bytes
