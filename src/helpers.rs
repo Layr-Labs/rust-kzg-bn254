@@ -94,10 +94,6 @@ pub fn remove_empty_byte_from_padded_bytes_unchecked(data: &[u8]) -> Vec<u8> {
     valid_data
 }
 
-pub fn is_zero(fr: Fr) -> bool {
-    fr.0 .0.iter().fold(0, |acc, &x| acc | x) == 0
-}
-
 pub fn set_bytes_canonical(data: &[u8]) -> Fr {
     Fr::from_be_bytes_mod_order(data)
 }
