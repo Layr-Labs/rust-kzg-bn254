@@ -42,14 +42,8 @@ pub struct KZG {
     // the SRS points to lagrange form using IFFT.
     g1: Vec<G1Affine>,
     g2: Vec<G2Affine>,
-    params: Params,
     srs_order: u64,
     expanded_roots_of_unity: Vec<Fr>,
-}
-
-#[derive(Debug, PartialEq, Clone)]
-struct Params {
-    max_fft_width: u64,
     completed_setup: bool,
 }
 
@@ -90,12 +84,9 @@ impl KZG {
         Ok(Self {
             g1: g1_points,
             g2: g2_points,
-            params: Params {
-                max_fft_width: 0,
-                completed_setup: false,
-            },
             srs_order: srs_order.into(),
             expanded_roots_of_unity: vec![],
+            completed_setup: false,
         })
     }
 
@@ -137,28 +128,11 @@ impl KZG {
     /// # Details
     /// - Generates roots of unity needed for FFT operations
     /// - Calculates KZG operational parameters for commitment scheme
-    ///
-    /// # Example
     /// ```
-    /// use ark_std::One;
-    /// use rust_kzg_bn254::helpers::to_byte_array;
-    /// use ark_bn254::Fr;
-    ///
-    /// let elements = vec![Fr::one(), Fr::one(), Fr::one()];
-    /// let max_size = 64;
-    /// let bytes = to_byte_array(&elements, max_size);
-    /// assert_eq!(bytes.len(), 64);
-    /// // bytes will contain up to max_size bytes from the encoded elements
-    /// ```
-    fn calculate_roots_of_unity_standalone(
+    fn calculate_roots_of_unity(
         length_of_data_after_padding: u64,
         srs_order: u64,
-    ) -> Result<(Params, Vec<Fr>), KzgError> {
-        // Initialize parameters
-        let mut params = Params {
-            max_fft_width: 0_u64,
-            completed_setup: false,
-        };
+    ) -> Result<Vec<Fr>, KzgError> {
 
         // Calculate log2 of the next power of two of the length of data after padding
         let log2_of_evals = (length_of_data_after_padding
@@ -171,9 +145,6 @@ impl KZG {
                     "Failed to convert length_of_data_after_padding to u8".to_string(),
                 )
             })?;
-
-        // Set the maximum FFT width
-        params.max_fft_width = 1_u64 << log2_of_evals;
 
         // Check if the length of data after padding is valid with respect to the SRS order
         if length_of_data_after_padding
@@ -201,23 +172,47 @@ impl KZG {
         // Remove the last element to avoid duplication
         expanded_roots_of_unity.truncate(expanded_roots_of_unity.len() - 1);
 
-        // Mark the setup as completed
-        params.completed_setup = true;
-
         // Return the parameters and the expanded roots of unity
-        Ok((params, expanded_roots_of_unity))
+        Ok(expanded_roots_of_unity)
     }
 
-    pub fn calculate_roots_of_unity(
+    /// Calculates the roots of unities and assigns it to the struct
+    ///
+    /// # Arguments
+    /// * `length_of_data_after_padding` - Length of the blob data after padding in bytes.
+    ///
+    /// # Returns
+    /// * `Result<(), KzgError>`
+    ///
+    /// # Details
+    /// - Generates roots of unity needed for FFT operations
+    ///
+    /// # Example
+    /// ```
+    /// use rust_kzg_bn254::kzg::KZG;
+    /// use rust_kzg_bn254::blob::Blob;
+    /// use ark_std::One;
+    /// use ark_bn254::Fr;
+    ///
+    /// let mut kzg = KZG::setup(
+    ///        "tests/test-files/mainnet-data/g1.131072.point",
+    ///        "",
+    ///        "tests/test-files/mainnet-data/g2.point.powerOf2",
+    ///        268435456,
+    ///        131072,
+    ///    ).unwrap();
+    /// let input_blob = Blob::from_raw_data(b"test blob data");
+    /// kzg.calculate_and_store_roots_of_unity(input_blob.len().try_into().unwrap()).unwrap();
+    /// ```
+    pub fn calculate_and_store_roots_of_unity(
         &mut self,
         length_of_data_after_padding: u64,
     ) -> Result<(), KzgError> {
-        let (params, roots_of_unity) = Self::calculate_roots_of_unity_standalone(
+        let roots_of_unity = Self::calculate_roots_of_unity(
             length_of_data_after_padding,
             self.srs_order,
         )?;
-        self.params = params;
-        self.params.completed_setup = true;
+        self.completed_setup = true;
         self.expanded_roots_of_unity = roots_of_unity;
         Ok(())
     }
@@ -538,7 +533,7 @@ impl KZG {
         polynomial: &PolynomialEvalForm,
         z_fr: &Fr,
     ) -> Result<G1Affine, KzgError> {
-        if !self.params.completed_setup {
+        if !self.completed_setup {
             return Err(KzgError::GenericError(
                 "setup is not complete, run the data_setup functions".to_string(),
             ));
@@ -629,7 +624,7 @@ impl KZG {
         polynomial: &PolynomialEvalForm,
         z_fr: &Fr,
     ) -> Result<G1Affine, KzgError> {
-        if !self.params.completed_setup {
+        if !self.completed_setup {
             return Err(KzgError::GenericError(
                 "setup is not complete, run one of the setup functions".to_string(),
             ));
@@ -927,8 +922,8 @@ impl KZG {
         let blob_size = polynomial.len_underlying_blob_bytes();
 
         // Step 2: Calculate roots of unity for the given blob size and SRS order
-        let (_, roots_of_unity) =
-            Self::calculate_roots_of_unity_standalone(blob_size as u64, srs_order)?;
+        let roots_of_unity =
+            Self::calculate_roots_of_unity(blob_size as u64, srs_order)?;
 
         // Step 3: Ensure the polynomial length matches the domain length
         if polynomial.len() != roots_of_unity.len() {
