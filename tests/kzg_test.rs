@@ -661,8 +661,7 @@ mod tests {
 
         for i in 0..PRIMITIVE_ROOTS_OF_UNITY.len() {
             let root_of_unity_at_index = PRIMITIVE_ROOTS_OF_UNITY[i];
-            let root_of_unity_fr = Fr::from_bigint(BigInt::new(root_of_unity_at_index)).unwrap();
-            assert_eq!(root_of_unity_fr, fr_s[i]);
+            assert_eq!(root_of_unity_at_index, fr_s[i]);
         }
     }
 
