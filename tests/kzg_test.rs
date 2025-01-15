@@ -48,7 +48,6 @@ mod tests {
 
     #[test]
     fn test_kzg_setup_errors() {
-        let mut kzg1 = KZG::setup("tests/test-files/g1.point", 2, 2).unwrap();
 
         let kzg2 = KZG::setup("tests/test-files/g1.point", 3000, 3001);
         assert_eq!(
