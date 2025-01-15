@@ -11,6 +11,15 @@ pub const FIAT_SHAMIR_PROTOCOL_DOMAIN: &[u8] = b"EIGENDA_FSBLOBVERIFY_V1_"; // A
 /// Ref: https://github.com/ethereum/consensus-specs/blob/master/specs/deneb/polynomial-commitments.md#blob
 pub const RANDOM_CHALLENGE_KZG_BATCH_DOMAIN: &[u8] = b"EIGENDA_RCKZGBATCH___V1_"; // Adapted from 4844
 
+/// These are the primitive roots of unity for `2^0`, `2^1`, ..., `2^28`. `2^28`
+/// is the largest power of two that divides `r - 1`, therefore there are no primitive 
+/// roots of unity for higher powers of 2 in Fr.). Given a blob
+/// length, we calculate the number of field elements needed and then get the 
+/// value of the actual power of 2 which is less than or equal to 28. We then use 
+/// this value to get the primitive root of unity from the array below to expand 
+/// to the roots of unity needed. The number of expanded roots elements will be the 
+/// same as the power of 2 i.e if `8th` power of 2 was calculated then we get `2^8 = 256` 
+/// expanded roots of unity.   
 pub const PRIMITIVE_ROOTS_OF_UNITY: [Fr; 29] = [
     MontFp!("1"),
     MontFp!("21888242871839275222246405745257275088548364400416034343698204186575808495616"),
