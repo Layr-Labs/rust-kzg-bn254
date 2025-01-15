@@ -11,9 +11,9 @@ use crate::{
 
 use crate::consts::{FIAT_SHAMIR_PROTOCOL_DOMAIN, RANDOM_CHALLENGE_KZG_BATCH_DOMAIN};
 use crate::helpers::is_on_curve_g1;
-use ark_bn254::{Bn254, Fq, Fq2, Fr, G1Affine, G1Projective, G2Affine, G2Projective};
+use ark_bn254::{Bn254, Fr, G1Affine, G1Projective, G2Affine, G2Projective};
 use ark_ec::{pairing::Pairing, AffineRepr, CurveGroup, VariableBaseMSM};
-use ark_ff::{BigInt, BigInteger, Field, PrimeField};
+use ark_ff::{BigInteger, Field, PrimeField};
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 use ark_serialize::{CanonicalSerialize, Read};
 use ark_std::{iterable::Iterable, ops::Div, str::FromStr, One, Zero};
@@ -152,8 +152,6 @@ impl KZG {
     ///
     /// let mut kzg = KZG::setup(
     ///        "tests/test-files/mainnet-data/g1.131072.point",
-    ///        "",
-    ///        "tests/test-files/mainnet-data/g2.point.powerOf2",
     ///        268435456,
     ///        131072,
     ///    ).unwrap();
@@ -609,7 +607,7 @@ impl KZG {
     ) -> Result<bool, KzgError> {
         // Get τ*G2 from the trusted setup
         // This is the second generator point multiplied by the trusted setup secret
-        let g2_tau = self.get_g2_tau()?;
+        let g2_tau = self.get_g2_tau();
 
         // Compute [value]*G1
         // This encrypts the claimed evaluation value as a point in G1
@@ -641,32 +639,12 @@ impl KZG {
         ))
     }
 
-    pub fn get_g2_tau(&self) -> Result<G2Affine, KzgError> {
-        let x: Fq2;
-        let y: Fq2;
+    pub fn get_g2_tau(&self) -> G2Affine {
         if self.g1.len() == MAINNET_SRS_G1_SIZE {
-            x = Fq2::new(
-                Fq::from_bigint(BigInt::new(G2_TAU_FOR_MAINNET_SRS[0])).unwrap(),
-                Fq::from_bigint(BigInt::new(G2_TAU_FOR_MAINNET_SRS[1])).unwrap(),
-            );
-
-            y = Fq2::new(
-                Fq::from_bigint(BigInt::new(G2_TAU_FOR_MAINNET_SRS[2])).unwrap(),
-                Fq::from_bigint(BigInt::new(G2_TAU_FOR_MAINNET_SRS[3])).unwrap(),
-            );
+            G2_TAU_FOR_MAINNET_SRS
         } else {
-            x = Fq2::new(
-                Fq::from_bigint(BigInt::new(G2_TAU_FOR_TEST_SRS_3000[0])).unwrap(),
-                Fq::from_bigint(BigInt::new(G2_TAU_FOR_TEST_SRS_3000[1])).unwrap(),
-            );
-
-            y = Fq2::new(
-                Fq::from_bigint(BigInt::new(G2_TAU_FOR_TEST_SRS_3000[2])).unwrap(),
-                Fq::from_bigint(BigInt::new(G2_TAU_FOR_TEST_SRS_3000[3])).unwrap(),
-            );
+            G2_TAU_FOR_TEST_SRS_3000
         }
-
-        Ok(G2Affine::new(x, y))
     }
 
     fn pairings_verify(a1: G1Affine, a2: G2Affine, b1: G1Affine, b2: G2Affine) -> bool {
@@ -1153,7 +1131,7 @@ impl KZG {
         }
 
         // Verify that the trusted setup point τ*G2 is on the G2 curve
-        if !helpers::is_on_curve_g2(&G2Projective::from(self.get_g2_tau()?)) {
+        if !helpers::is_on_curve_g2(&G2Projective::from(self.get_g2_tau())) {
             return Err(KzgError::NotOnCurveError("g2 tau".to_owned()));
         }
 
@@ -1197,7 +1175,7 @@ impl KZG {
         // e(Σ(r^i * proof_i), [τ]) = e(Σ(r^i * (C_i - [y_i])) + Σ(r^i * z_i * proof_i), [1])
         let result = Self::pairings_verify(
             proof_lincomb,
-            self.get_g2_tau()?,
+            self.get_g2_tau(),
             rhs_g1.into(),
             G2Affine::generator(),
         );
