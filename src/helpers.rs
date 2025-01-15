@@ -8,8 +8,8 @@ use std::cmp;
 use crate::{
     arith,
     consts::{
-        Endianness, BYTES_PER_FIELD_ELEMENT, KZG_ENDIANNESS, PRIMITIVE_ROOTS_OF_UNITY,
-        SIZE_OF_G1_AFFINE_COMPRESSED, SIZE_OF_G2_AFFINE_COMPRESSED,
+        BYTES_PER_FIELD_ELEMENT, PRIMITIVE_ROOTS_OF_UNITY, SIZE_OF_G1_AFFINE_COMPRESSED,
+        SIZE_OF_G2_AFFINE_COMPRESSED,
     },
     errors::KzgError,
     traits::ReadPointFromBytes,
@@ -158,14 +158,14 @@ pub fn to_fr_array(data: &[u8]) -> Vec<Fr> {
 ///
 /// # Arguments
 /// * `data_fr` - Slice of field elements to convert to bytes
-/// * `max_data_size` - Maximum allowed size in bytes for the output buffer
+/// * `max_output_size` - Maximum allowed size in bytes for the output buffer
 ///
 /// # Returns
 /// * `Vec<u8>` - Byte array containing the encoded field elements, truncated if needed
 ///
 /// # Details
 /// - Each field element is converted to BYTES_PER_FIELD_ELEMENT bytes
-/// - Output is truncated to max_data_size if total bytes would exceed it
+/// - Output is truncated to max_output_size if total bytes would exceed it
 ///
 /// # Example
 /// ```
@@ -180,7 +180,7 @@ pub fn to_fr_array(data: &[u8]) -> Vec<Fr> {
 ///                  131072,
 ///                  ).unwrap();
 /// let input = Blob::from_raw_data(b"random data for blob");
-/// kzg.calculate_roots_of_unity(input.len().try_into().unwrap()).unwrap();
+/// kzg.calculate_and_store_roots_of_unity(input.len().try_into().unwrap()).unwrap();
 /// ```
 pub fn to_byte_array(data_fr: &[Fr], max_output_size: usize) -> Vec<u8> {
     // Calculate the number of field elements in input
@@ -194,11 +194,7 @@ pub fn to_byte_array(data_fr: &[Fr], max_output_size: usize) -> Vec<u8> {
     // Using enumerate().take(n) to process elements up to n
     for (i, element) in data_fr.iter().enumerate().take(n) {
         // Convert field element to bytes based on configured endianness
-        // TODO(anupsv): To be removed and default to Big endian. Ref: https://github.com/Layr-Labs/rust-kzg-bn254/issues/27
-        let v: Vec<u8> = match KZG_ENDIANNESS {
-            Endianness::Big => element.into_bigint().to_bytes_be(), // Big-endian conversion
-            Endianness::Little => element.into_bigint().to_bytes_le(), // Little-endian conversion
-        };
+        let v: Vec<u8> = element.into_bigint().to_bytes_be();
 
         // Calculate start and end indices for this element in output buffer
         let start = i * BYTES_PER_FIELD_ELEMENT;
