@@ -527,8 +527,8 @@ pub fn g1_lincomb(points: &[G1Affine], scalars: &[Fr]) -> Result<G1Affine, KzgEr
 ///
 /// # Example
 /// ```
-/// use rust_kzg_bn254::helpers::get_and_convert_primitive_root_to_fr;
-/// let root = get_and_convert_primitive_root_to_fr(0); // Gets first primitive root
+/// use rust_kzg_bn254::helpers::get_primitive_root_of_unity;
+/// let root = get_primitive_root_of_unity(0); // Gets first primitive root
 /// ```
 /// Gets the primitive root of unity of order 2^power.
 /// For example, power=3 returns a primitive 8th root of unity.

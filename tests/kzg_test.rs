@@ -2,7 +2,7 @@
 mod tests {
     use ark_bn254::{Fq, Fr, G1Affine, G2Affine};
     use ark_ec::AffineRepr;
-    use ark_ff::{BigInt, PrimeField, UniformRand};
+    use ark_ff::UniformRand;
     use lazy_static::lazy_static;
     use rand::Rng;
     use rust_kzg_bn254::{
