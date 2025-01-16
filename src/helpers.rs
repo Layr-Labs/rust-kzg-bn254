@@ -530,10 +530,11 @@ pub fn g1_lincomb(points: &[G1Affine], scalars: &[Fr]) -> Result<G1Affine, KzgEr
 /// use rust_kzg_bn254::helpers::get_and_convert_primitive_root_to_fr;
 /// let root = get_and_convert_primitive_root_to_fr(0); // Gets first primitive root
 /// ```
-pub fn get_and_convert_primitive_root_to_fr(index: usize) -> Result<Fr, KzgError> {
-    let found_root_of_unity_fr = PRIMITIVE_ROOTS_OF_UNITY
-        .get(index)
-        .ok_or_else(|| KzgError::GenericError("the provided index must <= 29".to_string()))?;
-
-    Ok(*found_root_of_unity_fr)
+/// Gets the primitive root of unity of order 2^power.
+/// For example, power=3 returns a primitive 8th root of unity.
+pub fn get_primitive_root_of_unity(power: usize) -> Result<Fr, KzgError> {
+    PRIMITIVE_ROOTS_OF_UNITY
+        .get(power)
+        .ok_or_else(|| KzgError::GenericError("power must be <= 28".to_string()))
+        .copied()
 }
