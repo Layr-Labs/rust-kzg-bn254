@@ -156,7 +156,7 @@ impl KZG {
         }
 
         // Find the root of unity corresponding to the calculated log2 value
-        let found_root_of_unity =
+        let root_of_unity =
             helpers::get_and_convert_primitive_root_to_fr(log2_of_evals.into())?;
 
         // Expand the root to get all the roots of unity
