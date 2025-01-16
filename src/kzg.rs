@@ -11,7 +11,7 @@ use crate::{
 
 use crate::consts::{FIAT_SHAMIR_PROTOCOL_DOMAIN, RANDOM_CHALLENGE_KZG_BATCH_DOMAIN};
 use crate::helpers::is_on_curve_g1;
-use ark_bn254::{Bn254, Fr, G1Affine, G1Projective, G2Affine, G2Projective};
+use ark_bn254::{Bn254, Fr, G1Affine, G1Projective, G2Affine};
 use ark_ec::{pairing::Pairing, AffineRepr, CurveGroup, VariableBaseMSM};
 use ark_ff::{BigInteger, Field, PrimeField};
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
