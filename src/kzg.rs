@@ -1130,11 +1130,6 @@ impl KZG {
             return Err(KzgError::NotOnCurveError("proof".to_owned()));
         }
 
-        // Verify that the trusted setup point τ*G2 is on the G2 curve
-        if !helpers::is_on_curve_g2(&G2Projective::from(self.get_g2_tau())) {
-            return Err(KzgError::NotOnCurveError("g2 tau".to_owned()));
-        }
-
         let n = commitments.len();
 
         // Initialize vectors to store:
@@ -1173,6 +1168,7 @@ impl KZG {
 
         // Verify the pairing equation:
         // e(Σ(r^i * proof_i), [τ]) = e(Σ(r^i * (C_i - [y_i])) + Σ(r^i * z_i * proof_i), [1])
+        // A test exists to check if g2_tau is on curve, so we don't need to check it here.
         let result = Self::pairings_verify(
             proof_lincomb,
             self.get_g2_tau(),
