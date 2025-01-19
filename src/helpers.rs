@@ -1,13 +1,13 @@
-use ark_bn254::{Fq, Fq2, Fr, G1Affine, G1Projective, G2Affine, G2Projective};
+use ark_bn254::{Fq, Fq2, Fr, G1Affine, G1Projective, G2Projective};
 use ark_ec::{AffineRepr, CurveGroup, VariableBaseMSM};
-use ark_ff::{sbb, BigInt, BigInteger, Field, LegendreSymbol, PrimeField};
+use ark_ff::{sbb, BigInt, BigInteger, Field, PrimeField};
 use ark_std::{str::FromStr, vec::Vec, One, Zero};
 use crossbeam_channel::Receiver;
 use std::cmp;
 
 use crate::{
     arith,
-    consts::{BYTES_PER_FIELD_ELEMENT, SIZE_OF_G1_AFFINE_COMPRESSED, SIZE_OF_G2_AFFINE_COMPRESSED},
+    consts::{BYTES_PER_FIELD_ELEMENT, SIZE_OF_G1_AFFINE_COMPRESSED},
     errors::KzgError,
     traits::ReadPointFromBytes,
 };
@@ -171,8 +171,6 @@ pub fn to_fr_array(data: &[u8]) -> Vec<Fr> {
 ///
 /// let mut kzg = KZG::setup(
 ///                 "tests/test-files/mainnet-data/g1.131072.point",
-///                  "",
-///                  "tests/test-files/mainnet-data/g2.point.powerOf2",
 ///                  268435456,
 ///                  131072,
 ///                  ).unwrap();
@@ -272,71 +270,6 @@ pub fn lexicographically_largest(z: &Fq) -> bool {
     // than its negation) and then negate it.
 
     borrow == 0
-}
-
-pub fn read_g2_point_from_bytes_be(g2_bytes_be: &[u8]) -> Result<G2Affine, &str> {
-    if g2_bytes_be.len() != SIZE_OF_G2_AFFINE_COMPRESSED {
-        return Err("not enough bytes for g2 point");
-    }
-
-    let m_mask: u8 = 0b11 << 6;
-    let m_compressed_infinity: u8 = 0b01 << 6;
-    let m_compressed_smallest: u8 = 0b10 << 6;
-    let m_compressed_largest: u8 = 0b11 << 6;
-
-    let m_data = g2_bytes_be[0] & m_mask;
-
-    if m_data == m_compressed_infinity {
-        if !is_zeroed(
-            g2_bytes_be[0] & !m_mask,
-            g2_bytes_be[1..SIZE_OF_G2_AFFINE_COMPRESSED].to_vec(),
-        ) {
-            return Err("point at infinity not coded properly for g2");
-        }
-        return Ok(G2Affine::zero());
-    }
-
-    let mut x_bytes = [0u8; SIZE_OF_G2_AFFINE_COMPRESSED];
-    x_bytes.copy_from_slice(g2_bytes_be);
-    x_bytes[0] &= !m_mask;
-    let half_size = SIZE_OF_G2_AFFINE_COMPRESSED / 2;
-
-    let c1 = Fq::from_be_bytes_mod_order(&x_bytes[..half_size]);
-    let c0 = Fq::from_be_bytes_mod_order(&x_bytes[half_size..]);
-    let x = Fq2::new(c0, c1);
-    let y_squared = x * x * x;
-
-    // this is bTwistCurveCoeff
-    let twist_curve_coeff = get_b_twist_curve_coeff();
-
-    let added_result = y_squared + twist_curve_coeff;
-    if added_result.legendre() == LegendreSymbol::QuadraticNonResidue {
-        return Err("invalid compressed coordinate: square root doesn't exist");
-    }
-
-    let mut y_sqrt = added_result.sqrt().ok_or("no square root found").unwrap();
-
-    let lexicographical_check_result = if y_sqrt.c1.0.is_zero() {
-        lexicographically_largest(&y_sqrt.c0)
-    } else {
-        lexicographically_largest(&y_sqrt.c1)
-    };
-
-    if lexicographical_check_result {
-        if m_data == m_compressed_smallest {
-            y_sqrt.neg_in_place();
-        }
-    } else if m_data == m_compressed_largest {
-        y_sqrt.neg_in_place();
-    }
-
-    let point = G2Affine::new_unchecked(x, y_sqrt);
-    if !point.is_in_correct_subgroup_assuming_on_curve()
-        && is_on_curve_g2(&G2Projective::from(point))
-    {
-        return Err("point couldn't be created");
-    }
-    Ok(point)
 }
 
 pub fn read_g1_point_from_bytes_be(g1_bytes_be: &[u8]) -> Result<G1Affine, &str> {

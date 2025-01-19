@@ -4,22 +4,11 @@ use std::time::Duration;
 
 fn bench_kzg_setup(c: &mut Criterion) {
     c.bench_function("bench_kzg_setup", |b| {
-        b.iter(|| {
-            KZG::setup(
-                "tests/test-files/g1.point",
-                "tests/test-files/g2.point",
-                "tests/test-files/g2.point.powerOf2",
-                3000,
-                3000,
-            )
-            .unwrap()
-        });
+        b.iter(|| KZG::setup("tests/test-files/g1.point", 3000, 3000).unwrap());
 
         b.iter(|| {
             KZG::setup(
                 "tests/test-files/mainnet-data/g1.131072.point",
-                "",
-                "tests/test-files/mainnet-data/g2.point.powerOf2",
                 268435456,
                 131072,
             )
