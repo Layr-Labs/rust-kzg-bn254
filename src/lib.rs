@@ -87,3 +87,4 @@ pub mod kzg;
 pub mod polynomial;
 pub mod srs;
 mod traits;
+pub mod verification;
