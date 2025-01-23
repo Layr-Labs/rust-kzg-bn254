@@ -28,11 +28,7 @@ impl SRS {
     /// # Returns
     ///
     /// * `Result<SRS, KzgError>` - The initialized SRS or an error.
-    pub fn new(
-        path_to_g1_points: &str,
-        order: u32,
-        points_to_load: u32,
-    ) -> Result<Self, KzgError> {
+    pub fn new(path_to_g1_points: &str, order: u32, points_to_load: u32) -> Result<Self, KzgError> {
         if points_to_load > order {
             return Err(KzgError::GenericError(
                 "Number of points to load exceeds SRS order.".to_string(),
