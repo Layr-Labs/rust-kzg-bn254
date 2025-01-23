@@ -180,34 +180,29 @@ mod tests {
         let mut bad_commitments = commitments.clone();
         let mut bad_proofs = proofs.clone();
 
-        let pairing_result = kzg
-            .verify_blob_kzg_proof_batch(&blobs, &commitments, &proofs)
+        let pairing_result = rust_kzg_bn254::batch_verification::verify_blob_kzg_proof_batch(&blobs, &commitments, &proofs)
             .unwrap();
         assert_eq!(pairing_result, true);
 
         bad_blobs.pop();
         bad_blobs.push(Blob::from_raw_data(b"random"));
-        let pairing_result_bad_blobs = kzg
-            .verify_blob_kzg_proof_batch(&bad_blobs, &commitments, &proofs)
+        let pairing_result_bad_blobs = rust_kzg_bn254::batch_verification::verify_blob_kzg_proof_batch(&bad_blobs, &commitments, &proofs)
             .unwrap();
         assert_eq!(pairing_result_bad_blobs, false);
 
         bad_commitments.pop();
         bad_commitments.push(G1Affine::rand(&mut rng));
-        let pairing_result_bad_commitments = kzg
-            .verify_blob_kzg_proof_batch(&blobs, &bad_commitments, &proofs)
+        let pairing_result_bad_commitments = rust_kzg_bn254::batch_verification::verify_blob_kzg_proof_batch(&blobs, &bad_commitments, &proofs)
             .unwrap();
         assert_eq!(pairing_result_bad_commitments, false);
 
         bad_proofs.pop();
         bad_proofs.push(G1Affine::rand(&mut rng));
-        let pairing_result_bad_proofs = kzg
-            .verify_blob_kzg_proof_batch(&blobs, &commitments, &bad_proofs)
+        let pairing_result_bad_proofs = rust_kzg_bn254::batch_verification::verify_blob_kzg_proof_batch(&blobs, &commitments, &bad_proofs)
             .unwrap();
         assert_eq!(pairing_result_bad_proofs, false);
 
-        let pairing_result_everything_bad = kzg
-            .verify_blob_kzg_proof_batch(&bad_blobs, &bad_commitments, &bad_proofs)
+        let pairing_result_everything_bad = rust_kzg_bn254::batch_verification::verify_blob_kzg_proof_batch(&bad_blobs, &bad_commitments, &bad_proofs)
             .unwrap();
         assert_eq!(pairing_result_everything_bad, false);
     }
@@ -246,8 +241,7 @@ mod tests {
         let proofs = vec![proof_1, proof_2];
         // let res = kzg.verify_blob_kzg_proof(&input1, &commitment1, &auto_proof).unwrap();
 
-        let pairing_result = kzg
-            .verify_blob_kzg_proof_batch(&blobs, &commitments, &proofs)
+        let pairing_result = rust_kzg_bn254::batch_verification::verify_blob_kzg_proof_batch(&blobs, &commitments, &proofs)
             .unwrap();
 
         assert_eq!(pairing_result, true);
@@ -276,7 +270,7 @@ mod tests {
         let proofs = vec![proof_at_infinity];
 
         // This should fail since a proof point at infinity is invalid
-        let result = kzg.verify_blob_kzg_proof_batch(&blobs, &commitments, &proofs);
+        let result = rust_kzg_bn254::batch_verification::verify_blob_kzg_proof_batch(&blobs, &commitments, &proofs);
 
         assert!(result.is_err());
 
@@ -290,7 +284,7 @@ mod tests {
         let proofs_mixed = vec![proof_1, proof_at_infinity];
 
         let result_mixed =
-            kzg.verify_blob_kzg_proof_batch(&blobs_mixed, &commitments_mixed, &proofs_mixed);
+        rust_kzg_bn254::batch_verification::verify_blob_kzg_proof_batch(&blobs_mixed, &commitments_mixed, &proofs_mixed);
         assert!(result_mixed.is_err());
     }
 
@@ -351,7 +345,7 @@ mod tests {
 
         for (commitments, proofs, case_description) in test_cases {
             let blobs = vec![input.clone(), input.clone()];
-            let result = kzg.verify_blob_kzg_proof_batch(&blobs, &commitments, &proofs);
+            let result = rust_kzg_bn254::batch_verification::verify_blob_kzg_proof_batch(&blobs, &commitments, &proofs);
 
             assert!(
                 result.is_err(),
