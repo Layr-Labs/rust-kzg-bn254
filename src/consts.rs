@@ -1,4 +1,4 @@
-use ark_bn254::{Fr, Fq2, G2Affine};
+use ark_bn254::{Fq2, Fr, G2Affine};
 use ark_ff::MontFp;
 
 pub const BYTES_PER_FIELD_ELEMENT: usize = 32;

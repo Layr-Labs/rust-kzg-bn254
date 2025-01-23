@@ -7,9 +7,7 @@ use std::cmp;
 
 use crate::{
     arith,
-    consts::{
-        BYTES_PER_FIELD_ELEMENT, PRIMITIVE_ROOTS_OF_UNITY, SIZE_OF_G1_AFFINE_COMPRESSED
-    },
+    consts::{BYTES_PER_FIELD_ELEMENT, PRIMITIVE_ROOTS_OF_UNITY, SIZE_OF_G1_AFFINE_COMPRESSED},
     errors::KzgError,
     traits::ReadPointFromBytes,
 };
