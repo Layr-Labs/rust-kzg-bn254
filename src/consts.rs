@@ -62,5 +62,5 @@ pub const G2_TAU: G2Affine = G2Affine::new_unchecked(
     ),
 );
 
-// This is the G2 Tau for the MAINNET SRS points.
+// This is the G2 Tau for the EigenDA MAINNET SRS points.
 pub const MAINNET_SRS_G1_SIZE: usize = 131072;

@@ -22,30 +22,30 @@ impl SRS {
     /// # Arguments
     ///
     /// * `path_to_g1_points` - The file path to load G1 points from.
-    /// * `srs_order` - The total order of the SRS.
-    /// * `srs_points_to_load` - The number of SRS points to load.
+    /// * `order` - The total order of the SRS.
+    /// * `points_to_load` - The number of SRS points to load.
     ///
     /// # Returns
     ///
     /// * `Result<SRS, KzgError>` - The initialized SRS or an error.
     pub fn new(
         path_to_g1_points: &str,
-        srs_order: u32,
-        srs_points_to_load: u32,
+        order: u32,
+        points_to_load: u32,
     ) -> Result<Self, KzgError> {
-        if srs_points_to_load > srs_order {
+        if points_to_load > order {
             return Err(KzgError::GenericError(
                 "Number of points to load exceeds SRS order.".to_string(),
             ));
         }
 
         let g1_points =
-            Self::parallel_read_g1_points(path_to_g1_points.to_owned(), srs_points_to_load, false)
+            Self::parallel_read_g1_points(path_to_g1_points.to_owned(), points_to_load, false)
                 .map_err(|e| KzgError::SerializationError(e.to_string()))?;
 
         Ok(Self {
             g1: g1_points,
-            order: srs_order,
+            order,
         })
     }
 
@@ -54,7 +54,7 @@ impl SRS {
     /// # Arguments
     ///
     /// * `file_path` - The path to the file containing G1 points.
-    /// * `srs_points_to_load` - The number of points to load.
+    /// * `points_to_load` - The number of points to load.
     /// * `is_native` - Whether the points are in native Arkworks format.
     ///
     /// # Returns
@@ -62,7 +62,7 @@ impl SRS {
     /// * `Result<Vec<G1Affine>, KzgError>` - The loaded G1 points or an error.
     fn parallel_read_g1_points(
         file_path: String,
-        srs_points_to_load: u32,
+        points_to_load: u32,
         is_native: bool,
     ) -> Result<Vec<G1Affine>, KzgError> {
         let (sender, receiver) = bounded::<(Vec<u8>, usize, bool)>(1000);
@@ -70,7 +70,7 @@ impl SRS {
         // Spawn the reader thread
         let reader_handle = std::thread::spawn(
             move || -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-                Self::read_file_chunks(&file_path, sender, 32, srs_points_to_load, is_native)
+                Self::read_file_chunks(&file_path, sender, 32, points_to_load, is_native)
                     .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
             },
         );
@@ -170,7 +170,7 @@ impl SRS {
     ///
     /// # Arguments
     /// * `file_path` - The path to the file containing the G1 points
-    /// * `srs_points_to_load` - The number of points to load from the file
+    /// * `points_to_load` - The number of points to load from the file
     /// * `is_native` - Whether the points are in native arkworks format or not
     ///
     /// # Returns
@@ -178,7 +178,7 @@ impl SRS {
     /// * `Err(KzgError)` - An error occurred while reading the file
     pub fn parallel_read_g1_points_native(
         file_path: String,
-        srs_points_to_load: u32,
+        points_to_load: u32,
         is_native: bool,
     ) -> Result<Vec<G1Affine>, KzgError> {
         // Channel contains (bytes, position, is_native) tuples. The position is used to
@@ -188,7 +188,7 @@ impl SRS {
         // Spawning the reader thread
         let reader_thread = std::thread::spawn(
             move || -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-                Self::read_file_chunks(&file_path, sender, 32, srs_points_to_load, is_native)
+                Self::read_file_chunks(&file_path, sender, 32, points_to_load, is_native)
                     .map_err(|e| -> Box<dyn std::error::Error + Send + Sync> { Box::new(e) })
             },
         );

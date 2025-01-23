@@ -705,7 +705,7 @@ fn expand_root_of_unity(root_of_unity: &Fr) -> Vec<Fr> {
 }
 
 /// A helper function for the `verify_blob_kzg_proof_batch` function.
-pub fn compute_challenges_and_evaluate_polynomial(
+pub(crate) fn compute_challenges_and_evaluate_polynomial(
     blobs: &[Blob],
     commitments: &[G1Affine],
 ) -> Result<(Vec<Fr>, Vec<Fr>), KzgError> {
