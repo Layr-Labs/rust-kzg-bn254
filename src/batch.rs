@@ -11,7 +11,7 @@ use ark_ff::{BigInteger, PrimeField};
 use ark_serialize::CanonicalSerialize;
 
 /// Ref: https://github.com/ethereum/consensus-specs/blob/master/specs/deneb/polynomial-commitments.md#verify_blob_kzg_proof_batch
-pub fn verify_blob_kzg_proof_batch(
+pub fn verify_blob_kzg_proof(
     blobs: &[Blob],
     commitments: &[G1Affine],
     proofs: &[G1Affine],
@@ -52,7 +52,7 @@ pub fn verify_blob_kzg_proof_batch(
     // 1. Generates random evaluation points for each blob
     // 2. Evaluates each blob's polynomial at its corresponding point
     let (evaluation_challenges, ys) =
-        compute_challenges_and_evaluate_polynomial(blobs, commitments)?;
+        helpers::compute_challenges_and_evaluate_polynomial(blobs, commitments)?;
 
     // Convert each blob to its polynomial evaluation form and get the length of number of field elements
     // This length value is needed for computing the challenge
@@ -67,7 +67,7 @@ pub fn verify_blob_kzg_proof_batch(
     // - ys: Values of polynomials at evaluation points
     // - proofs: KZG proofs for each evaluation
     // - blobs_as_field_elements_length: Length of each blob's polynomial
-    verify_kzg_proof_batch(
+    verify_kzg_proof(
         commitments,
         &evaluation_challenges,
         &ys,
@@ -191,7 +191,7 @@ fn compute_r_powers(
 /// * `Ok(false)` if any proof is invalid.
 /// * `Err(KzgError)` if an error occurs during verification.
 ///
-fn verify_kzg_proof_batch(
+fn verify_kzg_proof(
     commitments: &[G1Affine],
     zs: &[Fr],
     ys: &[Fr],
@@ -270,50 +270,4 @@ fn verify_kzg_proof_batch(
     let result =
         helpers::pairings_verify(proof_lincomb, G2_TAU, rhs_g1.into(), G2Affine::generator());
     Ok(result)
-}
-
-/// A helper function for the `verify_blob_kzg_proof_batch` function.
-fn compute_challenges_and_evaluate_polynomial(
-    blobs: &[Blob],
-    commitments: &[G1Affine],
-) -> Result<(Vec<Fr>, Vec<Fr>), KzgError> {
-    // Pre-allocate vectors to store:
-    // - evaluation_challenges: Points where polynomials will be evaluated
-    // - ys: Results of polynomial evaluations at challenge points
-    let mut evaluation_challenges = Vec::with_capacity(blobs.len());
-    let mut ys = Vec::with_capacity(blobs.len());
-
-    // Process each blob sequentially
-    // TODO: Potential optimizations:
-    // 1. Cache roots of unity calculations across iterations
-    // 2. Parallelize processing for large numbers of blobs
-    // 3. Batch polynomial conversions if possible
-    for i in 0..blobs.len() {
-        // Step 1: Convert blob to polynomial form
-        // This is necessary because we need to evaluate the polynomial
-        let polynomial = blobs[i].to_polynomial_eval_form();
-
-        // Step 2: Generate Fiat-Shamir challenge
-        // This creates a "random" evaluation point based on the blob and commitment
-        // The challenge is deterministic but unpredictable, making the proof non-interactive
-        let evaluation_challenge = helpers::compute_challenge(&blobs[i], &commitments[i])?;
-
-        // Step 3: Evaluate the polynomial at the challenge point
-        // This uses the evaluation form for efficient computation
-        // The srs_order parameter ensures compatibility with the trusted setup
-        let y =
-            helpers::evaluate_polynomial_in_evaluation_form(&polynomial, &evaluation_challenge)?;
-
-        // Store both:
-        // - The challenge point (where we evaluated)
-        // - The evaluation result (what the polynomial equals at that point)
-        evaluation_challenges.push(evaluation_challenge);
-        ys.push(y);
-    }
-
-    // Return tuple of:
-    // 1. Vector of evaluation points (challenges)
-    // 2. Vector of polynomial evaluations at those points
-    // These will be used in the KZG proof verification process
-    Ok((evaluation_challenges, ys))
 }

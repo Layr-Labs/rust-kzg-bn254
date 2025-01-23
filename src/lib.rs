@@ -78,7 +78,7 @@
 //!
 
 mod arith;
-pub mod batch_verification;
+pub mod batch;
 pub mod blob;
 pub mod consts;
 pub mod errors;
@@ -87,4 +87,4 @@ pub mod kzg;
 pub mod polynomial;
 pub mod srs;
 mod traits;
-pub mod verification;
+pub mod verify;

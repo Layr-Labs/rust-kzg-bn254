@@ -3,8 +3,9 @@ use ark_ec::{AffineRepr, CurveGroup};
 
 use crate::{blob::Blob, errors::KzgError, helpers};
 
+/// Ref: https://github.com/ethereum/consensus-specs/blob/master/specs/deneb/polynomial-commitments.md#verify_proof
 /// TODO(anupsv): Accept bytes instead of Fr element and Affine points. Ref: https://github.com/Layr-Labs/rust-kzg-bn254/issues/30
-pub fn verify_proof(
+pub fn proof(
     commitment: G1Affine,
     proof: G1Affine,
     value_fr: Fr,
@@ -54,8 +55,9 @@ pub fn verify_proof(
     ))
 }
 
+/// Ref: https://github.com/ethereum/consensus-specs/blob/master/specs/deneb/polynomial-commitments.md#verify_blob_kzg_proof
 /// TODO(anupsv): Accept bytes instead of Affine points. Ref: https://github.com/Layr-Labs/rust-kzg-bn254/issues/31
-pub fn verify_blob_kzg_proof(
+pub fn blob_kzg_proof(
     blob: &Blob,
     commitment: &G1Affine,
     proof: &G1Affine,
@@ -80,5 +82,5 @@ pub fn verify_blob_kzg_proof(
     let y = helpers::evaluate_polynomial_in_evaluation_form(&polynomial, &evaluation_challenge)?;
 
     // Verify the KZG proof
-    verify_proof(*commitment, *proof, y, evaluation_challenge)
+    self::proof(*commitment, *proof, y, evaluation_challenge)
 }

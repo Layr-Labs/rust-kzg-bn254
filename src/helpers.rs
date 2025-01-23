@@ -703,3 +703,48 @@ fn expand_root_of_unity(root_of_unity: &Fr) -> Vec<Fr> {
     }
     roots
 }
+
+/// A helper function for the `verify_blob_kzg_proof_batch` function.
+pub fn compute_challenges_and_evaluate_polynomial(
+    blobs: &[Blob],
+    commitments: &[G1Affine],
+) -> Result<(Vec<Fr>, Vec<Fr>), KzgError> {
+    // Pre-allocate vectors to store:
+    // - evaluation_challenges: Points where polynomials will be evaluated
+    // - ys: Results of polynomial evaluations at challenge points
+    let mut evaluation_challenges = Vec::with_capacity(blobs.len());
+    let mut ys = Vec::with_capacity(blobs.len());
+
+    // Process each blob sequentially
+    // TODO: Potential optimizations:
+    // 1. Cache roots of unity calculations across iterations
+    // 2. Parallelize processing for large numbers of blobs
+    // 3. Batch polynomial conversions if possible
+    for i in 0..blobs.len() {
+        // Step 1: Convert blob to polynomial form
+        // This is necessary because we need to evaluate the polynomial
+        let polynomial = blobs[i].to_polynomial_eval_form();
+
+        // Step 2: Generate Fiat-Shamir challenge
+        // This creates a "random" evaluation point based on the blob and commitment
+        // The challenge is deterministic but unpredictable, making the proof non-interactive
+        let evaluation_challenge = compute_challenge(&blobs[i], &commitments[i])?;
+
+        // Step 3: Evaluate the polynomial at the challenge point
+        // This uses the evaluation form for efficient computation
+        // The srs_order parameter ensures compatibility with the trusted setup
+        let y = evaluate_polynomial_in_evaluation_form(&polynomial, &evaluation_challenge)?;
+
+        // Store both:
+        // - The challenge point (where we evaluated)
+        // - The evaluation result (what the polynomial equals at that point)
+        evaluation_challenges.push(evaluation_challenge);
+        ys.push(y);
+    }
+
+    // Return tuple of:
+    // 1. Vector of evaluation points (challenges)
+    // 2. Vector of polynomial evaluations at those points
+    // These will be used in the KZG proof verification process
+    Ok((evaluation_challenges, ys))
+}

@@ -7,7 +7,7 @@ mod tests {
     use rand::Rng;
     use rust_kzg_bn254::{
         blob::Blob, consts::PRIMITIVE_ROOTS_OF_UNITY, errors::KzgError, kzg::KZG,
-        polynomial::PolynomialCoeffForm, srs::SRS, verification,
+        polynomial::PolynomialCoeffForm, srs::SRS, verify,
     };
     const GETTYSBURG_ADDRESS_BYTES: &[u8] = "Fourscore and seven years ago our fathers brought forth, on this continent, a new nation, conceived in liberty, and dedicated to the proposition that all men are created equal. Now we are engaged in a great civil war, testing whether that nation, or any nation so conceived, and so dedicated, can long endure. We are met on a great battle-field of that war. We have come to dedicate a portion of that field, as a final resting-place for those who here gave their lives, that that nation might live. It is altogether fitting and proper that we should do this. But, in a larger sense, we cannot dedicate, we cannot consecrate—we cannot hallow—this ground. The brave men, living and dead, who struggled here, have consecrated it far above our poor power to add or detract. The world will little note, nor long remember what we say here, but it can never forget what they did here. It is for us the living, rather, to be dedicated here to the unfinished work which they who fought here have thus far so nobly advanced. It is rather for us to be here dedicated to the great task remaining before us—that from these honored dead we take increased devotion to that cause for which they here gave the last full measure of devotion—that we here highly resolve that these dead shall not have died in vain—that this nation, under God, shall have a new birth of freedom, and that government of the people, by the people, for the people, shall not perish from the earth.".as_bytes();
     use ark_std::{str::FromStr, One};
@@ -78,13 +78,12 @@ mod tests {
             let value_fr = input_poly.get_evalualtion(index).unwrap();
             let z_fr = kzg.get_nth_root_of_unity(index).unwrap();
             let pairing_result =
-                verification::verify_proof(commitment, proof, value_fr.clone(), z_fr.clone())
-                    .unwrap();
+                verify::proof(commitment, proof, value_fr.clone(), z_fr.clone()).unwrap();
             assert_eq!(pairing_result, true);
 
             // take random index, not the same index and check
             assert_eq!(
-                verification::verify_proof(
+                verify::proof(
                     commitment,
                     proof,
                     value_fr.clone(),
@@ -130,13 +129,12 @@ mod tests {
             let value_fr = input_poly.get_evalualtion(index).unwrap();
             let z_fr = kzg.get_nth_root_of_unity(index).unwrap();
             let pairing_result =
-                verification::verify_proof(commitment, proof, value_fr.clone(), z_fr.clone())
-                    .unwrap();
+                verify::proof(commitment, proof, value_fr.clone(), z_fr.clone()).unwrap();
 
             assert_eq!(pairing_result, true);
 
             assert_eq!(
-                verification::verify_proof(
+                verify::proof(
                     commitment,
                     proof,
                     value_fr.clone(),
@@ -180,54 +178,34 @@ mod tests {
         let mut bad_commitments = commitments.clone();
         let mut bad_proofs = proofs.clone();
 
-        let pairing_result = rust_kzg_bn254::batch_verification::verify_blob_kzg_proof_batch(
-            &blobs,
-            &commitments,
-            &proofs,
-        )
-        .unwrap();
+        let pairing_result =
+            rust_kzg_bn254::batch::verify_blob_kzg_proof(&blobs, &commitments, &proofs).unwrap();
         assert_eq!(pairing_result, true);
 
         bad_blobs.pop();
         bad_blobs.push(Blob::from_raw_data(b"random"));
         let pairing_result_bad_blobs =
-            rust_kzg_bn254::batch_verification::verify_blob_kzg_proof_batch(
-                &bad_blobs,
-                &commitments,
-                &proofs,
-            )
-            .unwrap();
+            rust_kzg_bn254::batch::verify_blob_kzg_proof(&bad_blobs, &commitments, &proofs)
+                .unwrap();
         assert_eq!(pairing_result_bad_blobs, false);
 
         bad_commitments.pop();
         bad_commitments.push(G1Affine::rand(&mut rng));
         let pairing_result_bad_commitments =
-            rust_kzg_bn254::batch_verification::verify_blob_kzg_proof_batch(
-                &blobs,
-                &bad_commitments,
-                &proofs,
-            )
-            .unwrap();
+            rust_kzg_bn254::batch::verify_blob_kzg_proof(&blobs, &bad_commitments, &proofs)
+                .unwrap();
         assert_eq!(pairing_result_bad_commitments, false);
 
         bad_proofs.pop();
         bad_proofs.push(G1Affine::rand(&mut rng));
         let pairing_result_bad_proofs =
-            rust_kzg_bn254::batch_verification::verify_blob_kzg_proof_batch(
-                &blobs,
-                &commitments,
-                &bad_proofs,
-            )
-            .unwrap();
+            rust_kzg_bn254::batch::verify_blob_kzg_proof(&blobs, &commitments, &bad_proofs)
+                .unwrap();
         assert_eq!(pairing_result_bad_proofs, false);
 
         let pairing_result_everything_bad =
-            rust_kzg_bn254::batch_verification::verify_blob_kzg_proof_batch(
-                &bad_blobs,
-                &bad_commitments,
-                &bad_proofs,
-            )
-            .unwrap();
+            rust_kzg_bn254::batch::verify_blob_kzg_proof(&bad_blobs, &bad_commitments, &bad_proofs)
+                .unwrap();
         assert_eq!(pairing_result_everything_bad, false);
     }
 
@@ -265,12 +243,8 @@ mod tests {
         let proofs = vec![proof_1, proof_2];
         // let res = kzg.verify_blob_kzg_proof(&input1, &commitment1, &auto_proof).unwrap();
 
-        let pairing_result = rust_kzg_bn254::batch_verification::verify_blob_kzg_proof_batch(
-            &blobs,
-            &commitments,
-            &proofs,
-        )
-        .unwrap();
+        let pairing_result =
+            rust_kzg_bn254::batch::verify_blob_kzg_proof(&blobs, &commitments, &proofs).unwrap();
 
         assert_eq!(pairing_result, true);
     }
@@ -298,11 +272,7 @@ mod tests {
         let proofs = vec![proof_at_infinity];
 
         // This should fail since a proof point at infinity is invalid
-        let result = rust_kzg_bn254::batch_verification::verify_blob_kzg_proof_batch(
-            &blobs,
-            &commitments,
-            &proofs,
-        );
+        let result = rust_kzg_bn254::batch::verify_blob_kzg_proof(&blobs, &commitments, &proofs);
 
         assert!(result.is_err());
 
@@ -315,7 +285,7 @@ mod tests {
         let commitments_mixed = vec![commitment1, commitment2];
         let proofs_mixed = vec![proof_1, proof_at_infinity];
 
-        let result_mixed = rust_kzg_bn254::batch_verification::verify_blob_kzg_proof_batch(
+        let result_mixed = rust_kzg_bn254::batch::verify_blob_kzg_proof(
             &blobs_mixed,
             &commitments_mixed,
             &proofs_mixed,
@@ -380,11 +350,8 @@ mod tests {
 
         for (commitments, proofs, case_description) in test_cases {
             let blobs = vec![input.clone(), input.clone()];
-            let result = rust_kzg_bn254::batch_verification::verify_blob_kzg_proof_batch(
-                &blobs,
-                &commitments,
-                &proofs,
-            );
+            let result =
+                rust_kzg_bn254::batch::verify_blob_kzg_proof(&blobs, &commitments, &proofs);
 
             assert!(
                 result.is_err(),

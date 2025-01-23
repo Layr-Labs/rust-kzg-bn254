@@ -1,6 +1,6 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use rand::Rng;
-use rust_kzg_bn254::{blob::Blob, kzg::KZG, srs::SRS, verification};
+use rust_kzg_bn254::{blob::Blob, kzg::KZG, srs::SRS, verify};
 use std::time::Duration;
 
 fn bench_kzg_verify(c: &mut Criterion) {
@@ -28,7 +28,7 @@ fn bench_kzg_verify(c: &mut Criterion) {
             .unwrap();
         let value_fr = input_poly.get_evalualtion(index).unwrap();
         let z_fr = kzg.get_nth_root_of_unity(index).unwrap();
-        b.iter(|| verification::verify_proof(commitment, proof, *value_fr, *z_fr));
+        b.iter(|| verify::verify_proof(commitment, proof, *value_fr, *z_fr));
     });
 
     c.bench_function("bench_kzg_verify_30000", |b| {
@@ -45,7 +45,7 @@ fn bench_kzg_verify(c: &mut Criterion) {
             .unwrap();
         let value_fr = input_poly.get_evalualtion(index).unwrap();
         let z_fr = kzg.get_nth_root_of_unity(index).unwrap();
-        b.iter(|| verification::verify_proof(commitment, proof, *value_fr, *z_fr));
+        b.iter(|| verify::verify_proof(commitment, proof, *value_fr, *z_fr));
     });
 
     c.bench_function("bench_kzg_verify_50000", |b| {
@@ -62,7 +62,7 @@ fn bench_kzg_verify(c: &mut Criterion) {
             .unwrap();
         let value_fr = input_poly.get_evalualtion(index).unwrap();
         let z_fr = kzg.get_nth_root_of_unity(index).unwrap();
-        b.iter(|| verification::verify_proof(commitment, proof, *value_fr, *z_fr));
+        b.iter(|| verify::verify_proof(commitment, proof, *value_fr, *z_fr));
     });
 }
 
