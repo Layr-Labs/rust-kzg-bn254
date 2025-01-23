@@ -17,7 +17,12 @@ fn generate_powers_of_2(limit: u64) -> Vec<usize> {
 fn bench_g1_ifft(c: &mut Criterion) {
     c.bench_function("bench_g1_ifft", |b| {
         let kzg = KZG::new(
-            SRS::new("tests/test-files/mainnet-data/g1.131072.point", 3000, 3000).unwrap(),
+            SRS::new(
+                "tests/test-files/mainnet-data/g1.131072.point",
+                268435456,
+                131072,
+            )
+            .unwrap(),
         );
         b.iter(|| {
             for power in &generate_powers_of_2(3000) {
