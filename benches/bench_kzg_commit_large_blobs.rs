@@ -1,16 +1,18 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use rand::Rng;
-use rust_kzg_bn254::{blob::Blob, kzg::KZG};
+use rust_kzg_bn254::{blob::Blob, kzg::KZG, srs::SRS};
 use std::time::Duration;
 
 fn bench_kzg_commit(c: &mut Criterion) {
     let mut rng = rand::thread_rng();
-    let mut kzg = KZG::setup(
-        "tests/test-files/mainnet-data/g1.32mb.point",
-        268435456,
-        524288,
-    )
-    .unwrap();
+    let mut kzg = KZG::new(
+        SRS::new(
+            "tests/test-files/mainnet-data/g1.32mb.point",
+            268435456,
+            524288,
+        )
+        .unwrap(),
+    );
 
     c.bench_function("bench_kzg_commit_8mb", |b| {
         let random_blob: Vec<u8> = (0..8000000)

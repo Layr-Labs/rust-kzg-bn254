@@ -1,46 +1,36 @@
 #[cfg(test)]
 mod tests {
-    use ark_bn254::{Fq, Fr, G1Affine, G2Projective};
+    use ark_bn254::{Fq, Fr, G1Affine};
     use ark_ec::AffineRepr;
     use ark_ff::UniformRand;
     use lazy_static::lazy_static;
     use rand::Rng;
     use rust_kzg_bn254::{
-        blob::Blob, consts::PRIMITIVE_ROOTS_OF_UNITY, errors::KzgError, helpers, kzg::KZG,
-        polynomial::PolynomialCoeffForm,
+        blob::Blob, consts::PRIMITIVE_ROOTS_OF_UNITY, errors::KzgError, kzg::KZG,
+        polynomial::PolynomialCoeffForm, srs::SRS,
     };
-    use std::{env, fs::File, io::BufReader};
     const GETTYSBURG_ADDRESS_BYTES: &[u8] = "Fourscore and seven years ago our fathers brought forth, on this continent, a new nation, conceived in liberty, and dedicated to the proposition that all men are created equal. Now we are engaged in a great civil war, testing whether that nation, or any nation so conceived, and so dedicated, can long endure. We are met on a great battle-field of that war. We have come to dedicate a portion of that field, as a final resting-place for those who here gave their lives, that that nation might live. It is altogether fitting and proper that we should do this. But, in a larger sense, we cannot dedicate, we cannot consecrate—we cannot hallow—this ground. The brave men, living and dead, who struggled here, have consecrated it far above our poor power to add or detract. The world will little note, nor long remember what we say here, but it can never forget what they did here. It is for us the living, rather, to be dedicated here to the unfinished work which they who fought here have thus far so nobly advanced. It is rather for us to be here dedicated to the great task remaining before us—that from these honored dead we take increased devotion to that cause for which they here gave the last full measure of devotion—that we here highly resolve that these dead shall not have died in vain—that this nation, under God, shall have a new birth of freedom, and that government of the people, by the people, for the people, shall not perish from the earth.".as_bytes();
     use ark_std::{str::FromStr, One};
 
-    // Function to determine the setup based on an environment variable
-    fn determine_setup() -> KZG {
-        match env::var("KZG_ENV") {
-            Ok(val) if val == "mainnet-data" => KZG::setup(
+    // Define a static variable for setup
+    lazy_static! {
+        static ref KZG_INSTANCE: KZG = KZG::new(
+            SRS::new(
                 "tests/test-files/mainnet-data/g1.131072.point",
                 268435456,
                 131072,
             )
             .unwrap(),
-            _ => KZG::setup("tests/test-files/g1.point", 3000, 3000).unwrap(),
-        }
-    }
-
-    // Define a static variable for setup
-    lazy_static! {
-        static ref KZG_INSTANCE: KZG = determine_setup();
-        static ref KZG_3000: KZG = KZG::setup("tests/test-files/g1.point", 3000, 3000,).unwrap();
+        );
     }
 
     #[test]
     fn test_commit_errors() {
         let mut coeffs = vec![];
-        for _ in 0..4000 {
-            coeffs.push(Fr::one());
-        }
-
+        let mut rng = rand::thread_rng();
+        coeffs.resize(5000000, Fr::rand(&mut rng));
         let polynomial = PolynomialCoeffForm::new(coeffs);
-        let result = KZG_3000.commit_coeff_form(&polynomial);
+        let result = KZG_INSTANCE.commit_coeff_form(&polynomial);
         assert_eq!(
             result,
             Err(KzgError::SerializationError(
@@ -50,33 +40,14 @@ mod tests {
     }
 
     #[test]
-    fn test_kzg_setup_errors() {
-        let kzg2 = KZG::setup("tests/test-files/g1.point", 3000, 3001);
+    fn test_srs_setup_errors() {
+        let srs = SRS::new("tests/test-files/g1.point", 3000, 3001);
         assert_eq!(
-            kzg2,
+            srs,
             Err(KzgError::GenericError(
-                "number of points to load is more than the srs order".to_string()
+                "Number of points to load exceeds SRS order.".to_string()
             ))
         );
-    }
-
-    #[test]
-    fn test_blob_to_kzg_commitment() {
-        use ark_bn254::Fq;
-
-        let blob = Blob::from_raw_data(GETTYSBURG_ADDRESS_BYTES);
-        let fn_output = KZG_3000.commit_blob(&blob).unwrap();
-        let commitment_from_da = G1Affine::new_unchecked(
-            Fq::from_str(
-                "2961155957874067312593973807786254905069537311739090798303675273531563528369",
-            )
-            .unwrap(),
-            Fq::from_str(
-                "159565752702690920280451512738307422982252330088949702406468210607852362941",
-            )
-            .unwrap(),
-        );
-        assert_eq!(commitment_from_da, fn_output);
     }
 
     #[test]
@@ -86,7 +57,7 @@ mod tests {
         let mut rng = rand::thread_rng();
         let mut kzg = KZG_INSTANCE.clone();
 
-        (0..1).for_each(|_| {
+        (0..100).for_each(|_| {
             let blob_length = rand::thread_rng().gen_range(35..50000);
             let random_blob: Vec<u8> = (0..blob_length)
                 .map(|_| rng.gen_range(32..=126) as u8)
@@ -178,58 +149,6 @@ mod tests {
     }
 
     #[test]
-    fn test_g1_ifft() {
-        use ark_bn254::Fq;
-        use std::io::BufRead;
-
-        let file = File::open("tests/test-files/lagrangeG1SRS.txt").unwrap();
-        let reader = BufReader::new(file);
-
-        let kzg_g1_points = KZG_3000.g1_ifft(64).unwrap();
-
-        // Iterate over each line in the file
-        for (i, line_result) in reader.lines().enumerate() {
-            let mut line = line_result.unwrap(); // Retrieve the line, handling potential I/O errors
-            line = line.trim_end().to_string();
-
-            // Split the line at each comma and process the parts
-            let parts: Vec<&str> = line.split(',').collect();
-
-            let x = Fq::from_str(parts[0]).expect("should be fine");
-            let y = Fq::from_str(parts[1]).expect("should be fine");
-
-            let point = G1Affine::new_unchecked(x, y);
-            assert_eq!(point, kzg_g1_points[i], "failed on {i}");
-        }
-    }
-
-    #[test]
-    fn test_read_g1_point_from_bytes_be() {
-        use ark_bn254::Fq;
-        use ark_std::str::FromStr;
-        use std::io::BufRead;
-
-        let file = File::open("tests/test-files/srs.g1.points.string").unwrap();
-        let reader = BufReader::new(file);
-        let kzg_g1_points = KZG_3000.get_g1_points();
-
-        // Iterate over each line in the file
-        for (i, line_result) in reader.lines().enumerate() {
-            let mut line = line_result.unwrap(); // Retrieve the line, handling potential I/O errors
-            line = line.trim_end().to_string();
-
-            // Split the line at each comma and process the parts
-            let parts: Vec<&str> = line.split(',').collect();
-
-            let x = Fq::from_str(parts[0]).expect("should be fine");
-            let y = Fq::from_str(parts[1]).expect("should be fine");
-
-            let point = G1Affine::new_unchecked(x, y);
-            assert_eq!(point, kzg_g1_points[i]);
-        }
-    }
-
-    #[test]
     fn test_multiple_proof_random_100_blobs() {
         let mut rng = rand::thread_rng();
         let mut kzg = KZG_INSTANCE.clone();
@@ -238,7 +157,7 @@ mod tests {
         let mut commitments: Vec<G1Affine> = Vec::new();
         let mut proofs: Vec<G1Affine> = Vec::new();
 
-        (0..1).for_each(|_| {
+        (0..100).for_each(|_| {
             let blob_length = rand::thread_rng().gen_range(35..50000);
             let random_blob: Vec<u8> = (0..blob_length)
                 .map(|_| rng.gen_range(32..=126) as u8)
@@ -459,7 +378,8 @@ mod tests {
                 .unwrap();
             let z_fr = kzg.get_nth_root_of_unity(i).unwrap();
             let claimed_y_fr =
-                KZG::evaluate_polynomial_in_evaluation_form(&input_poly, z_fr, 3000).unwrap();
+                rust_kzg_bn254::helpers::evaluate_polynomial_in_evaluation_form(&input_poly, z_fr)
+                    .unwrap();
             assert_eq!(claimed_y_fr, input_poly.evaluations()[i]);
         }
     }
@@ -506,13 +426,6 @@ mod tests {
             let root_of_unity_at_index = PRIMITIVE_ROOTS_OF_UNITY[i];
             assert_eq!(root_of_unity_at_index, fr_s[i]);
         }
-    }
-
-    #[test]
-    fn test_g2_tau_in_group() {
-        let kzg = &KZG_INSTANCE;
-        let tau = kzg.get_g2_tau();
-        assert!(helpers::is_on_curve_g2(&G2Projective::from(tau)));
     }
 
     // Helper function to generate a point in the wrong subgroup

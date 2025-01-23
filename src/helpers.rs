@@ -1,14 +1,22 @@
-use ark_bn254::{Fq, Fq2, Fr, G1Affine, G1Projective, G2Projective};
-use ark_ec::{AffineRepr, CurveGroup, VariableBaseMSM};
+use ark_bn254::{Bn254, Fq, Fq2, Fr, G1Affine, G1Projective, G2Affine, G2Projective};
+use ark_ec::{pairing::Pairing, AffineRepr, CurveGroup, VariableBaseMSM};
 use ark_ff::{sbb, BigInt, BigInteger, Field, PrimeField};
+use ark_serialize::CanonicalSerialize;
 use ark_std::{str::FromStr, vec::Vec, One, Zero};
 use crossbeam_channel::Receiver;
+use num_traits::ToPrimitive;
+use sha2::{Digest, Sha256};
 use std::cmp;
 
 use crate::{
     arith,
-    consts::{BYTES_PER_FIELD_ELEMENT, PRIMITIVE_ROOTS_OF_UNITY, SIZE_OF_G1_AFFINE_COMPRESSED},
+    blob::Blob,
+    consts::{
+        BYTES_PER_FIELD_ELEMENT, FIAT_SHAMIR_PROTOCOL_DOMAIN, MAINNET_SRS_G1_SIZE,
+        PRIMITIVE_ROOTS_OF_UNITY, SIZE_OF_G1_AFFINE_COMPRESSED,
+    },
     errors::KzgError,
+    polynomial::PolynomialEvalForm,
     traits::ReadPointFromBytes,
 };
 use ark_ec::AdditiveGroup;
@@ -167,13 +175,16 @@ pub fn to_fr_array(data: &[u8]) -> Vec<Fr> {
 /// # Example
 /// ```
 /// use rust_kzg_bn254::kzg::KZG;
+/// use rust_kzg_bn254::srs::SRS;
 /// use rust_kzg_bn254::blob::Blob;
 ///
-/// let mut kzg = KZG::setup(
-///                 "tests/test-files/mainnet-data/g1.131072.point",
-///                  268435456,
-///                  131072,
-///                  ).unwrap();
+/// let mut kzg = KZG::new(
+///                 SRS::new(
+///                   "tests/test-files/mainnet-data/g1.131072.point",
+///                    268435456,
+///                    131072,
+///                 ).unwrap()
+/// );
 /// let input = Blob::from_raw_data(b"random data for blob");
 /// kzg.calculate_and_store_roots_of_unity(input.len().try_into().unwrap()).unwrap();
 /// ```
@@ -467,4 +478,228 @@ pub fn get_primitive_root_of_unity(power: usize) -> Result<Fr, KzgError> {
         .get(power)
         .ok_or_else(|| KzgError::GenericError("power must be <= 28".to_string()))
         .copied()
+}
+
+/// Maps a byte slice to a field element (`Fr`) using SHA-256 from SHA3 family as the
+/// hash function.
+///
+/// # Arguments
+///
+/// * `msg` - The input byte slice to hash.
+///
+/// # Returns
+///
+/// * `Fr` - The resulting field element.
+pub fn hash_to_field_element(msg: &[u8]) -> Fr {
+    // Perform the hash operation.
+    let msg_digest = Sha256::digest(msg);
+    let hash_elements = msg_digest.as_slice();
+
+    let fr_element: Fr = Fr::from_be_bytes_mod_order(hash_elements);
+
+    fr_element
+}
+
+pub fn pairings_verify(a1: G1Affine, a2: G2Affine, b1: G1Affine, b2: G2Affine) -> bool {
+    let neg_b1 = -b1;
+    let p = [a1, neg_b1];
+    let q = [a2, b2];
+    let result = Bn254::multi_pairing(p, q);
+    result.is_zero()
+}
+
+/// Computes the Fiat-Shamir challenge from a blob and its commitment.
+///
+/// # Arguments
+///
+/// * `blob` - A reference to the `Blob` struct.
+/// * `commitment` - A reference to the `G1Affine` commitment.
+///
+/// # Returns
+///
+/// * `Ok(Fr)` - The resulting field element challenge.
+/// * `Err(KzgError)` - If any step fails.
+pub fn compute_challenge(blob: &Blob, commitment: &G1Affine) -> Result<Fr, KzgError> {
+    // Convert the blob to a polynomial in evaluation form
+    // This is needed to process the blob data for the challenge
+    let blob_poly = blob.to_polynomial_eval_form();
+
+    // Calculate total size needed for the challenge input buffer:
+    // - Length of domain separator
+    // - 8 bytes for number of field elements
+    // - Size of blob data (number of field elements * bytes per element)
+    // - Size of compressed G1 point (commitment)
+    let challenge_input_size = FIAT_SHAMIR_PROTOCOL_DOMAIN.len()
+        + 8
+        + (blob_poly.len() * BYTES_PER_FIELD_ELEMENT)
+        + SIZE_OF_G1_AFFINE_COMPRESSED;
+
+    // Initialize buffer to store all data that will be hashed
+    let mut digest_bytes = vec![0; challenge_input_size];
+    let mut offset = 0;
+
+    // Step 1: Copy the Fiat-Shamir domain separator
+    // This provides domain separation for the hash function to prevent
+    // attacks that try to confuse different protocol messages
+    digest_bytes[offset..offset + FIAT_SHAMIR_PROTOCOL_DOMAIN.len()]
+        .copy_from_slice(FIAT_SHAMIR_PROTOCOL_DOMAIN);
+    offset += FIAT_SHAMIR_PROTOCOL_DOMAIN.len();
+
+    // Step 2: Copy the number of field elements (blob polynomial length)
+    // Convert to bytes using the configured endianness
+    let number_of_field_elements = blob_poly.len().to_be_bytes();
+    digest_bytes[offset..offset + 8].copy_from_slice(&number_of_field_elements);
+    offset += 8;
+
+    // Step 3: Copy the blob data
+    // Convert polynomial to bytes using helper function
+    let blob_data = to_byte_array(
+        blob_poly.evaluations(),
+        blob_poly.len() * BYTES_PER_FIELD_ELEMENT,
+    );
+    digest_bytes[offset..offset + blob_data.len()].copy_from_slice(&blob_data);
+    offset += blob_data.len();
+
+    // Step 4: Copy the commitment (compressed G1 point)
+    // Serialize the commitment point in compressed form
+    let mut commitment_bytes = Vec::with_capacity(SIZE_OF_G1_AFFINE_COMPRESSED);
+    commitment
+        .serialize_compressed(&mut commitment_bytes)
+        .map_err(|_| KzgError::SerializationError("Failed to serialize commitment".to_string()))?;
+    digest_bytes[offset..offset + SIZE_OF_G1_AFFINE_COMPRESSED].copy_from_slice(&commitment_bytes);
+
+    // Verify that we wrote exactly the amount of bytes we expected
+    // This helps catch any buffer overflow/underflow bugs
+    if offset + SIZE_OF_G1_AFFINE_COMPRESSED != challenge_input_size {
+        return Err(KzgError::InvalidInputLength);
+    }
+
+    // Hash all the data to generate the challenge field element
+    // This implements the Fiat-Shamir transform to generate a "random" challenge
+    Ok(hash_to_field_element(&digest_bytes))
+}
+
+/// Ref: https://github.com/ethereum/consensus-specs/blob/master/specs/deneb/polynomial-commitments.md#evaluate_polynomial_in_evaluation_form
+pub fn evaluate_polynomial_in_evaluation_form(
+    polynomial: &PolynomialEvalForm,
+    z: &Fr,
+) -> Result<Fr, KzgError> {
+    let blob_size = polynomial.len_underlying_blob_bytes();
+
+    // Step 2: Calculate roots of unity for the given blob size and SRS order
+    let roots_of_unity = calculate_roots_of_unity(blob_size as u64)?;
+
+    // Step 3: Ensure the polynomial length matches the domain length
+    if polynomial.len() != roots_of_unity.len() {
+        return Err(KzgError::InvalidInputLength);
+    }
+
+    let width = polynomial.len();
+
+    // Step 4: Compute inverse_width = 1 / width
+    let inverse_width = Fr::from(width as u64)
+        .inverse()
+        .ok_or(KzgError::InvalidDenominator)?;
+
+    // Step 5: Check if `z` is in the domain
+    if let Some(index) = roots_of_unity.iter().position(|&domain_i| domain_i == *z) {
+        return polynomial
+            .get_evalualtion(index)
+            .cloned()
+            .ok_or(KzgError::GenericError(
+                "Polynomial element missing at the found index.".to_string(),
+            ));
+    }
+
+    // Step 6: Use the barycentric formula to compute the evaluation
+    let sum = polynomial
+        .evaluations()
+        .iter()
+        .zip(roots_of_unity.iter())
+        .map(|(f_i, &domain_i)| {
+            let a = *f_i * domain_i;
+            let b = *z - domain_i;
+            // Since `z` is not in the domain, `b` should never be zero
+            a / b
+        })
+        .fold(Fr::zero(), |acc, val| acc + val);
+
+    // Step 7: Compute r = z^width - 1
+    let r = z.pow([width as u64]) - Fr::one();
+
+    // Step 8: Compute f(z) = (z^width - 1) / width * sum
+    let f_z = sum * r * inverse_width;
+
+    Ok(f_z)
+}
+
+/// Calculates the roots of unities but doesn't assign it to the struct
+/// Used in batch verification process as the roots need to be calculated for each blob
+/// because of different length.
+///
+/// # Arguments
+/// * `length_of_data_after_padding` - Length of the blob data after padding in bytes.
+///
+/// # Returns
+/// * `Result<(Params, Vec<Fr>), KzgError>` - Tuple containing:
+///   - Params: KZG library operational parameters
+///   - Vec<Fr>: Vector of roots of unity
+///
+/// # Details
+/// - Generates roots of unity needed for FFT operations
+/// - Calculates KZG operational parameters for commitment scheme
+/// ```
+pub(crate) fn calculate_roots_of_unity(
+    length_of_data_after_padding: u64,
+) -> Result<Vec<Fr>, KzgError> {
+    // Calculate log2 of the next power of two of the length of data after padding
+    let log2_of_evals = (length_of_data_after_padding
+        .div_ceil(32)
+        .next_power_of_two() as f64)
+        .log2()
+        .to_u8()
+        .ok_or_else(|| {
+            KzgError::GenericError(
+                "Failed to convert length_of_data_after_padding to u8".to_string(),
+            )
+        })?;
+
+    // Check if the length of data after padding is valid with respect to the SRS order
+    if length_of_data_after_padding
+        .div_ceil(BYTES_PER_FIELD_ELEMENT as u64)
+        .next_power_of_two()
+        > MAINNET_SRS_G1_SIZE as u64
+    {
+        return Err(KzgError::SerializationError(
+            "the supplied encoding parameters are not valid with respect to the SRS.".to_string(),
+        ));
+    }
+
+    // Find the root of unity corresponding to the calculated log2 value
+    let root_of_unity = get_primitive_root_of_unity(log2_of_evals.into())?;
+
+    // Expand the root to get all the roots of unity
+    let mut expanded_roots_of_unity = expand_root_of_unity(&root_of_unity);
+
+    // Remove the last element to avoid duplication
+    expanded_roots_of_unity.truncate(expanded_roots_of_unity.len() - 1);
+
+    // Return the parameters and the expanded roots of unity
+    Ok(expanded_roots_of_unity)
+}
+
+/// function to expand the roots based on the configuration
+fn expand_root_of_unity(root_of_unity: &Fr) -> Vec<Fr> {
+    let mut roots = vec![Fr::one()]; // Initialize with 1
+    roots.push(*root_of_unity); // Add the root of unity
+
+    let mut i = 1;
+    while !roots[i].is_one() {
+        // Continue until the element cycles back to one
+        let this = &roots[i];
+        i += 1;
+        roots.push(this * root_of_unity); // Push the next power of the root
+                                          // of unity
+    }
+    roots
 }

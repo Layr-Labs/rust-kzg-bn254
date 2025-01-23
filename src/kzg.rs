@@ -1,26 +1,23 @@
 use crate::{
     blob::Blob,
-    consts::{
-        BYTES_PER_FIELD_ELEMENT, G2_TAU_FOR_MAINNET_SRS, G2_TAU_FOR_TEST_SRS_3000,
-        MAINNET_SRS_G1_SIZE, SIZE_OF_G1_AFFINE_COMPRESSED,
-    },
+    consts::{BYTES_PER_FIELD_ELEMENT, G2_TAU},
     errors::KzgError,
     helpers,
     polynomial::{PolynomialCoeffForm, PolynomialEvalForm},
+    srs::SRS,
 };
 
-use crate::consts::{FIAT_SHAMIR_PROTOCOL_DOMAIN, RANDOM_CHALLENGE_KZG_BATCH_DOMAIN};
+use crate::consts::RANDOM_CHALLENGE_KZG_BATCH_DOMAIN;
 use crate::helpers::is_on_curve_g1;
-use ark_bn254::{Bn254, Fr, G1Affine, G1Projective, G2Affine};
-use ark_ec::{pairing::Pairing, AffineRepr, CurveGroup, VariableBaseMSM};
-use ark_ff::{BigInteger, Field, PrimeField};
+use ark_bn254::{Fr, G1Affine, G1Projective, G2Affine};
+use ark_ec::{AffineRepr, CurveGroup, VariableBaseMSM};
+use ark_ff::{BigInteger, PrimeField};
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 use ark_serialize::{CanonicalSerialize, Read};
-use ark_std::{iterable::Iterable, ops::Div, One, Zero};
+use ark_std::{iterable::Iterable, ops::Div, Zero};
 use crossbeam_channel::{bounded, Sender};
 use num_traits::ToPrimitive;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
-use sha2::{Digest, Sha256};
 use std::{
     fs::File,
     io::{self, BufReader},
@@ -37,94 +34,16 @@ use std::{
 /// constructor and few helper methods.
 #[derive(Debug, PartialEq, Clone)]
 pub struct KZG {
-    // SRS points are stored in monomial form, ready to be used for commitments with polynomials
-    // in coefficient form. To commit against a polynomial in evaluation form, we need to transform
-    // the SRS points to lagrange form using IFFT.
-    g1: Vec<G1Affine>,
-    srs_order: u64,
     expanded_roots_of_unity: Vec<Fr>,
-    completed_setup: bool,
+    srs: SRS,
 }
 
 impl KZG {
-    pub fn setup(
-        path_to_g1_points: &str,
-        srs_order: u32,
-        srs_points_to_load: u32,
-    ) -> Result<Self, KzgError> {
-        if srs_points_to_load > srs_order {
-            return Err(KzgError::GenericError(
-                "number of points to load is more than the srs order".to_string(),
-            ));
-        }
-
-        let g1_points =
-            Self::parallel_read_g1_points(path_to_g1_points.to_owned(), srs_points_to_load, false)
-                .map_err(|e| KzgError::SerializationError(e.to_string()))?;
-
-        Ok(Self {
-            g1: g1_points,
-            srs_order: srs_order.into(),
+    pub fn new(srs: SRS) -> Self {
+        Self {
             expanded_roots_of_unity: vec![],
-            completed_setup: false,
-        })
-    }
-
-    /// Calculates the roots of unities but doesn't assign it to the struct
-    /// Used in batch verification process as the roots need to be calculated for each blob
-    /// because of different length.
-    ///
-    /// # Arguments
-    /// * `length_of_data_after_padding` - Length of the blob data after padding in bytes.
-    ///
-    /// # Returns
-    /// * `Result<(Params, Vec<Fr>), KzgError>` - Tuple containing:
-    ///   - Params: KZG library operational parameters
-    ///   - Vec<Fr>: Vector of roots of unity
-    ///
-    /// # Details
-    /// - Generates roots of unity needed for FFT operations
-    /// - Calculates KZG operational parameters for commitment scheme
-    /// ```
-    fn calculate_roots_of_unity(
-        length_of_data_after_padding: u64,
-        srs_order: u64,
-    ) -> Result<Vec<Fr>, KzgError> {
-        // Calculate log2 of the next power of two of the length of data after padding
-        let log2_of_evals = (length_of_data_after_padding
-            .div_ceil(32)
-            .next_power_of_two() as f64)
-            .log2()
-            .to_u8()
-            .ok_or_else(|| {
-                KzgError::GenericError(
-                    "Failed to convert length_of_data_after_padding to u8".to_string(),
-                )
-            })?;
-
-        // Check if the length of data after padding is valid with respect to the SRS order
-        if length_of_data_after_padding
-            .div_ceil(BYTES_PER_FIELD_ELEMENT as u64)
-            .next_power_of_two()
-            > srs_order
-        {
-            return Err(KzgError::SerializationError(
-                "the supplied encoding parameters are not valid with respect to the SRS."
-                    .to_string(),
-            ));
+            srs,
         }
-
-        // Find the root of unity corresponding to the calculated log2 value
-        let root_of_unity = helpers::get_primitive_root_of_unity(log2_of_evals.into())?;
-
-        // Expand the root to get all the roots of unity
-        let mut expanded_roots_of_unity = Self::expand_root_of_unity(&root_of_unity);
-
-        // Remove the last element to avoid duplication
-        expanded_roots_of_unity.truncate(expanded_roots_of_unity.len() - 1);
-
-        // Return the parameters and the expanded roots of unity
-        Ok(expanded_roots_of_unity)
     }
 
     /// Calculates the roots of unities and assigns it to the struct
@@ -142,14 +61,16 @@ impl KZG {
     /// ```
     /// use rust_kzg_bn254::kzg::KZG;
     /// use rust_kzg_bn254::blob::Blob;
+    /// use rust_kzg_bn254::srs::SRS;
     /// use ark_std::One;
     /// use ark_bn254::Fr;
     ///
-    /// let mut kzg = KZG::setup(
+    /// let mut kzg = KZG::new(
+    ///        SRS::new(
     ///        "tests/test-files/mainnet-data/g1.131072.point",
     ///        268435456,
     ///        131072,
-    ///    ).unwrap();
+    ///    ).unwrap());
     /// let input_blob = Blob::from_raw_data(b"test blob data");
     /// kzg.calculate_and_store_roots_of_unity(input_blob.len().try_into().unwrap()).unwrap();
     /// ```
@@ -157,9 +78,7 @@ impl KZG {
         &mut self,
         length_of_data_after_padding: u64,
     ) -> Result<(), KzgError> {
-        let roots_of_unity =
-            Self::calculate_roots_of_unity(length_of_data_after_padding, self.srs_order)?;
-        self.completed_setup = true;
+        let roots_of_unity = helpers::calculate_roots_of_unity(length_of_data_after_padding)?;
         self.expanded_roots_of_unity = roots_of_unity;
         Ok(())
     }
@@ -171,27 +90,6 @@ impl KZG {
     /// helper function to get the
     pub fn get_nth_root_of_unity(&self, i: usize) -> Option<&Fr> {
         self.expanded_roots_of_unity.get(i)
-    }
-
-    /// function to expand the roots based on the configuration
-    fn expand_root_of_unity(root_of_unity: &Fr) -> Vec<Fr> {
-        let mut roots = vec![Fr::one()]; // Initialize with 1
-        roots.push(*root_of_unity); // Add the root of unity
-
-        let mut i = 1;
-        while !roots[i].is_one() {
-            // Continue until the element cycles back to one
-            let this = &roots[i];
-            i += 1;
-            roots.push(this * root_of_unity); // Push the next power of the root
-                                              // of unity
-        }
-        roots
-    }
-
-    /// helper function to get g1 points
-    pub fn get_g1_points(&self) -> Vec<G1Affine> {
-        self.g1.to_vec()
     }
 
     /// read files in chunks with specified length
@@ -345,7 +243,7 @@ impl KZG {
 
     /// Commit the polynomial with the srs values loaded into [Kzg].
     pub fn commit_eval_form(&self, polynomial: &PolynomialEvalForm) -> Result<G1Affine, KzgError> {
-        if polynomial.len() > self.g1.len() {
+        if polynomial.len() > self.srs.g1.len() {
             return Err(KzgError::SerializationError(
                 "polynomial length is not correct".to_string(),
             ));
@@ -366,14 +264,14 @@ impl KZG {
         &self,
         polynomial: &PolynomialCoeffForm,
     ) -> Result<G1Affine, KzgError> {
-        if polynomial.len() > self.g1.len() {
+        if polynomial.len() > self.srs.g1.len() {
             return Err(KzgError::SerializationError(
                 "polynomial length is not correct".to_string(),
             ));
         }
         // When the polynomial is in coefficient form, use the original srs points (in
         // monomial form).
-        let bases = self.g1[..polynomial.len()].to_vec();
+        let bases = self.srs.g1[..polynomial.len()].to_vec();
 
         match G1Projective::msm(&bases, polynomial.coeffs()) {
             Ok(res) => Ok(res.into_affine()),
@@ -387,12 +285,6 @@ impl KZG {
         polynomial: &PolynomialEvalForm,
         z_fr: &Fr,
     ) -> Result<G1Affine, KzgError> {
-        if !self.completed_setup {
-            return Err(KzgError::GenericError(
-                "setup is not complete, run the data_setup functions".to_string(),
-            ));
-        }
-
         // Verify polynomial length matches that of the roots of unity
         if polynomial.len() != self.expanded_roots_of_unity.len() {
             return Err(KzgError::GenericError(
@@ -406,7 +298,7 @@ impl KZG {
 
         // Evaluate polynomial at the point z
         // This gives us y = p(z)
-        let y_fr = Self::evaluate_polynomial_in_evaluation_form(polynomial, z_fr, self.srs_order)?;
+        let y_fr = helpers::evaluate_polynomial_in_evaluation_form(polynomial, z_fr)?;
 
         // Compute p(x) - y for each evaluation point
         // This is the numerator of the quotient polynomial
@@ -478,12 +370,6 @@ impl KZG {
         polynomial: &PolynomialEvalForm,
         z_fr: &Fr,
     ) -> Result<G1Affine, KzgError> {
-        if !self.completed_setup {
-            return Err(KzgError::GenericError(
-                "setup is not complete, run one of the setup functions".to_string(),
-            ));
-        }
-
         // Verify that polynomial length matches roots of unity length
         if polynomial.len() != self.expanded_roots_of_unity.len() {
             return Err(KzgError::GenericError(
@@ -534,7 +420,7 @@ impl KZG {
             ));
         }
 
-        let points_projective: Vec<G1Projective> = self.g1[..length]
+        let points_projective: Vec<G1Projective> = self.srs.g1[..length]
             .par_iter()
             .map(|&p| G1Projective::from(p))
             .collect();
@@ -560,7 +446,7 @@ impl KZG {
     ) -> Result<bool, KzgError> {
         // Get τ*G2 from the trusted setup
         // This is the second generator point multiplied by the trusted setup secret
-        let g2_tau = self.get_g2_tau();
+        let g2_tau = crate::consts::G2_TAU;
 
         // Compute [value]*G1
         // This encrypts the claimed evaluation value as a point in G1
@@ -584,28 +470,12 @@ impl KZG {
         // e([C - value*G1], G2) = e(proof, [τ - z]*G2)
         // This checks if (C - value*G1) = proof * (τ - z)
         // which verifies the polynomial quotient relationship
-        Ok(Self::pairings_verify(
+        Ok(helpers::pairings_verify(
             commit_minus_value,    // Left side first argument
             G2Affine::generator(), // Left side second argument (G2 generator)
             proof,                 // Right side first argument
             x_minus_z,             // Right side second argument
         ))
-    }
-
-    pub fn get_g2_tau(&self) -> G2Affine {
-        if self.g1.len() == MAINNET_SRS_G1_SIZE {
-            G2_TAU_FOR_MAINNET_SRS
-        } else {
-            G2_TAU_FOR_TEST_SRS_3000
-        }
-    }
-
-    fn pairings_verify(a1: G1Affine, a2: G2Affine, b1: G1Affine, b2: G2Affine) -> bool {
-        let neg_b1 = -b1;
-        let p = [a1, neg_b1];
-        let q = [a2, b2];
-        let result = Bn254::multi_pairing(p, q);
-        result.is_zero()
     }
 
     /// TODO(anupsv): Accept bytes instead of Affine points. Ref: https://github.com/Layr-Labs/rust-kzg-bn254/issues/31
@@ -619,14 +489,11 @@ impl KZG {
         let polynomial = blob.to_polynomial_eval_form();
 
         // Compute the evaluation challenge for the blob and commitment
-        let evaluation_challenge = Self::compute_challenge(blob, commitment)?;
+        let evaluation_challenge = helpers::compute_challenge(blob, commitment)?;
 
         // Evaluate the polynomial in evaluation form
-        let y = Self::evaluate_polynomial_in_evaluation_form(
-            &polynomial,
-            &evaluation_challenge,
-            self.srs_order,
-        )?;
+        let y =
+            helpers::evaluate_polynomial_in_evaluation_form(&polynomial, &evaluation_challenge)?;
 
         // Verify the KZG proof
         self.verify_proof(*commitment, *proof, y, evaluation_challenge)
@@ -652,7 +519,7 @@ impl KZG {
 
         // Compute the evaluation challenge using Fiat-Shamir heuristic
         // This challenge determines the point at which we evaluate the polynomial
-        let evaluation_challenge = Self::compute_challenge(blob, commitment)?;
+        let evaluation_challenge = helpers::compute_challenge(blob, commitment)?;
 
         // Compute the actual KZG proof using the polynomial and evaluation point
         // This creates a proof that the polynomial evaluates to a specific value at the challenge point
@@ -660,161 +527,10 @@ impl KZG {
         self.compute_proof_impl(&blob_poly, &evaluation_challenge)
     }
 
-    /// Maps a byte slice to a field element (`Fr`) using SHA-256 from SHA3 family as the
-    /// hash function.
-    ///
-    /// # Arguments
-    ///
-    /// * `msg` - The input byte slice to hash.
-    ///
-    /// # Returns
-    ///
-    /// * `Fr` - The resulting field element.
-    fn hash_to_field_element(msg: &[u8]) -> Fr {
-        // Perform the hash operation.
-        let msg_digest = Sha256::digest(msg);
-        let hash_elements = msg_digest.as_slice();
-
-        let fr_element: Fr = Fr::from_be_bytes_mod_order(hash_elements);
-
-        fr_element
-    }
-
-    /// Computes the Fiat-Shamir challenge from a blob and its commitment.
-    ///
-    /// # Arguments
-    ///
-    /// * `blob` - A reference to the `Blob` struct.
-    /// * `commitment` - A reference to the `G1Affine` commitment.
-    ///
-    /// # Returns
-    ///
-    /// * `Ok(Fr)` - The resulting field element challenge.
-    /// * `Err(KzgError)` - If any step fails.
-    pub fn compute_challenge(blob: &Blob, commitment: &G1Affine) -> Result<Fr, KzgError> {
-        // Convert the blob to a polynomial in evaluation form
-        // This is needed to process the blob data for the challenge
-        let blob_poly = blob.to_polynomial_eval_form();
-
-        // Calculate total size needed for the challenge input buffer:
-        // - Length of domain separator
-        // - 8 bytes for number of field elements
-        // - Size of blob data (number of field elements * bytes per element)
-        // - Size of compressed G1 point (commitment)
-        let challenge_input_size = FIAT_SHAMIR_PROTOCOL_DOMAIN.len()
-            + 8
-            + (blob_poly.len() * BYTES_PER_FIELD_ELEMENT)
-            + SIZE_OF_G1_AFFINE_COMPRESSED;
-
-        // Initialize buffer to store all data that will be hashed
-        let mut digest_bytes = vec![0; challenge_input_size];
-        let mut offset = 0;
-
-        // Step 1: Copy the Fiat-Shamir domain separator
-        // This provides domain separation for the hash function to prevent
-        // attacks that try to confuse different protocol messages
-        digest_bytes[offset..offset + FIAT_SHAMIR_PROTOCOL_DOMAIN.len()]
-            .copy_from_slice(FIAT_SHAMIR_PROTOCOL_DOMAIN);
-        offset += FIAT_SHAMIR_PROTOCOL_DOMAIN.len();
-
-        // Step 2: Copy the number of field elements (blob polynomial length)
-        // Convert to bytes using the configured endianness
-        let number_of_field_elements = blob_poly.len().to_be_bytes();
-        digest_bytes[offset..offset + 8].copy_from_slice(&number_of_field_elements);
-        offset += 8;
-
-        // Step 3: Copy the blob data
-        // Convert polynomial to bytes using helper function
-        let blob_data = helpers::to_byte_array(
-            blob_poly.evaluations(),
-            blob_poly.len() * BYTES_PER_FIELD_ELEMENT,
-        );
-        digest_bytes[offset..offset + blob_data.len()].copy_from_slice(&blob_data);
-        offset += blob_data.len();
-
-        // Step 4: Copy the commitment (compressed G1 point)
-        // Serialize the commitment point in compressed form
-        let mut commitment_bytes = Vec::with_capacity(SIZE_OF_G1_AFFINE_COMPRESSED);
-        commitment
-            .serialize_compressed(&mut commitment_bytes)
-            .map_err(|_| {
-                KzgError::SerializationError("Failed to serialize commitment".to_string())
-            })?;
-        digest_bytes[offset..offset + SIZE_OF_G1_AFFINE_COMPRESSED]
-            .copy_from_slice(&commitment_bytes);
-
-        // Verify that we wrote exactly the amount of bytes we expected
-        // This helps catch any buffer overflow/underflow bugs
-        if offset + SIZE_OF_G1_AFFINE_COMPRESSED != challenge_input_size {
-            return Err(KzgError::InvalidInputLength);
-        }
-
-        // Hash all the data to generate the challenge field element
-        // This implements the Fiat-Shamir transform to generate a "random" challenge
-        Ok(Self::hash_to_field_element(&digest_bytes))
-    }
-
-    /// Ref: https://github.com/ethereum/consensus-specs/blob/master/specs/deneb/polynomial-commitments.md#evaluate_polynomial_in_evaluation_form
-    pub fn evaluate_polynomial_in_evaluation_form(
-        polynomial: &PolynomialEvalForm,
-        z: &Fr,
-        srs_order: u64,
-    ) -> Result<Fr, KzgError> {
-        // Step 1: Retrieve the length of the padded blob
-        let blob_size = polynomial.len_underlying_blob_bytes();
-
-        // Step 2: Calculate roots of unity for the given blob size and SRS order
-        let roots_of_unity = Self::calculate_roots_of_unity(blob_size as u64, srs_order)?;
-
-        // Step 3: Ensure the polynomial length matches the domain length
-        if polynomial.len() != roots_of_unity.len() {
-            return Err(KzgError::InvalidInputLength);
-        }
-
-        let width = polynomial.len();
-
-        // Step 4: Compute inverse_width = 1 / width
-        let inverse_width = Fr::from(width as u64)
-            .inverse()
-            .ok_or(KzgError::InvalidDenominator)?;
-
-        // Step 5: Check if `z` is in the domain
-        if let Some(index) = roots_of_unity.iter().position(|&domain_i| domain_i == *z) {
-            return polynomial
-                .get_evalualtion(index)
-                .cloned()
-                .ok_or(KzgError::GenericError(
-                    "Polynomial element missing at the found index.".to_string(),
-                ));
-        }
-
-        // Step 6: Use the barycentric formula to compute the evaluation
-        let sum = polynomial
-            .evaluations()
-            .iter()
-            .zip(roots_of_unity.iter())
-            .map(|(f_i, &domain_i)| {
-                let a = *f_i * domain_i;
-                let b = *z - domain_i;
-                // Since `z` is not in the domain, `b` should never be zero
-                a / b
-            })
-            .fold(Fr::zero(), |acc, val| acc + val);
-
-        // Step 7: Compute r = z^width - 1
-        let r = z.pow([width as u64]) - Fr::one();
-
-        // Step 8: Compute f(z) = (z^width - 1) / width * sum
-        let f_z = sum * r * inverse_width;
-
-        Ok(f_z)
-    }
-
     /// A helper function for the `verify_blob_kzg_proof_batch` function.
     fn compute_challenges_and_evaluate_polynomial(
         blobs: &[Blob],
         commitments: &[G1Affine],
-        srs_order: u64,
     ) -> Result<(Vec<Fr>, Vec<Fr>), KzgError> {
         // Pre-allocate vectors to store:
         // - evaluation_challenges: Points where polynomials will be evaluated
@@ -835,15 +551,14 @@ impl KZG {
             // Step 2: Generate Fiat-Shamir challenge
             // This creates a "random" evaluation point based on the blob and commitment
             // The challenge is deterministic but unpredictable, making the proof non-interactive
-            let evaluation_challenge = Self::compute_challenge(&blobs[i], &commitments[i])?;
+            let evaluation_challenge = helpers::compute_challenge(&blobs[i], &commitments[i])?;
 
             // Step 3: Evaluate the polynomial at the challenge point
             // This uses the evaluation form for efficient computation
             // The srs_order parameter ensures compatibility with the trusted setup
-            let y = Self::evaluate_polynomial_in_evaluation_form(
+            let y = helpers::evaluate_polynomial_in_evaluation_form(
                 &polynomial,
                 &evaluation_challenge,
-                srs_order,
             )?;
 
             // Store both:
@@ -903,7 +618,7 @@ impl KZG {
         // 1. Generates random evaluation points for each blob
         // 2. Evaluates each blob's polynomial at its corresponding point
         let (evaluation_challenges, ys) =
-            Self::compute_challenges_and_evaluate_polynomial(blobs, commitments, self.srs_order)?;
+            Self::compute_challenges_and_evaluate_polynomial(blobs, commitments)?;
 
         // Convert each blob to its polynomial evaluation form and get the length of number of field elements
         // This length value is needed for computing the challenge
@@ -1027,7 +742,7 @@ impl KZG {
         }
 
         // Hash all the data to get our random challenge
-        let r = Self::hash_to_field_element(&data_to_be_hashed);
+        let r = helpers::hash_to_field_element(&data_to_be_hashed);
 
         // Compute powers of the random challenge: [r^0, r^1, r^2, ..., r^(n-1)]
         Ok(helpers::compute_powers(&r, n))
@@ -1122,12 +837,8 @@ impl KZG {
         // Verify the pairing equation:
         // e(Σ(r^i * proof_i), [τ]) = e(Σ(r^i * (C_i - [y_i])) + Σ(r^i * z_i * proof_i), [1])
         // A test exists to check if g2_tau is on curve, so we don't need to check it here.
-        let result = Self::pairings_verify(
-            proof_lincomb,
-            self.get_g2_tau(),
-            rhs_g1.into(),
-            G2Affine::generator(),
-        );
+        let result =
+            helpers::pairings_verify(proof_lincomb, G2_TAU, rhs_g1.into(), G2Affine::generator());
         Ok(result)
     }
 }

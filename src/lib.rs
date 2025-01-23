@@ -56,13 +56,14 @@
 //!
 //! ### Commit to a some user data
 //! ```rust
-//! use rust_kzg_bn254::{blob::Blob, kzg::KZG};
+//! use rust_kzg_bn254::{blob::Blob, kzg::KZG, srs::SRS};
 //!
-//! let kzg = KZG::setup(
+//! let kzg = KZG::new(
+//! SRS::new(
 //! "tests/test-files/mainnet-data/g1.131072.point",
 //! 268435456,
 //! 131072,
-//! ).unwrap();
+//! ).unwrap());
 //!
 //! let rollup_data: &[u8] = "some rollup batcher data".as_bytes();
 //! let blob = Blob::from_raw_data(rollup_data);
@@ -77,10 +78,12 @@
 //!
 
 mod arith;
+pub mod batch_verification;
 pub mod blob;
 pub mod consts;
 pub mod errors;
 pub mod helpers;
 pub mod kzg;
 pub mod polynomial;
+pub mod srs;
 mod traits;
