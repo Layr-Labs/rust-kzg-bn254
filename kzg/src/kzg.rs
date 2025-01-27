@@ -33,6 +33,12 @@ pub struct KZG {
     expanded_roots_of_unity: Vec<Fr>,
 }
 
+impl Default for KZG {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl KZG {
     pub fn new() -> Self {
         Self {
