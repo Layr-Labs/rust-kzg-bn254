@@ -1,7 +1,6 @@
 use ark_bn254::{Fr, G1Affine, G2Affine};
 use ark_ec::{AffineRepr, CurveGroup};
-
-use crate::{blob::Blob, errors::KzgError, helpers};
+use rust_kzg_bn254_primitives::{blob::Blob, consts::G2_TAU, errors::KzgError, helpers};
 
 /// Ref: https://github.com/ethereum/consensus-specs/blob/master/specs/deneb/polynomial-commitments.md#verify_proof
 /// TODO(anupsv): Accept bytes instead of Fr element and Affine points. Ref: https://github.com/Layr-Labs/rust-kzg-bn254/issues/30
@@ -23,7 +22,7 @@ pub fn proof(
 
     // Get τ*G2 from the trusted setup
     // This is the second generator point multiplied by the trusted setup secret
-    let g2_tau = crate::consts::G2_TAU;
+    let g2_tau = G2_TAU;
 
     // Compute [value]*G1
     // This encrypts the claimed evaluation value as a point in G1

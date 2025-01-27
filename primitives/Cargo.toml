@@ -1,0 +1,31 @@
+[package]
+name = "rust-kzg-bn254-primitives"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ark-bn254 = "0.5.0"
+ark-ec = { version = "0.5.0", features = ["parallel"] }
+ark-ff = { version = "0.5.0", features = ["parallel"] }
+ark-serialize = "0.5.0"
+ark-std = { version = "0.5.0", features = ["parallel"] }
+ark-poly = { version = "0.5.0", features = ["parallel"] }
+sha2 = "0.10.8"
+crossbeam-channel = "0.5"
+num-traits = "0.2"
+thiserror = "2.0.10"
+
+[dev-dependencies]
+rand = "0.8.5"
+
+[[test]]
+name = "blob"
+path = "tests/blob_test.rs"
+
+[[test]]
+name = "polynomial"
+path = "tests/polynomial_test.rs"
+
+[[test]]
+name = "helpers"
+path = "tests/helpers_test.rs"

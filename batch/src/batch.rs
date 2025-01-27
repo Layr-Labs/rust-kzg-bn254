@@ -1,14 +1,13 @@
-use crate::{
+use ark_bn254::{Fr, G1Affine, G1Projective, G2Affine, G2Projective};
+use ark_ec::{AffineRepr, CurveGroup};
+use ark_ff::{BigInteger, PrimeField};
+use ark_serialize::CanonicalSerialize;
+use rust_kzg_bn254_primitives::{
     blob::Blob,
     consts::{BYTES_PER_FIELD_ELEMENT, G2_TAU, RANDOM_CHALLENGE_KZG_BATCH_DOMAIN},
     errors::KzgError,
     helpers::{self, is_on_curve_g1},
 };
-
-use ark_bn254::{Fr, G1Affine, G1Projective, G2Affine, G2Projective};
-use ark_ec::{AffineRepr, CurveGroup};
-use ark_ff::{BigInteger, PrimeField};
-use ark_serialize::CanonicalSerialize;
 
 /// Ref: https://github.com/ethereum/consensus-specs/blob/master/specs/deneb/polynomial-commitments.md#verify_blob_kzg_proof_batch
 pub fn verify_blob_kzg_proof(

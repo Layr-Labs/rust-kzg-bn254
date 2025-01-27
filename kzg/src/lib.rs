@@ -56,19 +56,19 @@
 //!
 //! ### Commit to a some user data
 //! ```rust
-//! use rust_kzg_bn254::{blob::Blob, kzg::KZG, srs::SRS};
-//!
-//! let kzg = KZG::new(
-//! SRS::new(
+//! use rust_kzg_bn254::{kzg::KZG, srs::SRS};
+//! use rust_kzg_bn254_primitives::{blob::Blob};
+//! let kzg = KZG::new();
+//! let srs = SRS::new(
 //! "tests/test-files/mainnet-data/g1.131072.point",
 //! 268435456,
 //! 131072,
-//! ).unwrap());
+//! ).unwrap();
 //!
 //! let rollup_data: &[u8] = "some rollup batcher data".as_bytes();
 //! let blob = Blob::from_raw_data(rollup_data);
 //! let poly = blob.to_polynomial_eval_form();
-//! let commitment = kzg.commit_eval_form(&poly).unwrap();
+//! let commitment = kzg.commit_eval_form(&poly, &srs).unwrap();
 //! ```
 //!
 //! ### Generate a proof for a piece of data
@@ -77,14 +77,6 @@
 //! ```
 //!
 
-mod arith;
-pub mod batch;
-pub mod blob;
-pub mod consts;
-pub mod errors;
-pub mod helpers;
 pub mod kzg;
-pub mod polynomial;
 pub mod srs;
-mod traits;
 pub mod verify;

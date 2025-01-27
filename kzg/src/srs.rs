@@ -1,7 +1,7 @@
-use crate::errors::KzgError;
-use crate::helpers;
 use ark_bn254::G1Affine;
 use crossbeam_channel::bounded;
+use rust_kzg_bn254_primitives::errors::KzgError;
+use rust_kzg_bn254_primitives::helpers;
 use std::fs::File;
 use std::io::{self, BufReader, Read};
 

@@ -97,7 +97,7 @@ pub fn convert_by_padding_empty_byte(data: &[u8]) -> Vec<u8> {
 /// ```
 ///
 /// ```
-/// # use rust_kzg_bn254::helpers::remove_empty_byte_from_padded_bytes_unchecked;
+/// # use rust_kzg_bn254_primitives::helpers::remove_empty_byte_from_padded_bytes_unchecked;
 /// let mut input = vec![1u8; 70]; // Two complete 32-byte element plus 6 bytes
 /// input[0] = 0; input[32] = 0;
 ///
@@ -174,19 +174,11 @@ pub fn to_fr_array(data: &[u8]) -> Vec<Fr> {
 ///
 /// # Example
 /// ```
-/// use rust_kzg_bn254::kzg::KZG;
-/// use rust_kzg_bn254::srs::SRS;
-/// use rust_kzg_bn254::blob::Blob;
-///
-/// let mut kzg = KZG::new(
-///                 SRS::new(
-///                   "tests/test-files/mainnet-data/g1.131072.point",
-///                    268435456,
-///                    131072,
-///                 ).unwrap()
-/// );
+/// use rust_kzg_bn254_primitives::blob::Blob;
+/// use rust_kzg_bn254_primitives::helpers;
+
 /// let input = Blob::from_raw_data(b"random data for blob");
-/// kzg.calculate_and_store_roots_of_unity(input.len().try_into().unwrap()).unwrap();
+/// helpers::calculate_roots_of_unity(input.len().try_into().unwrap()).unwrap();
 /// ```
 pub fn to_byte_array(data_fr: &[Fr], max_output_size: usize) -> Vec<u8> {
     // Calculate the number of field elements in input
@@ -468,7 +460,7 @@ pub fn g1_lincomb(points: &[G1Affine], scalars: &[Fr]) -> Result<G1Affine, KzgEr
 ///
 /// # Example
 /// ```
-/// use rust_kzg_bn254::helpers::get_primitive_root_of_unity;
+/// use rust_kzg_bn254_primitives::helpers::get_primitive_root_of_unity;
 /// let root = get_primitive_root_of_unity(0); // Gets first primitive root
 /// ```
 /// Gets the primitive root of unity of order 2^power.
@@ -649,9 +641,7 @@ pub fn evaluate_polynomial_in_evaluation_form(
 /// - Generates roots of unity needed for FFT operations
 /// - Calculates KZG operational parameters for commitment scheme
 /// ```
-pub(crate) fn calculate_roots_of_unity(
-    length_of_data_after_padding: u64,
-) -> Result<Vec<Fr>, KzgError> {
+pub fn calculate_roots_of_unity(length_of_data_after_padding: u64) -> Result<Vec<Fr>, KzgError> {
     // Calculate log2 of the next power of two of the length of data after padding
     let log2_of_evals = (length_of_data_after_padding
         .div_ceil(32)
@@ -705,7 +695,7 @@ fn expand_root_of_unity(root_of_unity: &Fr) -> Vec<Fr> {
 }
 
 /// A helper function for the `verify_blob_kzg_proof_batch` function.
-pub(crate) fn compute_challenges_and_evaluate_polynomial(
+pub fn compute_challenges_and_evaluate_polynomial(
     blobs: &[Blob],
     commitments: &[G1Affine],
 ) -> Result<(Vec<Fr>, Vec<Fr>), KzgError> {

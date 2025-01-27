@@ -1,91 +1,12 @@
-[package]
-name = "rust-kzg-bn254"
-version = "0.2.1"
-edition = "2021"
-authors = ["Anup Swamy Veena", "Teddy Knox"]
-rust-version = "1.81"
-description = "This library offers a set of functions for generating and interacting with bn254 KZG commitments and proofs in rust, with the motivation of supporting fraud and validity proof logic in EigenDA rollup integrations."
-readme = "README.md"
-repository = "https://github.com/Layr-Labs/rust-kzg-bn254"
-license-file = "LICENSE"
-exclude = ["tests/*", "benches/*"]
-# TODO: is this needed for the image to show up in the rust docs?
-include = ["./kzg_commitment_diagram.png"]
+[workspace]
+members = [
+    "batch",
+    "kzg", "primitives",
+]
+resolver = "2"
 
-[dependencies]
-ark-bn254 = "0.5.0"
-ark-ec = { version = "0.5.0", features = ["parallel"] }
-ark-ff = { version = "0.5.0", features = ["parallel"] }
-ark-serialize = "0.5.0"
-ark-std = { version = "0.5.0", features = ["parallel"] }
-directories = "5.0.1"
-hex-literal = "0.4.1"
-rand = "0.8.5"
-sha2 = "0.10.8"
-ureq = "2.12.1"
-num-bigint = "0.4"
-rayon = "1.10"
-num-traits = "0.2"
-byteorder = "1.5"
-ark-poly = { version = "0.5.0", features = ["parallel"] }
-crossbeam-channel = "0.5"
-num_cpus = "1.16.0"
-sys-info = "0.9"
-itertools = "0.13.0"
+[workspace.dependencies]
 thiserror = "2.0.10"
-
-[dev-dependencies]
-criterion = "0.5"
-lazy_static = "1.5"
-tracing = { version = "0.1.41", features = ["log"] }
-tracing-subscriber = "0.3.19"
-
-[[test]]
-name = "kzg"
-path = "tests/kzg_test.rs"
-
-[[test]]
-name = "blob"
-path = "tests/blob_test.rs"
-
-[[test]]
-name = "polynomial"
-path = "tests/polynomial_test.rs"
-
-[[test]]
-name = "helpers"
-path = "tests/helpers_test.rs"
-
-[[bench]]
-name = "bench_g1_ifft"
-harness = false
-path = "benches/bench_g1_ifft.rs"
-
-
-[[bench]]
-name = "bench_kzg_setup"
-harness = false
-path = "benches/bench_kzg_setup.rs"
-
-[[bench]]
-name = "bench_kzg_commit"
-harness = false
-path = "benches/bench_kzg_commit.rs"
-
-[[bench]]
-name = "bench_kzg_commit_large_blobs"
-harness = false
-path = "benches/bench_kzg_commit_large_blobs.rs"
-
-[[bench]]
-name = "bench_kzg_proof"
-harness = false
-path = "benches/bench_kzg_proof.rs"
-
-[[bench]]
-name = "bench_kzg_verify"
-harness = false
-path = "benches/bench_kzg_verify.rs"
 
 [profile.bench]
 opt-level = 3
@@ -94,7 +15,7 @@ strip = "none"
 debug-assertions = false
 overflow-checks = false
 lto = false
-panic = 'unwind'
+panic = 'abort'
 incremental = false
 codegen-units = 16
 rpath = false
@@ -106,7 +27,7 @@ strip = "none"
 debug-assertions = false
 overflow-checks = false
 lto = false
-panic = 'unwind'
+panic = 'abort'
 incremental = false
 codegen-units = 16
 rpath = false
