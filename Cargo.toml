@@ -6,7 +6,14 @@ members = [
 resolver = "2"
 
 [workspace.dependencies]
-thiserror = "2.0.10"
+thiserror = "2.0.11"
+
+[workspace.package]
+edition = "2021"
+rust-version = "1.81"
+repository = "https://github.com/Layr-Labs/rust-kzg-bn254"
+homepage = ""
+license-file = "LICENSE"
 
 [profile.bench]
 opt-level = 3
@@ -31,3 +38,4 @@ panic = 'abort'
 incremental = false
 codegen-units = 16
 rpath = false
+

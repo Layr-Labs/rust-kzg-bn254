@@ -1,12 +1,12 @@
 [package]
 name = "rust-kzg-bn254"
 version = "0.1.0"
-edition = "2021"
-rust-version = "1.81"
+edition.workspace = true
+rust-version.workspace = true
 description = "This library offers a set of functions for generating and interacting with bn254 KZG commitments and proofs in rust, with the motivation of supporting fraud and validity proof logic in EigenDA rollup integrations."
 readme = "README.md"
-repository = "https://github.com/Layr-Labs/rust-kzg-bn254"
-license-file = "LICENSE"
+repository.workspace = true
+license-file.workspace = true
 exclude = ["tests/*", "benches/*"]
 # TODO: is this needed for the image to show up in the rust docs?
 include = ["./kzg_commitment_diagram.png"]
@@ -26,8 +26,8 @@ num_cpus = "1.16.0"
 
 [dev-dependencies]
 rand = "0.8.5"
-criterion = "0.5"
-lazy_static = "1.5"
+criterion = "0.5.1"
+lazy_static = "1.5.0"
 tracing = { version = "0.1.41", features = ["log"] }
 tracing-subscriber = "0.3.19"
 

@@ -24,7 +24,7 @@ mod tests {
 
     #[test]
     fn test_multiple_proof_random_100_blobs() {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let mut kzg = KZG_INSTANCE.clone();
 
         let mut blobs: Vec<Blob> = Vec::new();
@@ -32,9 +32,9 @@ mod tests {
         let mut proofs: Vec<G1Affine> = Vec::new();
 
         (0..100).for_each(|_| {
-            let blob_length = rand::thread_rng().gen_range(35..50000);
+            let blob_length = rng.random_range(35..50000);
             let random_blob: Vec<u8> = (0..blob_length)
-                .map(|_| rng.gen_range(32..=126) as u8)
+                .map(|_| rng.random_range(32..=126) as u8)
                 .collect();
 
             let input = Blob::from_raw_data(&random_blob);

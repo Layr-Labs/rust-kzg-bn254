@@ -1,7 +1,10 @@
 [package]
 name = "rust-kzg-bn254-batch-verification"
 version = "0.1.0"
-edition = "2021"
+license-file.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
 
 [dependencies]
 rust-kzg-bn254-primitives = { path = "../primitives", version = "0.1.0" }
