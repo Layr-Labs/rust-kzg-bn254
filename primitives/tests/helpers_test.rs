@@ -1,4 +1,7 @@
-use std::{fs::File, io::{BufRead, BufReader, Read}};
+use std::{
+    fs::File,
+    io::{BufRead, BufReader, Read},
+};
 
 use ark_bn254::{Fq, Fq2, Fr, G1Affine, G1Projective, G2Affine, G2Projective};
 use ark_ff::{PrimeField, UniformRand};
@@ -45,7 +48,6 @@ fn test_g2_is_on_curve() {
 // Tests deserialization of data and equivalence.
 #[test]
 fn test_blob_to_polynomial() {
-
     let file = File::open("tests/test-files/blobs.txt").unwrap();
     let mut reader = BufReader::new(file);
     let mut buffer = [0u8; SIZE_OF_G1_AFFINE_COMPRESSED];

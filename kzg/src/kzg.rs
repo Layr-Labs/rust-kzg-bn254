@@ -230,7 +230,11 @@ impl KZG {
     }
 
     /// Commit the polynomial with the srs values loaded into [Kzg].
-    pub fn commit_eval_form(&self, polynomial: &PolynomialEvalForm, srs: &SRS) -> Result<G1Affine, KzgError> {
+    pub fn commit_eval_form(
+        &self,
+        polynomial: &PolynomialEvalForm,
+        srs: &SRS,
+    ) -> Result<G1Affine, KzgError> {
         if polynomial.len() > srs.g1.len() {
             return Err(KzgError::SerializationError(
                 "polynomial length is not correct".to_string(),
@@ -251,7 +255,7 @@ impl KZG {
     pub fn commit_coeff_form(
         &self,
         polynomial: &PolynomialCoeffForm,
-        srs: &SRS
+        srs: &SRS,
     ) -> Result<G1Affine, KzgError> {
         if polynomial.len() > srs.g1.len() {
             return Err(KzgError::SerializationError(
@@ -273,7 +277,7 @@ impl KZG {
         &self,
         polynomial: &PolynomialEvalForm,
         z_fr: &Fr,
-        srs: &SRS
+        srs: &SRS,
     ) -> Result<G1Affine, KzgError> {
         // Verify polynomial length matches that of the roots of unity
         if polynomial.len() != self.expanded_roots_of_unity.len() {
@@ -332,7 +336,7 @@ impl KZG {
         &self,
         polynomial: &PolynomialEvalForm,
         index: u64,
-        srs: &SRS
+        srs: &SRS,
     ) -> Result<G1Affine, KzgError> {
         // Convert u64 index to usize for array indexing
         let usized_index = index.to_usize().ok_or(KzgError::GenericError(
@@ -359,8 +363,8 @@ impl KZG {
     pub fn compute_proof(
         &self,
         polynomial: &PolynomialEvalForm,
-        z_fr: &Fr, 
-        srs: &SRS
+        z_fr: &Fr,
+        srs: &SRS,
     ) -> Result<G1Affine, KzgError> {
         // Verify that polynomial length matches roots of unity length
         if polynomial.len() != self.expanded_roots_of_unity.len() {
@@ -432,8 +436,8 @@ impl KZG {
     pub fn compute_blob_proof(
         &self,
         blob: &Blob,
-        commitment: &G1Affine, 
-        srs: &SRS
+        commitment: &G1Affine,
+        srs: &SRS,
     ) -> Result<G1Affine, KzgError> {
         // Validate that the commitment is a valid point on the G1 curve
         // This prevents potential invalid curve attacks
