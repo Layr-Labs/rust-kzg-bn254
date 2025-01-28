@@ -10,7 +10,7 @@ use rust_kzg_bn254_primitives::{
 };
 
 /// Ref: https://github.com/ethereum/consensus-specs/blob/master/specs/deneb/polynomial-commitments.md#verify_blob_kzg_proof_batch
-pub fn verify_blob_kzg_proof(
+pub fn verify_blob_kzg_proof_batch(
     blobs: &[Blob],
     commitments: &[G1Affine],
     proofs: &[G1Affine],
@@ -66,7 +66,7 @@ pub fn verify_blob_kzg_proof(
     // - ys: Values of polynomials at evaluation points
     // - proofs: KZG proofs for each evaluation
     // - blobs_as_field_elements_length: Length of each blob's polynomial
-    verify_kzg_proof(
+    verify_kzg_proof_batch(
         commitments,
         &evaluation_challenges,
         &ys,
@@ -190,7 +190,7 @@ fn compute_r_powers(
 /// * `Ok(false)` if any proof is invalid.
 /// * `Err(KzgError)` if an error occurs during verification.
 ///
-fn verify_kzg_proof(
+fn verify_kzg_proof_batch(
     commitments: &[G1Affine],
     zs: &[Fr],
     ys: &[Fr],

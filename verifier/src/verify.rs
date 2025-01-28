@@ -4,7 +4,7 @@ use rust_kzg_bn254_primitives::{blob::Blob, consts::G2_TAU, errors::KzgError, he
 
 /// Ref: https://github.com/ethereum/consensus-specs/blob/master/specs/deneb/polynomial-commitments.md#verify_proof
 /// TODO(anupsv): Accept bytes instead of Fr element and Affine points. Ref: https://github.com/Layr-Labs/rust-kzg-bn254/issues/30
-pub fn proof(
+pub fn verify_proof(
     commitment: G1Affine,
     proof: G1Affine,
     value_fr: Fr,
@@ -56,7 +56,7 @@ pub fn proof(
 
 /// Ref: https://github.com/ethereum/consensus-specs/blob/master/specs/deneb/polynomial-commitments.md#verify_blob_kzg_proof
 /// TODO(anupsv): Accept bytes instead of Affine points. Ref: https://github.com/Layr-Labs/rust-kzg-bn254/issues/31
-pub fn blob_kzg_proof(
+pub fn verify_blob_kzg_proof(
     blob: &Blob,
     commitment: &G1Affine,
     proof: &G1Affine,
@@ -81,5 +81,5 @@ pub fn blob_kzg_proof(
     let y = helpers::evaluate_polynomial_in_evaluation_form(&polynomial, &evaluation_challenge)?;
 
     // Verify the KZG proof
-    self::proof(*commitment, *proof, y, evaluation_challenge)
+    self::verify_proof(*commitment, *proof, y, evaluation_challenge)
 }

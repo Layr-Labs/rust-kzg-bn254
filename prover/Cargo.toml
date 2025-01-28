@@ -1,5 +1,5 @@
 [package]
-name = "rust-kzg-bn254"
+name = "rust-kzg-bn254-prover"
 version = "0.1.0"
 edition.workspace = true
 rust-version.workspace = true
@@ -59,8 +59,3 @@ path = "benches/bench_kzg_commit_large_blobs.rs"
 name = "bench_kzg_proof"
 harness = false
 path = "benches/bench_kzg_proof.rs"
-
-[[bench]]
-name = "bench_kzg_verify"
-harness = false
-path = "benches/bench_kzg_verify.rs"

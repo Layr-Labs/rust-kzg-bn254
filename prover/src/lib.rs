@@ -56,7 +56,8 @@
 //!
 //! ### Commit to a some user data
 //! ```rust
-//! use rust_kzg_bn254::{kzg::KZG, srs::SRS};
+//! use rust_kzg_bn254_prover::kzg::KZG;
+//! use rust_kzg_bn254_prover::srs::SRS;
 //! use rust_kzg_bn254_primitives::{blob::Blob};
 //! let kzg = KZG::new();
 //! let srs = SRS::new(
@@ -79,4 +80,3 @@
 
 pub mod kzg;
 pub mod srs;
-pub mod verify;

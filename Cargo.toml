@@ -1,7 +1,8 @@
 [workspace]
 members = [
-    "batch",
-    "kzg", "primitives",
+    "verifier",
+    "prover", 
+    "primitives",
 ]
 resolver = "2"
 
@@ -38,4 +39,17 @@ panic = 'abort'
 incremental = false
 codegen-units = 16
 rpath = false
+
+[profile.release]
+opt-level = 3
+debug = false
+strip = "none"
+debug-assertions = false
+overflow-checks = false
+lto = true
+panic = 'unwind'
+incremental = false
+codegen-units = 16
+rpath = false
+
 

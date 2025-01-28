@@ -59,7 +59,7 @@ impl KZG {
     ///
     /// # Example
     /// ```
-    /// use rust_kzg_bn254::kzg::KZG;
+    /// use rust_kzg_bn254_prover::kzg::KZG;
     /// use rust_kzg_bn254_primitives::blob::Blob;
     /// use ark_std::One;
     /// use ark_bn254::Fr;

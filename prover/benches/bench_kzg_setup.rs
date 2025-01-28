@@ -1,18 +1,16 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use rust_kzg_bn254::{kzg::KZG, srs::SRS};
+use rust_kzg_bn254_prover::srs::SRS;
 use std::time::Duration;
 
 fn bench_kzg_setup(c: &mut Criterion) {
     c.bench_function("bench_kzg_setup", |b| {
         b.iter(|| {
-            KZG::new(
-                SRS::new(
-                    "tests/test-files/mainnet-data/g1.131072.point",
-                    268435456,
-                    131072,
-                )
-                .unwrap(),
-            );
+            SRS::new(
+                "tests/test-files/mainnet-data/g1.32mb.point",
+                268435456,
+                524288,
+            )
+            .unwrap();
         });
     });
 }
