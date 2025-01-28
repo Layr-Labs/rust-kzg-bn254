@@ -14,15 +14,20 @@ pub trait G1AffineExt {
 impl G1AffineExt for G1Affine {
     fn deserialize_compressed_be(bytes: &[u8; 32]) -> Result<G1Affine, KzgError> {
         G1Affine::deserialize_compressed(&bytes[..])
-            .map_err(|e| KzgError::DeserializationError(e.to_string()))   
+            .map_err(|e| KzgError::DeserializationError(e.to_string()))
     }
 
     fn serialize_compressed_be(g1_point: &G1Affine) -> Result<[u8; 32], KzgError> {
         let mut commitment_bytes = Vec::with_capacity(SIZE_OF_G1_AFFINE_COMPRESSED);
         g1_point
-        .serialize_compressed(&mut commitment_bytes)
-        .map_err(|_| KzgError::SerializationError("Failed to serialize commitment".to_string()))?;
-        commitment_bytes.as_slice().try_into().map_err(|e: std::array::TryFromSliceError| KzgError::SerializationError(e.to_string()))
+            .serialize_compressed(&mut commitment_bytes)
+            .map_err(|_| {
+                KzgError::SerializationError("Failed to serialize commitment".to_string())
+            })?;
+        commitment_bytes
+            .as_slice()
+            .try_into()
+            .map_err(|e: std::array::TryFromSliceError| KzgError::SerializationError(e.to_string()))
     }
 }
 

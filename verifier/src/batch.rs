@@ -6,7 +6,8 @@ use rust_kzg_bn254_primitives::{
     blob::Blob,
     consts::{BYTES_PER_FIELD_ELEMENT, G2_TAU, RANDOM_CHALLENGE_KZG_BATCH_DOMAIN},
     errors::KzgError,
-    helpers::{self, is_on_curve_g1}, traits::G1AffineExt,
+    helpers::{self, is_on_curve_g1},
+    traits::G1AffineExt,
 };
 
 /// Ref: https://github.com/ethereum/consensus-specs/blob/master/specs/deneb/polynomial-commitments.md#verify_blob_kzg_proof_batch
@@ -15,7 +16,6 @@ pub fn verify_blob_kzg_proof_batch(
     commitments_bytes: &[[u8; 32]],
     proofs_bytes: &[[u8; 32]],
 ) -> Result<bool, KzgError> {
-
     // First validation check: Ensure all input vectors have matching lengths
     // This is critical for batch verification to work correctly
     if !(commitments_bytes.len() == blobs.len() && proofs_bytes.len() == blobs.len()) {
@@ -25,14 +25,14 @@ pub fn verify_blob_kzg_proof_batch(
     }
 
     let commitments: Vec<G1Affine> = commitments_bytes
-    .iter()
-    .map(|commitment| G1Affine::deserialize_compressed_be(commitment))
-    .collect::<Result<Vec<G1Affine>, KzgError>>()?;
+        .iter()
+        .map(|commitment| G1Affine::deserialize_compressed_be(commitment))
+        .collect::<Result<Vec<G1Affine>, KzgError>>()?;
 
     let proofs: Vec<G1Affine> = proofs_bytes
-    .iter()
-    .map(|proof| G1Affine::deserialize_compressed_be(proof))
-    .collect::<Result<Vec<G1Affine>, KzgError>>()?;
+        .iter()
+        .map(|proof| G1Affine::deserialize_compressed_be(proof))
+        .collect::<Result<Vec<G1Affine>, KzgError>>()?;
 
     // Validate that all commitments are valid points on the G1 curve
     // Using parallel iterator (par_iter) for better performance on large batches

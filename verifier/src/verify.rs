@@ -1,7 +1,9 @@
 use ark_bn254::{Fr, G1Affine, G2Affine};
 use ark_ec::{AffineRepr, CurveGroup};
 use ark_ff::{BigInteger, PrimeField};
-use rust_kzg_bn254_primitives::{blob::Blob, consts::G2_TAU, errors::KzgError, helpers, traits::G1AffineExt};
+use rust_kzg_bn254_primitives::{
+    blob::Blob, consts::G2_TAU, errors::KzgError, helpers, traits::G1AffineExt,
+};
 
 /// Ref: https://github.com/ethereum/consensus-specs/blob/master/specs/deneb/polynomial-commitments.md#verify_proof
 /// TODO(anupsv): Accept bytes instead of Fr element and Affine points. Ref: https://github.com/Layr-Labs/rust-kzg-bn254/issues/30
@@ -11,7 +13,6 @@ pub fn verify_proof(
     value_fr_bytes: &[u8; 32],
     z_fr_bytes: &[u8; 32],
 ) -> Result<bool, KzgError> {
-
     // Convert the commitment bytes to a G1Affine point
     let commitment = G1Affine::deserialize_compressed_be(&commitment_bytes)?;
 
@@ -19,10 +20,10 @@ pub fn verify_proof(
     let proof = G1Affine::deserialize_compressed_be(&proof_bytes)?;
 
     // Convert value_fr_bytes to Fr element
-    let value_fr = Fr::from_be_bytes_mod_order(value_fr_bytes); 
+    let value_fr = Fr::from_be_bytes_mod_order(value_fr_bytes);
 
     // Convert z_fr_bytes to Fr element
-    let z_fr = Fr::from_be_bytes_mod_order(z_fr_bytes); 
+    let z_fr = Fr::from_be_bytes_mod_order(z_fr_bytes);
 
     if !commitment.is_on_curve() || !commitment.is_in_correct_subgroup_assuming_on_curve() {
         return Err(KzgError::NotOnCurveError(
@@ -75,7 +76,6 @@ pub fn verify_blob_kzg_proof(
     commitment_bytes: &[u8; 32],
     proof_bytes: &[u8; 32],
 ) -> Result<bool, KzgError> {
-
     // Convert the commitment bytes to a G1Affine point
     let commitment = G1Affine::deserialize_compressed_be(&commitment_bytes)?;
 
@@ -101,9 +101,22 @@ pub fn verify_blob_kzg_proof(
     // Evaluate the polynomial in evaluation form
     let y = helpers::evaluate_polynomial_in_evaluation_form(&polynomial, &evaluation_challenge)?;
 
-    let y_bytes: &[u8; 32] = &y.into_bigint().to_bytes_be().try_into().map_err(|_| KzgError::GenericError("slice with incorrect length".to_string()))?;
-    let evaluation_challenge_bytes: &[u8; 32] = &evaluation_challenge.into_bigint().to_bytes_be().try_into().map_err(|_| KzgError::GenericError("slice with incorrect length".to_string()))?;
+    let y_bytes: &[u8; 32] = &y
+        .into_bigint()
+        .to_bytes_be()
+        .try_into()
+        .map_err(|_| KzgError::GenericError("slice with incorrect length".to_string()))?;
+    let evaluation_challenge_bytes: &[u8; 32] = &evaluation_challenge
+        .into_bigint()
+        .to_bytes_be()
+        .try_into()
+        .map_err(|_| KzgError::GenericError("slice with incorrect length".to_string()))?;
 
     // Verify the KZG proof
-    self::verify_proof(commitment_bytes, proof_bytes, y_bytes, evaluation_challenge_bytes)
+    self::verify_proof(
+        commitment_bytes,
+        proof_bytes,
+        y_bytes,
+        evaluation_challenge_bytes,
+    )
 }

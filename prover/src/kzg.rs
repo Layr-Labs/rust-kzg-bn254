@@ -4,12 +4,13 @@ use ark_ff::{BigInteger, PrimeField};
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 use ark_std::{ops::Div, Zero};
 use num_traits::ToPrimitive;
-use rayon::{iter::{IntoParallelRefIterator, ParallelIterator}};
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use rust_kzg_bn254_primitives::{
     blob::Blob,
     errors::KzgError,
     helpers,
-    polynomial::{PolynomialCoeffForm, PolynomialEvalForm}, traits::G1AffineExt,
+    polynomial::{PolynomialCoeffForm, PolynomialEvalForm},
+    traits::G1AffineExt,
 };
 
 use crate::srs::SRS;
@@ -200,7 +201,9 @@ impl KZG {
             .get_nth_root_of_unity(usized_index)
             .ok_or_else(|| KzgError::GenericError("Root of unity not found".to_string()))?;
 
-        let z_fr_bytes: &[u8; 32] = &z_fr.into_bigint().to_bytes_be()[..32].try_into().map_err(|_| KzgError::GenericError("Conversion to array failed".to_string()))?;
+        let z_fr_bytes: &[u8; 32] = &z_fr.into_bigint().to_bytes_be()[..32]
+            .try_into()
+            .map_err(|_| KzgError::GenericError("Conversion to array failed".to_string()))?;
         // Compute the KZG proof at the selected root of unity
         // This delegates to the main proof computation function
         // using our selected evaluation point
@@ -218,9 +221,8 @@ impl KZG {
         z_fr_bytes: &[u8; 32],
         srs: &SRS,
     ) -> Result<G1Affine, KzgError> {
-
         // Convert bytes to Fr element
-        let z_fr = Fr::from_be_bytes_mod_order(z_fr_bytes); 
+        let z_fr = Fr::from_be_bytes_mod_order(z_fr_bytes);
 
         // Verify that polynomial length matches roots of unity length
         if polynomial.len() != self.expanded_roots_of_unity.len() {
@@ -295,7 +297,6 @@ impl KZG {
         commitment_bytes: &[u8; 32],
         srs: &SRS,
     ) -> Result<G1Affine, KzgError> {
-
         // Convert the commitment bytes to a G1Affine point
         let commitment = G1Affine::deserialize_compressed_be(&commitment_bytes)?;
 
