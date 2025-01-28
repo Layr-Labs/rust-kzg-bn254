@@ -1,14 +1,15 @@
 use ark_bn254::{Fr, G1Affine, G1Projective};
 use ark_ec::{CurveGroup, VariableBaseMSM};
+use ark_ff::{BigInteger, PrimeField};
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 use ark_std::{ops::Div, Zero};
 use num_traits::ToPrimitive;
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use rayon::{iter::{IntoParallelRefIterator, ParallelIterator}};
 use rust_kzg_bn254_primitives::{
     blob::Blob,
     errors::KzgError,
     helpers,
-    polynomial::{PolynomialCoeffForm, PolynomialEvalForm},
+    polynomial::{PolynomialCoeffForm, PolynomialEvalForm}, traits::G1AffineExt,
 };
 
 use crate::srs::SRS;
@@ -199,10 +200,11 @@ impl KZG {
             .get_nth_root_of_unity(usized_index)
             .ok_or_else(|| KzgError::GenericError("Root of unity not found".to_string()))?;
 
+        let z_fr_bytes: &[u8; 32] = &z_fr.into_bigint().to_bytes_be()[..32].try_into().map_err(|_| KzgError::GenericError("Conversion to array failed".to_string()))?;
         // Compute the KZG proof at the selected root of unity
         // This delegates to the main proof computation function
         // using our selected evaluation point
-        self.compute_proof(polynomial, z_fr, srs)
+        self.compute_proof(polynomial, z_fr_bytes, srs)
     }
 
     /// Compute a kzg proof from a polynomial in evaluation form.
@@ -210,13 +212,16 @@ impl KZG {
     /// but one can take the FFT of the polynomial in coefficient form to
     /// get the polynomial in evaluation form. This is available via the
     /// method [PolynomialCoeffForm::to_eval_form].
-    /// TODO(anupsv): Accept bytes instead of Fr element. Ref: https://github.com/Layr-Labs/rust-kzg-bn254/issues/29
     pub fn compute_proof(
         &self,
         polynomial: &PolynomialEvalForm,
-        z_fr: &Fr,
+        z_fr_bytes: &[u8; 32],
         srs: &SRS,
     ) -> Result<G1Affine, KzgError> {
+
+        // Convert bytes to Fr element
+        let z_fr = Fr::from_be_bytes_mod_order(z_fr_bytes); 
+
         // Verify that polynomial length matches roots of unity length
         if polynomial.len() != self.expanded_roots_of_unity.len() {
             return Err(KzgError::GenericError(
@@ -229,7 +234,7 @@ impl KZG {
         // 1. Evaluate polynomial at z
         // 2. Compute quotient polynomial q(x) = (p(x) - p(z)) / (x - z)
         // 3. Generate KZG proof as commitment to q(x)
-        self.compute_proof_impl(polynomial, z_fr, srs)
+        self.compute_proof_impl(polynomial, &z_fr, srs)
     }
 
     /// refer to DA for more context
@@ -287,9 +292,13 @@ impl KZG {
     pub fn compute_blob_proof(
         &self,
         blob: &Blob,
-        commitment: &G1Affine,
+        commitment_bytes: &[u8; 32],
         srs: &SRS,
     ) -> Result<G1Affine, KzgError> {
+
+        // Convert the commitment bytes to a G1Affine point
+        let commitment = G1Affine::deserialize_compressed_be(&commitment_bytes)?;
+
         // Validate that the commitment is a valid point on the G1 curve
         // This prevents potential invalid curve attacks
         if !commitment.is_on_curve() || !commitment.is_in_correct_subgroup_assuming_on_curve() {

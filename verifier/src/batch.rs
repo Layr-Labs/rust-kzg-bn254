@@ -6,22 +6,33 @@ use rust_kzg_bn254_primitives::{
     blob::Blob,
     consts::{BYTES_PER_FIELD_ELEMENT, G2_TAU, RANDOM_CHALLENGE_KZG_BATCH_DOMAIN},
     errors::KzgError,
-    helpers::{self, is_on_curve_g1},
+    helpers::{self, is_on_curve_g1}, traits::G1AffineExt,
 };
 
 /// Ref: https://github.com/ethereum/consensus-specs/blob/master/specs/deneb/polynomial-commitments.md#verify_blob_kzg_proof_batch
 pub fn verify_blob_kzg_proof_batch(
     blobs: &[Blob],
-    commitments: &[G1Affine],
-    proofs: &[G1Affine],
+    commitments_bytes: &[[u8; 32]],
+    proofs_bytes: &[[u8; 32]],
 ) -> Result<bool, KzgError> {
+
     // First validation check: Ensure all input vectors have matching lengths
     // This is critical for batch verification to work correctly
-    if !(commitments.len() == blobs.len() && proofs.len() == blobs.len()) {
+    if !(commitments_bytes.len() == blobs.len() && proofs_bytes.len() == blobs.len()) {
         return Err(KzgError::GenericError(
             "length's of the input are not the same".to_owned(),
         ));
     }
+
+    let commitments: Vec<G1Affine> = commitments_bytes
+    .iter()
+    .map(|commitment| G1Affine::deserialize_compressed_be(commitment))
+    .collect::<Result<Vec<G1Affine>, KzgError>>()?;
+
+    let proofs: Vec<G1Affine> = proofs_bytes
+    .iter()
+    .map(|proof| G1Affine::deserialize_compressed_be(proof))
+    .collect::<Result<Vec<G1Affine>, KzgError>>()?;
 
     // Validate that all commitments are valid points on the G1 curve
     // Using parallel iterator (par_iter) for better performance on large batches
@@ -51,7 +62,7 @@ pub fn verify_blob_kzg_proof_batch(
     // 1. Generates random evaluation points for each blob
     // 2. Evaluates each blob's polynomial at its corresponding point
     let (evaluation_challenges, ys) =
-        helpers::compute_challenges_and_evaluate_polynomial(blobs, commitments)?;
+        helpers::compute_challenges_and_evaluate_polynomial(blobs, &commitments)?;
 
     // Convert each blob to its polynomial evaluation form and get the length of number of field elements
     // This length value is needed for computing the challenge
@@ -67,10 +78,10 @@ pub fn verify_blob_kzg_proof_batch(
     // - proofs: KZG proofs for each evaluation
     // - blobs_as_field_elements_length: Length of each blob's polynomial
     verify_kzg_proof_batch(
-        commitments,
+        &commitments,
         &evaluation_challenges,
         &ys,
-        proofs,
+        &proofs,
         &blobs_as_field_elements_length,
     )
 }

@@ -33,6 +33,10 @@ pub enum KzgError {
     #[error("MSM error: {0}")]
     MsmError(String),
 
+    /// Error related to deserialization with a descriptive message.
+    #[error("deserialization error: {0}")]
+    DeserializationError(String),
+
     /// Error related to serialization with a descriptive message.
     #[error("serialization error: {0}")]
     SerializationError(String),
