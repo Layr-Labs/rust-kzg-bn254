@@ -26,12 +26,12 @@ pub fn verify_blob_kzg_proof_batch(
 
     let commitments: Vec<G1Affine> = commitments_bytes
         .iter()
-        .map(|commitment| G1Affine::deserialize_compressed_be(commitment))
+        .map(G1Affine::deserialize_compressed_be)
         .collect::<Result<Vec<G1Affine>, KzgError>>()?;
 
     let proofs: Vec<G1Affine> = proofs_bytes
         .iter()
-        .map(|proof| G1Affine::deserialize_compressed_be(proof))
+        .map(G1Affine::deserialize_compressed_be)
         .collect::<Result<Vec<G1Affine>, KzgError>>()?;
 
     // Validate that all commitments are valid points on the G1 curve

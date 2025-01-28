@@ -5,7 +5,7 @@ use rust_kzg_bn254_primitives::{
     blob::Blob, consts::G2_TAU, errors::KzgError, helpers, traits::G1AffineExt,
 };
 
-/// Ref: https://github.com/ethereum/consensus-specs/blob/master/specs/deneb/polynomial-commitments.md#verify_proof
+/// Ref: https://github.com/ethereum/consensus-specs/blob/master/specs/deneb/polynomial-commitments.md#verify_kzg_proof
 /// TODO(anupsv): Accept bytes instead of Fr element and Affine points. Ref: https://github.com/Layr-Labs/rust-kzg-bn254/issues/30
 pub fn verify_proof(
     commitment_bytes: &[u8; 32],
@@ -14,10 +14,10 @@ pub fn verify_proof(
     z_fr_bytes: &[u8; 32],
 ) -> Result<bool, KzgError> {
     // Convert the commitment bytes to a G1Affine point
-    let commitment = G1Affine::deserialize_compressed_be(&commitment_bytes)?;
+    let commitment = G1Affine::deserialize_compressed_be(commitment_bytes)?;
 
     // Convert the commitment bytes to a G1Affine point
-    let proof = G1Affine::deserialize_compressed_be(&proof_bytes)?;
+    let proof = G1Affine::deserialize_compressed_be(proof_bytes)?;
 
     // Convert value_fr_bytes to Fr element
     let value_fr = Fr::from_be_bytes_mod_order(value_fr_bytes);
@@ -77,10 +77,10 @@ pub fn verify_blob_kzg_proof(
     proof_bytes: &[u8; 32],
 ) -> Result<bool, KzgError> {
     // Convert the commitment bytes to a G1Affine point
-    let commitment = G1Affine::deserialize_compressed_be(&commitment_bytes)?;
+    let commitment = G1Affine::deserialize_compressed_be(commitment_bytes)?;
 
     // Convert the commitment bytes to a G1Affine point
-    let proof = G1Affine::deserialize_compressed_be(&proof_bytes)?;
+    let proof = G1Affine::deserialize_compressed_be(proof_bytes)?;
 
     if !commitment.is_on_curve() || !commitment.is_in_correct_subgroup_assuming_on_curve() {
         return Err(KzgError::NotOnCurveError(

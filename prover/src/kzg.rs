@@ -298,7 +298,7 @@ impl KZG {
         srs: &SRS,
     ) -> Result<G1Affine, KzgError> {
         // Convert the commitment bytes to a G1Affine point
-        let commitment = G1Affine::deserialize_compressed_be(&commitment_bytes)?;
+        let commitment = G1Affine::deserialize_compressed_be(commitment_bytes)?;
 
         // Validate that the commitment is a valid point on the G1 curve
         // This prevents potential invalid curve attacks
@@ -314,7 +314,7 @@ impl KZG {
 
         // Compute the evaluation challenge using Fiat-Shamir heuristic
         // This challenge determines the point at which we evaluate the polynomial
-        let evaluation_challenge = helpers::compute_challenge(blob, commitment)?;
+        let evaluation_challenge = helpers::compute_challenge(blob, &commitment)?;
 
         // Compute the actual KZG proof using the polynomial and evaluation point
         // This creates a proof that the polynomial evaluates to a specific value at the challenge point

@@ -1,7 +1,6 @@
 use ark_bn254::{Bn254, Fq, Fq2, Fr, G1Affine, G1Projective, G2Affine, G2Projective};
 use ark_ec::{pairing::Pairing, AffineRepr, CurveGroup, VariableBaseMSM};
 use ark_ff::{sbb, BigInt, BigInteger, Field, PrimeField};
-use ark_serialize::CanonicalSerialize;
 use ark_std::{str::FromStr, vec::Vec, One, Zero};
 use crossbeam_channel::Receiver;
 use num_traits::ToPrimitive;
@@ -17,7 +16,7 @@ use crate::{
     },
     errors::KzgError,
     polynomial::PolynomialEvalForm,
-    traits::ReadPointFromBytes,
+    traits::{G1AffineExt, ReadPointFromBytes},
 };
 use ark_ec::AdditiveGroup;
 
@@ -554,10 +553,7 @@ pub fn compute_challenge(blob: &Blob, commitment: &G1Affine) -> Result<Fr, KzgEr
 
     // Step 4: Copy the commitment (compressed G1 point)
     // Serialize the commitment point in compressed form
-    let mut commitment_bytes = Vec::with_capacity(SIZE_OF_G1_AFFINE_COMPRESSED);
-    commitment
-        .serialize_compressed(&mut commitment_bytes)
-        .map_err(|_| KzgError::SerializationError("Failed to serialize commitment".to_string()))?;
+    let commitment_bytes = G1Affine::serialize_compressed_be(commitment)?;
     digest_bytes[offset..offset + SIZE_OF_G1_AFFINE_COMPRESSED].copy_from_slice(&commitment_bytes);
 
     // Verify that we wrote exactly the amount of bytes we expected

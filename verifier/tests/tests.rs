@@ -1,14 +1,14 @@
 #[cfg(test)]
 mod tests {
-    use ark_bn254::{Fq, G1Affine};
+    use ark_bn254::{Fq, Fr, G1Affine};
     use ark_ec::AffineRepr;
-    use ark_ff::UniformRand;
+    use ark_ff::{BigInteger, PrimeField, UniformRand};
     use lazy_static::lazy_static;
     use rand::Rng;
     const GETTYSBURG_ADDRESS_BYTES: &[u8] = "Fourscore and seven years ago our fathers brought forth, on this continent, a new nation, conceived in liberty, and dedicated to the proposition that all men are created equal. Now we are engaged in a great civil war, testing whether that nation, or any nation so conceived, and so dedicated, can long endure. We are met on a great battle-field of that war. We have come to dedicate a portion of that field, as a final resting-place for those who here gave their lives, that that nation might live. It is altogether fitting and proper that we should do this. But, in a larger sense, we cannot dedicate, we cannot consecrate—we cannot hallow—this ground. The brave men, living and dead, who struggled here, have consecrated it far above our poor power to add or detract. The world will little note, nor long remember what we say here, but it can never forget what they did here. It is for us the living, rather, to be dedicated here to the unfinished work which they who fought here have thus far so nobly advanced. It is rather for us to be here dedicated to the great task remaining before us—that from these honored dead we take increased devotion to that cause for which they here gave the last full measure of devotion—that we here highly resolve that these dead shall not have died in vain—that this nation, under God, shall have a new birth of freedom, and that government of the people, by the people, for the people, shall not perish from the earth.".as_bytes();
     use ark_std::{str::FromStr, One};
     use rust_kzg_bn254_batch_verifier::{batch::verify_blob_kzg_proof_batch, verify::verify_proof};
-    use rust_kzg_bn254_primitives::blob::Blob;
+    use rust_kzg_bn254_primitives::{blob::Blob, traits::G1AffineExt};
     use rust_kzg_bn254_prover::{kzg::KZG, srs::SRS};
 
     // Define a static variable for setup
@@ -20,6 +20,14 @@ mod tests {
             131072
         )
         .unwrap();
+    }
+
+    fn serialize_g1(g1_point: G1Affine) -> [u8; 32] {
+        G1Affine::serialize_compressed_be(&g1_point).unwrap()
+    }
+
+    fn serialize_fr(fr_element: Fr) -> [u8; 32] {
+        fr_element.into_bigint().to_bytes_be().try_into().unwrap()
     }
 
     #[test]
@@ -44,6 +52,7 @@ mod tests {
                     break;
                 }
             }
+
             let commitment = kzg.commit_eval_form(&input_poly, &SRS_INSTANCE).unwrap();
             let proof = kzg
                 .compute_proof_with_known_z_fr_index(
@@ -55,17 +64,22 @@ mod tests {
 
             let value_fr = input_poly.get_evalualtion(index).unwrap();
             let z_fr = kzg.get_nth_root_of_unity(index).unwrap();
-            let pairing_result =
-                verify_proof(commitment, proof, value_fr.clone(), z_fr.clone()).unwrap();
+            let pairing_result = verify_proof(
+                &serialize_g1(commitment),
+                &serialize_g1(proof),
+                &serialize_fr(value_fr.clone()),
+                &serialize_fr(z_fr.clone()),
+            )
+            .unwrap();
 
             assert_eq!(pairing_result, true);
 
             assert_eq!(
                 verify_proof(
-                    commitment,
-                    proof,
-                    value_fr.clone(),
-                    kzg.get_nth_root_of_unity(rand_index).unwrap().clone()
+                    &serialize_g1(commitment),
+                    &serialize_g1(proof),
+                    &serialize_fr(value_fr.clone()),
+                    &serialize_fr(kzg.get_nth_root_of_unity(rand_index).unwrap().clone())
                 )
                 .unwrap(),
                 false
@@ -85,7 +99,6 @@ mod tests {
             let random_blob: Vec<u8> = (0..blob_length)
                 .map(|_| rng.gen_range(32..=126) as u8)
                 .collect();
-            println!("generating blob of length is {}", blob_length);
 
             let input = Blob::from_raw_data(&random_blob);
             let input_poly = input.to_polynomial_eval_form();
@@ -106,21 +119,28 @@ mod tests {
                 .unwrap();
             let value_fr = input_poly.get_evalualtion(index).unwrap();
             let z_fr = kzg.get_nth_root_of_unity(index).unwrap();
-            let pairing_result =
-                verify_proof(commitment, proof, value_fr.clone(), z_fr.clone()).unwrap();
+            let pairing_result = verify_proof(
+                &serialize_g1(commitment),
+                &serialize_g1(proof),
+                &serialize_fr(value_fr.clone()),
+                &serialize_fr(z_fr.clone()),
+            )
+            .unwrap();
             assert_eq!(pairing_result, true);
 
             // take random index, not the same index and check
             assert_eq!(
                 verify_proof(
-                    commitment,
-                    proof,
-                    value_fr.clone(),
-                    kzg.get_nth_root_of_unity(
-                        (index + 1) % input_poly.len_underlying_blob_field_elements()
+                    &serialize_g1(commitment),
+                    &serialize_g1(proof),
+                    &serialize_fr(value_fr.clone()),
+                    &serialize_fr(
+                        kzg.get_nth_root_of_unity(
+                            (index + 1) % input_poly.len_underlying_blob_field_elements()
+                        )
+                        .unwrap()
+                        .clone()
                     )
-                    .unwrap()
-                    .clone()
                 )
                 .unwrap(),
                 false
@@ -134,8 +154,8 @@ mod tests {
         let mut kzg = KZG_INSTANCE.clone();
 
         let mut blobs: Vec<Blob> = Vec::new();
-        let mut commitments: Vec<G1Affine> = Vec::new();
-        let mut proofs: Vec<G1Affine> = Vec::new();
+        let mut commitments: Vec<Vec<u8>> = Vec::new();
+        let mut proofs: Vec<Vec<u8>> = Vec::new();
 
         (0..100).for_each(|_| {
             let blob_length = rng.gen_range(35..50000);
@@ -150,37 +170,56 @@ mod tests {
 
             let commitment = kzg.commit_eval_form(&input_poly, &SRS_INSTANCE).unwrap();
             let proof = kzg
-                .compute_blob_proof(&input, &commitment, &SRS_INSTANCE)
+                .compute_blob_proof(&input, &serialize_g1(commitment), &SRS_INSTANCE)
                 .unwrap();
 
             blobs.push(input);
-            commitments.push(commitment);
-            proofs.push(proof);
+            commitments.push(serialize_g1(commitment).to_vec());
+            proofs.push(serialize_g1(proof).to_vec());
         });
+        // convert vec to u8's
+        let commitments_u8: Vec<[u8; 32]> = commitments
+            .iter()
+            .map(|x| {
+                let mut array = [0u8; 32];
+                array.copy_from_slice(x);
+                array
+            })
+            .collect();
+
+        let proofs_u8: Vec<[u8; 32]> = proofs
+            .iter()
+            .map(|x| {
+                let mut array = [0u8; 32];
+                array.copy_from_slice(x);
+                array
+            })
+            .collect();
 
         let mut bad_blobs = blobs.clone();
-        let mut bad_commitments = commitments.clone();
-        let mut bad_proofs = proofs.clone();
+        let mut bad_commitments = commitments_u8.clone();
+        let mut bad_proofs = proofs_u8.clone();
 
-        let pairing_result = verify_blob_kzg_proof_batch(&blobs, &commitments, &proofs).unwrap();
+        let pairing_result =
+            verify_blob_kzg_proof_batch(&blobs, &commitments_u8, &proofs_u8).unwrap();
         assert_eq!(pairing_result, true);
 
         bad_blobs.pop();
         bad_blobs.push(Blob::from_raw_data(b"random"));
         let pairing_result_bad_blobs =
-            verify_blob_kzg_proof_batch(&bad_blobs, &commitments, &proofs).unwrap();
+            verify_blob_kzg_proof_batch(&bad_blobs, &commitments_u8, &proofs_u8).unwrap();
         assert_eq!(pairing_result_bad_blobs, false);
 
         bad_commitments.pop();
-        bad_commitments.push(G1Affine::rand(&mut rng));
+        bad_commitments.push(serialize_g1(G1Affine::rand(&mut rng)));
         let pairing_result_bad_commitments =
-            verify_blob_kzg_proof_batch(&blobs, &bad_commitments, &proofs).unwrap();
+            verify_blob_kzg_proof_batch(&blobs, &bad_commitments, &proofs_u8).unwrap();
         assert_eq!(pairing_result_bad_commitments, false);
 
         bad_proofs.pop();
-        bad_proofs.push(G1Affine::rand(&mut rng));
+        bad_proofs.push(serialize_g1(G1Affine::rand(&mut rng)));
         let pairing_result_bad_proofs =
-            verify_blob_kzg_proof_batch(&blobs, &commitments, &bad_proofs).unwrap();
+            verify_blob_kzg_proof_batch(&blobs, &commitments_u8, &bad_proofs).unwrap();
         assert_eq!(pairing_result_bad_proofs, false);
 
         let pairing_result_everything_bad =
@@ -203,7 +242,7 @@ mod tests {
             .commit_eval_form(&input_poly1.clone(), &SRS_INSTANCE)
             .unwrap();
         let proof_1 = kzg
-            .compute_blob_proof(&input1, &commitment1, &SRS_INSTANCE)
+            .compute_blob_proof(&input1, &serialize_g1(commitment1), &SRS_INSTANCE)
             .unwrap();
 
         let mut reversed_input: Vec<u8> = vec![0; GETTYSBURG_ADDRESS_BYTES.len()];
@@ -220,12 +259,12 @@ mod tests {
         let commitment2 = kzg2.commit_eval_form(&input_poly2, &SRS_INSTANCE).unwrap();
 
         let proof_2 = kzg2
-            .compute_blob_proof(&input2, &commitment2, &SRS_INSTANCE)
+            .compute_blob_proof(&input2, &serialize_g1(commitment2), &SRS_INSTANCE)
             .unwrap();
 
         let blobs = vec![input1, input2];
-        let commitments = vec![commitment1, commitment2];
-        let proofs = vec![proof_1, proof_2];
+        let commitments = vec![serialize_g1(commitment1), serialize_g1(commitment2)];
+        let proofs = vec![serialize_g1(proof_1), serialize_g1(proof_2)];
         // let res = kzg.verify_blob_kzg_proof(&input1, &commitment1, &auto_proof).unwrap();
 
         let pairing_result = verify_blob_kzg_proof_batch(&blobs, &commitments, &proofs).unwrap();
@@ -247,15 +286,15 @@ mod tests {
         let input_poly1 = input1.to_polynomial_eval_form();
         let commitment1 = kzg.commit_eval_form(&input_poly1, &SRS_INSTANCE).unwrap();
         let proof_1 = kzg
-            .compute_blob_proof(&input1, &commitment1, &SRS_INSTANCE)
+            .compute_blob_proof(&input1, &serialize_g1(commitment1), &SRS_INSTANCE)
             .unwrap();
 
         // Create a proof point at infinity
         let proof_at_infinity = G1Affine::identity();
 
         let blobs = vec![input1.clone()];
-        let commitments = vec![commitment1];
-        let proofs = vec![proof_at_infinity];
+        let commitments = vec![serialize_g1(commitment1)];
+        let proofs = vec![serialize_g1(proof_at_infinity)];
 
         // This should fail since a proof point at infinity is invalid
         let result = verify_blob_kzg_proof_batch(&blobs, &commitments, &proofs);
@@ -268,8 +307,8 @@ mod tests {
         let commitment2 = kzg.commit_eval_form(&input_poly2, &SRS_INSTANCE).unwrap();
 
         let blobs_mixed = vec![input1, input2];
-        let commitments_mixed = vec![commitment1, commitment2];
-        let proofs_mixed = vec![proof_1, proof_at_infinity];
+        let commitments_mixed = vec![serialize_g1(commitment1), serialize_g1(commitment2)];
+        let proofs_mixed = vec![serialize_g1(proof_1), serialize_g1(proof_at_infinity)];
 
         let result_mixed =
             verify_blob_kzg_proof_batch(&blobs_mixed, &commitments_mixed, &proofs_mixed);
@@ -287,7 +326,7 @@ mod tests {
         let input_poly = input.to_polynomial_eval_form();
         let valid_commitment = kzg.commit_eval_form(&input_poly, &SRS_INSTANCE).unwrap();
         let valid_proof = kzg
-            .compute_blob_proof(&input, &valid_commitment, &SRS_INSTANCE)
+            .compute_blob_proof(&input, &serialize_g1(valid_commitment), &SRS_INSTANCE)
             .unwrap();
 
         // Create points not on the curve
@@ -335,7 +374,21 @@ mod tests {
 
         for (commitments, proofs, case_description) in test_cases {
             let blobs = vec![input.clone(), input.clone()];
-            let result = verify_blob_kzg_proof_batch(&blobs, &commitments, &proofs);
+            let commitments_u8: Vec<[u8; 32]> = commitments
+                .iter()
+                .map(|x| {
+                    G1Affine::serialize_compressed_be(&x).expect("serialization should not fail")
+                })
+                .collect();
+
+            let proofs_u8: Vec<[u8; 32]> = proofs
+                .iter()
+                .map(|x| {
+                    G1Affine::serialize_compressed_be(&x).expect("serialization should not fail")
+                })
+                .collect();
+
+            let result = verify_blob_kzg_proof_batch(&blobs, &commitments_u8, &proofs_u8);
 
             assert!(
                 result.is_err(),
