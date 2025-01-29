@@ -16,7 +16,6 @@ rust-kzg-bn254-primitives = { path = "../primitives", version = "0.1.0" }
 ark-bn254 = "0.5.0"
 ark-ec = { version = "0.5.0", features = ["parallel"] }
 ark-ff = { version = "0.5.0", features = ["parallel"] }
-ark-serialize = "0.5.0"
 ark-std = { version = "0.5.0", features = ["parallel"] }
 ark-poly = { version = "0.5.0", features = ["parallel"] }
 num-traits = "0.2"
@@ -28,8 +27,6 @@ num_cpus = "1.16.0"
 rand = "0.8.5"
 criterion = "0.5.1"
 lazy_static = "1.5.0"
-tracing = { version = "0.1.41", features = ["log"] }
-tracing-subscriber = "0.3.19"
 
 [[test]]
 name = "kzg"

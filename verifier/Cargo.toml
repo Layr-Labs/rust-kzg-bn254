@@ -17,8 +17,6 @@ ark-serialize = "0.5.0"
 rand = "0.8.5"
 criterion = "0.5"
 lazy_static = "1.5"
-tracing = { version = "0.1.41", features = ["log"] }
-tracing-subscriber = "0.3.19"
 ark-std = { version = "0.5.0", features = ["parallel"] }
 rust-kzg-bn254-prover = { path = "../prover", version = "0.1.0" }
 
