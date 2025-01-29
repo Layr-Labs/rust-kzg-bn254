@@ -1,7 +1,7 @@
 use ark_bn254::G1Affine;
-use crossbeam_channel::bounded;
+use crossbeam_channel::{bounded, Receiver};
 use rust_kzg_bn254_primitives::errors::KzgError;
-use rust_kzg_bn254_primitives::helpers;
+use rust_kzg_bn254_primitives::traits::ReadPointFromBytes;
 use std::fs::File;
 use std::io::{self, BufReader, Read};
 
@@ -45,6 +45,25 @@ impl SRS {
         })
     }
 
+    pub fn process_chunks<T>(receiver: Receiver<(Vec<u8>, usize, bool)>) -> Vec<(T, usize)>
+    where
+        T: ReadPointFromBytes,
+    {
+        // TODO: should we use rayon to process this in parallel?
+        receiver
+            .iter()
+            .map(|(chunk, position, is_native)| {
+                let point: T = if is_native {
+                    T::read_point_from_bytes_native_compressed(&chunk)
+                        .expect("Failed to read point from bytes")
+                } else {
+                    T::read_point_from_bytes_be(&chunk).expect("Failed to read point from bytes")
+                };
+                (point, position)
+            })
+            .collect()
+    }
+
     /// Reads G1 points in parallel from a file.
     ///
     /// # Arguments
@@ -76,7 +95,7 @@ impl SRS {
         let workers: Vec<_> = (0..num_workers)
             .map(|_| {
                 let receiver = receiver.clone();
-                std::thread::spawn(move || helpers::process_chunks::<G1Affine>(receiver))
+                std::thread::spawn(move || Self::process_chunks::<G1Affine>(receiver))
             })
             .collect();
 
@@ -194,7 +213,7 @@ impl SRS {
         let workers: Vec<_> = (0..num_workers)
             .map(|_| {
                 let receiver = receiver.clone();
-                std::thread::spawn(move || helpers::process_chunks::<G1Affine>(receiver))
+                std::thread::spawn(move || Self::process_chunks::<G1Affine>(receiver))
             })
             .collect();
 

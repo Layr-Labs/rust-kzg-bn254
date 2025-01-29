@@ -3,7 +3,6 @@ use ark_ec::{pairing::Pairing, AffineRepr, CurveGroup, VariableBaseMSM};
 use ark_ff::{sbb, BigInt, BigInteger, Field, PrimeField};
 use ark_serialize::CanonicalSerialize;
 use ark_std::{str::FromStr, vec::Vec, One, Zero};
-use crossbeam_channel::Receiver;
 use num_traits::ToPrimitive;
 use sha2::{Digest, Sha256};
 use std::cmp;
@@ -17,7 +16,6 @@ use crate::{
     },
     errors::KzgError,
     polynomial::PolynomialEvalForm,
-    traits::ReadPointFromBytes,
 };
 use ark_ec::AdditiveGroup;
 
@@ -315,25 +313,6 @@ pub fn read_g1_point_from_bytes_be(g1_bytes_be: &[u8]) -> Result<G1Affine, &str>
         return Err("point couldn't be created");
     }
     Ok(point)
-}
-
-pub fn process_chunks<T>(receiver: Receiver<(Vec<u8>, usize, bool)>) -> Vec<(T, usize)>
-where
-    T: ReadPointFromBytes,
-{
-    // TODO: should we use rayon to process this in parallel?
-    receiver
-        .iter()
-        .map(|(chunk, position, is_native)| {
-            let point: T = if is_native {
-                T::read_point_from_bytes_native_compressed(&chunk)
-                    .expect("Failed to read point from bytes")
-            } else {
-                T::read_point_from_bytes_be(&chunk).expect("Failed to read point from bytes")
-            };
-            (point, position)
-        })
-        .collect()
 }
 
 fn get_b_twist_curve_coeff() -> Fq2 {
