@@ -1,5 +1,5 @@
 [package]
-name = "rust-kzg-bn254-batch-verifier"
+name = "rust-kzg-bn254-verifier"
 version = "0.1.0"
 license-file.workspace = true
 edition.workspace = true
