@@ -2,14 +2,13 @@
 name = "rust-kzg-bn254-verifier"
 version = "0.1.0"
 description = "This library offers a set of functions for verifying KZG commitments and proofs in bn254, with the motivation of supporting fraud and validity proof logic in EigenDA rollup integrations."
-
 license-file.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 repository.workspace = true
 
 [dependencies]
-rust-kzg-bn254-primitives = { path = "../primitives", version = "0.1.0" }
+rust-kzg-bn254-primitives = { version = "0.1.0" }
 ark-bn254 = "0.5.0"
 ark-ec = { version = "0.5.0", features = ["parallel"] }
 ark-ff = { version = "0.5.0", features = ["parallel"] }
@@ -20,7 +19,7 @@ rand = "0.8.5"
 criterion = "0.5"
 lazy_static = "1.5"
 ark-std = { version = "0.5.0", features = ["parallel"] }
-rust-kzg-bn254-prover = { path = "../prover", version = "0.1.0" }
+rust-kzg-bn254-prover = { version = "0.1.0" }
 
 [[bench]]
 name = "bench_kzg_verify"
