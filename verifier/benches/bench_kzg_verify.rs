@@ -1,8 +1,8 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use rand::Rng;
-use rust_kzg_bn254_batch_verifier::verify::verify_proof;
 use rust_kzg_bn254_primitives::blob::Blob;
 use rust_kzg_bn254_prover::{kzg::KZG, srs::SRS};
+use rust_kzg_bn254_verifier::verify::verify_proof;
 use std::time::Duration;
 
 fn bench_kzg_verify(c: &mut Criterion) {
