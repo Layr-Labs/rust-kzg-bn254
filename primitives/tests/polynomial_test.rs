@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use ark_bn254::Fr;
-    use rust_kzg_bn254::{
+    use rust_kzg_bn254_primitives::{
         blob::Blob,
         polynomial::{PolynomialCoeffForm, PolynomialEvalForm},
     };

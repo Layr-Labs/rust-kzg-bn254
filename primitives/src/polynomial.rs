@@ -1,7 +1,8 @@
-use crate::{consts::BYTES_PER_FIELD_ELEMENT, errors::PolynomialError, helpers};
 use ark_bn254::Fr;
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 use ark_std::Zero;
+
+use crate::{consts::BYTES_PER_FIELD_ELEMENT, errors::PolynomialError, helpers};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct PolynomialEvalForm {

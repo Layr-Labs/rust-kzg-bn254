@@ -1,14 +1,16 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use rand::Rng;
-use rust_kzg_bn254::{blob::Blob, kzg::KZG};
+use rust_kzg_bn254_primitives::blob::Blob;
+use rust_kzg_bn254_prover::{kzg::KZG, srs::SRS};
 use std::time::Duration;
 
 fn bench_kzg_proof(c: &mut Criterion) {
     let mut rng = rand::thread_rng();
-    let mut kzg = KZG::setup(
-        "tests/test-files/mainnet-data/g1.131072.point",
+    let mut kzg = KZG::new();
+    let srs = SRS::new(
+        "tests/test-files/mainnet-data/g1.32mb.point",
         268435456,
-        131072,
+        524288,
     )
     .unwrap();
 
@@ -21,7 +23,7 @@ fn bench_kzg_proof(c: &mut Criterion) {
         let index =
             rand::thread_rng().gen_range(0..input_poly.len_underlying_blob_field_elements());
         b.iter(|| {
-            kzg.compute_proof_with_known_z_fr_index(&input_poly, index.try_into().unwrap())
+            kzg.compute_proof_with_known_z_fr_index(&input_poly, index.try_into().unwrap(), &srs)
                 .unwrap()
         });
     });
@@ -35,7 +37,7 @@ fn bench_kzg_proof(c: &mut Criterion) {
         let index =
             rand::thread_rng().gen_range(0..input_poly.len_underlying_blob_field_elements());
         b.iter(|| {
-            kzg.compute_proof_with_known_z_fr_index(&input_poly, index.try_into().unwrap())
+            kzg.compute_proof_with_known_z_fr_index(&input_poly, index.try_into().unwrap(), &srs)
                 .unwrap()
         });
     });
@@ -49,7 +51,7 @@ fn bench_kzg_proof(c: &mut Criterion) {
         let index =
             rand::thread_rng().gen_range(0..input_poly.len_underlying_blob_field_elements());
         b.iter(|| {
-            kzg.compute_proof_with_known_z_fr_index(&input_poly, index.try_into().unwrap())
+            kzg.compute_proof_with_known_z_fr_index(&input_poly, index.try_into().unwrap(), &srs)
                 .unwrap()
         });
     });

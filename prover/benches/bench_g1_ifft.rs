@@ -1,5 +1,5 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use rust_kzg_bn254::kzg::KZG;
+use rust_kzg_bn254_prover::{kzg::KZG, srs::SRS};
 use std::time::Duration;
 
 fn generate_powers_of_2(limit: u64) -> Vec<usize> {
@@ -16,10 +16,17 @@ fn generate_powers_of_2(limit: u64) -> Vec<usize> {
 
 fn bench_g1_ifft(c: &mut Criterion) {
     c.bench_function("bench_g1_ifft", |b| {
-        let kzg = KZG::setup("tests/test-files/mainnet-data/g1.131072.point", 3000, 3000).unwrap();
+        let kzg = KZG::new();
+        let srs = SRS::new(
+            "tests/test-files/mainnet-data/g1.131072.point",
+            268435456,
+            131072,
+        )
+        .unwrap();
+
         b.iter(|| {
             for power in &generate_powers_of_2(3000) {
-                kzg.g1_ifft(black_box(*power)).unwrap();
+                kzg.g1_ifft(black_box(*power), &srs).unwrap();
             }
         });
     });

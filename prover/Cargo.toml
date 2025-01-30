@@ -1,0 +1,58 @@
+[package]
+name = "rust-kzg-bn254-prover"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+description = "This library offers a set of functions for generating and interacting with bn254 KZG commitments and proofs in rust, with the motivation of supporting fraud and validity proof logic in EigenDA rollup integrations."
+readme = "README.md"
+repository.workspace = true
+license-file.workspace = true
+exclude = ["tests/*", "benches/*"]
+# TODO: is this needed for the image to show up in the rust docs?
+include = ["./kzg_commitment_diagram.png"]
+
+[dependencies]
+rust-kzg-bn254-primitives = { path = "../primitives", version = "0.1.0" }
+ark-bn254 = "0.5.0"
+ark-ec = { version = "0.5.0", features = ["parallel"] }
+ark-ff = { version = "0.5.0", features = ["parallel"] }
+ark-std = { version = "0.5.0", features = ["parallel"] }
+ark-poly = { version = "0.5.0", features = ["parallel"] }
+num-traits = "0.2"
+rayon = "1.10"
+crossbeam-channel = "0.5"
+num_cpus = "1.16.0"
+
+[dev-dependencies]
+rand = "0.8.5"
+criterion = "0.5.1"
+lazy_static = "1.5.0"
+
+[[test]]
+name = "kzg"
+path = "tests/kzg_test.rs"
+
+[[bench]]
+name = "bench_g1_ifft"
+harness = false
+path = "benches/bench_g1_ifft.rs"
+
+[[bench]]
+name = "bench_kzg_setup"
+harness = false
+path = "benches/bench_kzg_setup.rs"
+
+[[bench]]
+name = "bench_kzg_commit"
+harness = false
+path = "benches/bench_kzg_commit.rs"
+
+[[bench]]
+name = "bench_kzg_commit_large_blobs"
+harness = false
+path = "benches/bench_kzg_commit_large_blobs.rs"
+
+[[bench]]
+name = "bench_kzg_proof"
+harness = false
+path = "benches/bench_kzg_proof.rs"
