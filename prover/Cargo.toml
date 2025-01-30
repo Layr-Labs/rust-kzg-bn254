@@ -8,8 +8,6 @@ readme = "README.md"
 repository.workspace = true
 license-file.workspace = true
 exclude = ["tests/*", "benches/*"]
-# TODO: is this needed for the image to show up in the rust docs?
-include = ["./kzg_commitment_diagram.png"]
 
 [dependencies]
 rust-kzg-bn254-primitives = { version = "0.1.0" }
