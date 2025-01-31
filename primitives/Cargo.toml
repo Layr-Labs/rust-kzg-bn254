@@ -1,6 +1,7 @@
 [package]
 name = "rust-kzg-bn254-primitives"
 version = "0.1.0"
+description = "This library offers a set of structs, traits and functions for generating Blobs and Polynomials which are used to interact with rust-kzg-bn254-prover and rust-kzg-bn254-verifier crates."
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true

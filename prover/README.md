@@ -1,7 +1,7 @@
 # rust-kzg-bn254
 
-[![Docs](https://docs.rs/rust-kzg-bn254/badge.svg)](https://docs.rs/rust-kzg-bn254/latest/rust_kzg_bn254/)
-[![Crate](https://img.shields.io/crates/v/rust-kzg-bn254.svg)](https://crates.io/crates/rust-kzg-bn254)
+[![Docs](https://docs.rs/rust-kzg-bn254-prover/badge.svg)](https://docs.rs/rust-kzg-bn254-prover/latest/rust_kzg_bn254_prover/)
+[![Crate](https://img.shields.io/crates/v/rust-kzg-bn254-prover.svg)](https://crates.io/crates/rust-kzg-bn254-prover)
 
 This library offers a set of functions for generating and interacting with bn254 KZG commitments and proofs in rust, with the motivation of supporting fraud and validity proof logic in EigenDA rollup integrations.
 
@@ -15,7 +15,7 @@ This library offers a set of functions for generating and interacting with bn254
 
 See the `test_compute_kzg_proof` function in [./tests/kzg_test.rs](./tests/kzg_test.rs) for an end to end usage of the library.
 
-Also make sure to check out the examples in our [docs](https://docs.rs/rust-kzg-bn254/latest/rust_kzg_bn254/).
+Also make sure to check out the examples in our [docs](https://docs.rs/rust-kzg-bn254-prover/latest/rust_kzg_bn254_prover/).
 
 ## Setup for testing
 

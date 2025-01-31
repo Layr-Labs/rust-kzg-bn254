@@ -1,6 +1,6 @@
 # rust-kzg-bn254-primitives
 
-[![Crate](https://img.shields.io/crates/v/rust-kzg-bn254.svg)](https://crates.io/crates/rust-kzg-bn254-primitives)
+[![Crate](https://img.shields.io/crates/v/rust-kzg-bn254-primitives.svg)](https://crates.io/crates/rust-kzg-bn254-primitives)
 
 This library offers primitive set of structures and functions for generating and interacting with bn254 KZG commitments and proofs in rust.
 
