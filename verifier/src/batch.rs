@@ -114,8 +114,7 @@ fn compute_r_powers(
     data_to_be_hashed[0..24].copy_from_slice(RANDOM_CHALLENGE_KZG_BATCH_DOMAIN);
 
     // Convert number of commitments to bytes and copy to buffer
-    // Uses configured endianness (Big or Little)
-    let n_bytes: [u8; 8] = n.to_be_bytes();
+    let n_bytes: [u8; 8] = (n as u64).to_be_bytes();
     data_to_be_hashed[32..40].copy_from_slice(&n_bytes);
 
     let target_slice = &mut data_to_be_hashed[24..24 + (n * 8)];
@@ -123,7 +122,7 @@ fn compute_r_powers(
         .chunks_mut(8)
         .zip(blobs_as_field_elements_length)
     {
-        chunk.copy_from_slice(&length.to_be_bytes());
+        chunk.copy_from_slice(&(length as u64).to_be_bytes());
     }
     initial_data_length += n * 8;
 
