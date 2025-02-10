@@ -122,7 +122,7 @@ fn compute_r_powers(
         .chunks_mut(8)
         .zip(blobs_as_field_elements_length)
     {
-        chunk.copy_from_slice(&(length as u64).to_be_bytes());
+        chunk.copy_from_slice(&length.to_be_bytes());
     }
     initial_data_length += n * 8;
 
