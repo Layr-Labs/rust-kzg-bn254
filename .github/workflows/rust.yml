@@ -25,5 +25,7 @@ jobs:
       run: cargo test --verbose
     - name: 32bit compilation test
       run: cargo build --target i686-unknown-linux-gnu --verbose
+    - name: 32bit test
+      run: cargo install cross && cargo test --target i686-unknown-linux-gnu --verbose
 
     
