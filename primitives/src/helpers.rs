@@ -518,7 +518,7 @@ pub fn compute_challenge(blob: &Blob, commitment: &G1Affine) -> Result<Fr, KzgEr
 
     // Step 2: Copy the number of field elements (blob polynomial length)
     // Convert to bytes using the configured endianness
-    let number_of_field_elements = blob_poly.len().to_be_bytes();
+    let number_of_field_elements = (blob_poly.len() as u64).to_be_bytes();
     digest_bytes[offset..offset + 8].copy_from_slice(&number_of_field_elements);
     offset += 8;
 
