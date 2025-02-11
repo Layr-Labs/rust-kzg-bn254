@@ -722,7 +722,7 @@ pub fn compute_challenges_and_evaluate_polynomial(
 pub fn usize_to_be_bytes(number: usize) -> [u8; 8] {
     let mut result = [0u8; 8];
     let number_bytes = number.to_be_bytes();
-    
+
     if number_bytes.len() == 4 {
         result[4..].copy_from_slice(&number_bytes);
     } else {
