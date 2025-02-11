@@ -6,7 +6,7 @@ use rust_kzg_bn254_primitives::{
     blob::Blob,
     consts::{BYTES_PER_FIELD_ELEMENT, G2_TAU, RANDOM_CHALLENGE_KZG_BATCH_DOMAIN},
     errors::KzgError,
-    helpers::{self, is_on_curve_g1},
+    helpers::{self, is_on_curve_g1, usize_to_be_bytes},
 };
 
 /// Ref: https://github.com/ethereum/consensus-specs/blob/master/specs/deneb/polynomial-commitments.md#verify_blob_kzg_proof_batch
@@ -114,7 +114,7 @@ fn compute_r_powers(
     data_to_be_hashed[0..24].copy_from_slice(RANDOM_CHALLENGE_KZG_BATCH_DOMAIN);
 
     // Convert number of commitments to bytes and copy to buffer
-    let n_bytes: [u8; 8] = (n as u64).to_be_bytes();
+    let n_bytes: [u8; 8] = usize_to_be_bytes(n);
     data_to_be_hashed[32..40].copy_from_slice(&n_bytes);
 
     let target_slice = &mut data_to_be_hashed[24..24 + (n * 8)];

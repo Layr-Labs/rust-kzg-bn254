@@ -518,7 +518,7 @@ pub fn compute_challenge(blob: &Blob, commitment: &G1Affine) -> Result<Fr, KzgEr
 
     // Step 2: Copy the number of field elements (blob polynomial length)
     // Convert to bytes using the configured endianness
-    let number_of_field_elements = (blob_poly.len() as u64).to_be_bytes();
+    let number_of_field_elements = usize_to_be_bytes(blob_poly.len());
     digest_bytes[offset..offset + 8].copy_from_slice(&number_of_field_elements);
     offset += 8;
 
@@ -716,4 +716,17 @@ pub fn compute_challenges_and_evaluate_polynomial(
     // 2. Vector of polynomial evaluations at those points
     // These will be used in the KZG proof verification process
     Ok((evaluation_challenges, ys))
+}
+
+/// Converts a usize to a byte array in big-endian format always returning 8 bytes.
+pub fn usize_to_be_bytes(number: usize) -> [u8; 8] {
+    let mut result = [0u8; 8];
+    let number_bytes = number.to_be_bytes();
+    
+    if number_bytes.len() == 4 {
+        result[4..].copy_from_slice(&number_bytes);
+    } else {
+        result.copy_from_slice(&number_bytes);
+    }
+    result
 }
