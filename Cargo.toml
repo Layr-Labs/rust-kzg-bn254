@@ -11,7 +11,7 @@ thiserror = "2.0.11"
 
 [workspace.package]
 edition = "2021"
-rust-version = "1.81"
+rust-version = "1.75"
 repository = "https://github.com/Layr-Labs/rust-kzg-bn254"
 homepage = ""
 license-file = "LICENSE"
