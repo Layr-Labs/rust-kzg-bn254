@@ -1,0 +1,13 @@
+on:
+  workflow_dispatch:
+  
+jobs:
+  crates-publish:
+    runs-on: ubuntu-latest
+    environment: crates-release-prod
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # 4.2.2
+
+      - name: Publish Crate
+        run: cargo publish --token ${{ secrets.CRATES_IO_TOKEN }}
