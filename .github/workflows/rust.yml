@@ -26,6 +26,6 @@ jobs:
     - name: 32bit compilation test
       run: cargo build --target i686-unknown-linux-gnu --verbose
     - name: Running tests under 32bit architecture
-      run: cargo update half@2.5.0 --precise 2.4.1 && cargo install cross@0.1.16 && cross test --target i686-unknown-linux-gnu --verbose
+      run: cargo install cross@0.1.16 && cross test --target i686-unknown-linux-gnu --verbose
 
     
