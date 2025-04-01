@@ -1,3 +1,4 @@
+name: crate-release-prod
 on:
   workflow_dispatch:
   
