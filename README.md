@@ -64,7 +64,7 @@ If you encounter issue running tests and it fails with the following error:
 ```
 error: package `half v2.5.0` cannot be built because it requires rustc 1.81 or newer, while the currently active rustc version is 1.75.0
 ```
-then run `cargo update half@2.5.0 --precise 2.4.1` to update this transitive dependency to a lower version.
+then run `cargo update half --precise 2.4.1` to downgrade this transitive dependency to a lower version that works with our MSRV.
 This issue can be permanently solved when [this rust RFC](https://rust-lang.github.io/rfcs/3537-msrv-resolver.html) is implemented.
 
 
