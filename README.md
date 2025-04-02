@@ -60,7 +60,7 @@ cargo bench
 
 
 ### Notes on testing
-If you encounter issue running tests and it failes with the following error:
+If you encounter issue running tests and it fails with the following error:
 ```
 error: package `half v2.5.0` cannot be built because it requires rustc 1.81 or newer, while the currently active rustc version is 1.75.0
 ```
