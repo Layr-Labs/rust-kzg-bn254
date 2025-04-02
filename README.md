@@ -1,12 +1,8 @@
 # rust-kzg-bn254
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+## Description
 
-A Rust implementation of KZG polynomial commitments using the BN254 elliptic curve, designed for the Ethereum ecosystem and EigenDA rollup integrations.
-
-## Overview
-
-The Kate-Zaverucha-Goldberg (KZG) polynomial commitment scheme allows for efficient proofs that a specific value exists in a polynomial at a given point, without revealing the entire polynomial. This implementation specifically targets the BN254 elliptic curve pairing, which is widely used in various blockchain applications.
+This library offers a set of functions for generating and interacting with bn254 KZG commitments and proofs in rust, with the motivation of supporting fraud and validity proof logic in EigenDA rollup integrations.
 
 ## Crates
 
@@ -45,36 +41,34 @@ Provides verification functions:
 
 For a complete end-to-end example, see the `test_compute_kzg_proof` function in [prover/tests/kzg_test.rs](./prover/tests/kzg_test.rs).
 
-### EigenDA Integration
-
-To configure with the EigenDA KZG trusted setup:
-
-1. Download the G1 and G2 points from the [Operator Setup Guide](https://github.com/Layr-Labs/eigenda-operator-setup)
-2. Specify the files in `kzg.setup()` function as described in the [prover documentation](./prover/README.md)
-
-## Development
-
-### Requirements
-
-- Rust 1.75 or later
-
-### Building and Testing
+### Building and Benchmark
 
 ```bash
 # Build all crates
 cargo build
 
-# Run tests
-cargo test
-
 # Run benchmarks
 cargo bench
 ```
+### Compatibility
+1. The project is compatible with Rust 1.75 or later
+
+### Downstream Dependencies
+1. Arbitrum Nitro uses rust 1.78
+2. RiscZero ZKVM uses 1.85
+3. SP1 ZKVM uses 1.79
+
+
+### Notes on testing
+If you encounter issue running tests and it failes with the following error:
+```
+error: package `half v2.5.0` cannot be built because it requires rustc 1.81 or newer, while the currently active rustc version is 1.75.0
+```
+then run `cargo update half@2.5.0 --precise 2.4.1` to update this transitive dependency to a lower version.
+This issue can be permanently solved when [this rust RFC](https://rust-lang.github.io/rfcs/3537-msrv-resolver.html) is implemented.
+
+
 
 ## Warning & Disclaimer
 
 This code is unaudited and under construction. This is experimental software and is provided on an "as is" and "as available" basis. It may not work as expected and should not be used in production environments.
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
