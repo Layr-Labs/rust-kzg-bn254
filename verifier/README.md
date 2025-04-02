@@ -1,5 +1,6 @@
 # rust-kzg-bn254-verification
 
+[![Docs](https://docs.rs/rust-kzg-bn254-verifier/badge.svg)](https://docs.rs/rust-kzg-bn254-verifier/latest/rust_kzg_bn254_verifier/)
 [![Crate](https://img.shields.io/crates/v/rust-kzg-bn254-verifier.svg)](https://crates.io/crates/rust-kzg-bn254-verifier)
 
 This library offers verification functions, including batch verification, for KZG.
