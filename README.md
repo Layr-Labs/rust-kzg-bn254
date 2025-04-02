@@ -56,7 +56,7 @@ cargo bench
 ### Downstream Dependencies
 1. Arbitrum Nitro uses rust 1.78
 2. RiscZero ZKVM uses 1.85
-3. SP1 ZKVM uses 1.79
+3. SP1 ZKVM uses [1.79](https://github.com/succinctlabs/sp1/blob/81757da015939d8a851d909e8c3df14bdc3b030d/Cargo.toml#L5)
 
 
 ### Notes on testing
