@@ -13,7 +13,11 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+
     steps:
+    - uses: step-security/harden-runner@446798f8213ac2e75931c1b0769676d927801858 # v2.10.3
+      with:
+        egress-policy: audit
     - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
     - name: Build
       run: cargo build --verbose
@@ -21,8 +25,11 @@ jobs:
       run: cargo fmt --all -- --check
     - name: Clippy Format test
       run: cargo clippy --all --manifest-path Cargo.toml -- -D warnings
+    # Refer to readme as to why this is done.
+    - name: Update cargo lock with compatible `half` library at version 2.4.1.
+      run: cargo update half@2.5.0 --precise 2.4.1 
     - name: Run tests
-      run: cargo update half@2.5.0 --precise 2.4.1 && cargo test --verbose
+      run: cargo test --verbose
     - name: 32bit compilation test
       run: cargo build --target i686-unknown-linux-gnu --verbose
     - name: Running tests under 32bit architecture
