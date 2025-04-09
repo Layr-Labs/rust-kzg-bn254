@@ -40,7 +40,7 @@ jobs:
       run: cargo clippy --all --manifest-path Cargo.toml -- -D warnings
     # Refer to readme as to why this is done.
     - name: Update cargo lock with compatible `half` library at version 2.4.1.
-      run: cargo update half@2.5.0 --precise 2.4.1 
+      run: cargo update half --precise 2.4.1 
     - name: Run tests
       run: cargo test --verbose
     - name: 32bit compilation test
