@@ -87,9 +87,10 @@ impl KZG {
         srs: &SRS,
     ) -> Result<G1Affine, KzgError> {
         if polynomial.len() > srs.g1.len() {
-            return Err(KzgError::SerializationError(
-                "polynomial length is not correct".to_string(),
-            ));
+            return Err(KzgError::SrsCapacityExceeded {
+                polynomial_len: polynomial.len(),
+                srs_len: srs.g1.len(),
+            });
         }
 
         // When the polynomial is in evaluation form, use IFFT to transform monomial srs
