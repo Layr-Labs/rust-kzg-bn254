@@ -9,11 +9,28 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
+permissions:
+  contents: read
+
+
 jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+
     steps:
+    - uses: step-security/harden-runner@446798f8213ac2e75931c1b0769676d927801858 # v2.10.3
+      with:
+        disable-sudo: true
+        egress-policy: block
+        allowed-endpoints: >
+          auth.docker.io:443
+          github.com:443
+          index.crates.io:443
+          production.cloudflare.docker.com:443
+          registry-1.docker.io:443
+          static.crates.io:443
+          static.rust-lang.org:443
     - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
     - name: Build
       run: cargo build --verbose
@@ -21,6 +38,9 @@ jobs:
       run: cargo fmt --all -- --check
     - name: Clippy Format test
       run: cargo clippy --all --manifest-path Cargo.toml -- -D warnings
+    # Refer to readme as to why this is done.
+    - name: Update cargo lock with compatible `half` library at version 2.4.1.
+      run: cargo update half --precise 2.4.1 
     - name: Run tests
       run: cargo test --verbose
     - name: 32bit compilation test

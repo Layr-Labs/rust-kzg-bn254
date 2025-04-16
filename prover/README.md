@@ -1,4 +1,4 @@
-# rust-kzg-bn254
+# rust-kzg-bn254-prover
 
 [![Docs](https://docs.rs/rust-kzg-bn254-prover/badge.svg)](https://docs.rs/rust-kzg-bn254-prover/latest/rust_kzg_bn254_prover/)
 [![Crate](https://img.shields.io/crates/v/rust-kzg-bn254-prover.svg)](https://crates.io/crates/rust-kzg-bn254-prover)
