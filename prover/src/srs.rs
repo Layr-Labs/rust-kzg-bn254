@@ -36,8 +36,7 @@ impl SRS {
         }
 
         let g1_points =
-            Self::parallel_read_g1_points(path_to_g1_points.to_owned(), points_to_load, false)
-                .map_err(|e| KzgError::SerializationError(e.to_string()))?;
+            Self::parallel_read_g1_points(path_to_g1_points.to_owned(), points_to_load, false)?;
 
         Ok(Self {
             g1: g1_points,
@@ -121,6 +120,14 @@ impl SRS {
 
         // Sort by original position to maintain order
         all_points.sort_by_key(|&(_, position)| position);
+
+        if all_points.len() != points_to_load as usize {
+            return Err(KzgError::GenericError(format!(
+                "Expected {} points, but got {}.",
+                points_to_load,
+                all_points.len()
+            )));
+        }
 
         // Extract the G1Affine points
         Ok(all_points.iter().map(|(point, _)| *point).collect())
