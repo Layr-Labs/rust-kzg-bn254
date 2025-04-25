@@ -9,6 +9,9 @@ use rust_kzg_bn254_primitives::{
     helpers::{self, is_on_curve_g1, usize_to_be_bytes},
 };
 
+extern crate alloc;
+use alloc::{string::ToString, vec, vec::Vec};
+
 /// Ref: https://github.com/ethereum/consensus-specs/blob/master/specs/deneb/polynomial-commitments.md#verify_blob_kzg_proof_batch
 pub fn verify_blob_kzg_proof_batch(
     blobs: &[Blob],
@@ -19,7 +22,7 @@ pub fn verify_blob_kzg_proof_batch(
     // This is critical for batch verification to work correctly
     if !(commitments.len() == blobs.len() && proofs.len() == blobs.len()) {
         return Err(KzgError::GenericError(
-            "length's of the input are not the same".to_owned(),
+            "length's of the input are not the same".to_string(),
         ));
     }
 
@@ -32,7 +35,7 @@ pub fn verify_blob_kzg_proof_batch(
             || !commitment.is_in_correct_subgroup_assuming_on_curve()
     }) {
         return Err(KzgError::NotOnCurveError(
-            "commitment not on curve".to_owned(),
+            "commitment not on curve".to_string(),
         ));
     }
 
@@ -43,7 +46,7 @@ pub fn verify_blob_kzg_proof_batch(
             || !proof.is_on_curve()
             || !proof.is_in_correct_subgroup_assuming_on_curve()
     }) {
-        return Err(KzgError::NotOnCurveError("proof not on curve".to_owned()));
+        return Err(KzgError::NotOnCurveError("proof not on curve".to_string()));
     }
 
     // Compute evaluation challenges and evaluate polynomials at those points
@@ -200,7 +203,7 @@ fn verify_kzg_proof_batch(
     // This is crucial for batch verification to work correctly
     if !(commitments.len() == zs.len() && zs.len() == ys.len() && ys.len() == proofs.len()) {
         return Err(KzgError::GenericError(
-            "length's of the input are not the same".to_owned(),
+            "length's of the input are not the same".to_string(),
         ));
     }
 
@@ -211,7 +214,7 @@ fn verify_kzg_proof_batch(
         .all(|commitment| is_on_curve_g1(&G1Projective::from(*commitment)))
     {
         return Err(KzgError::NotOnCurveError(
-            "commitment not on curve".to_owned(),
+            "commitment not on curve".to_string(),
         ));
     }
 
@@ -220,12 +223,12 @@ fn verify_kzg_proof_batch(
         .iter()
         .all(|proof| is_on_curve_g1(&G1Projective::from(*proof)))
     {
-        return Err(KzgError::NotOnCurveError("proof".to_owned()));
+        return Err(KzgError::NotOnCurveError("proof".to_string()));
     }
 
     // Verify that the trusted setup point τ*G2 is on the G2 curve
     if !helpers::is_on_curve_g2(&G2Projective::from(G2_TAU)) {
-        return Err(KzgError::NotOnCurveError("g2 tau".to_owned()));
+        return Err(KzgError::NotOnCurveError("g2 tau".to_string()));
     }
 
     let n = commitments.len();
