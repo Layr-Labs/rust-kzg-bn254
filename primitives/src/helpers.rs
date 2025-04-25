@@ -1,11 +1,17 @@
 use ark_bn254::{Bn254, Fq, Fq2, Fr, G1Affine, G1Projective, G2Affine, G2Projective};
+use ark_ec::AdditiveGroup;
 use ark_ec::{pairing::Pairing, AffineRepr, CurveGroup, VariableBaseMSM};
 use ark_ff::{sbb, BigInt, BigInteger, Field, PrimeField};
 use ark_serialize::CanonicalSerialize;
-use ark_std::{str::FromStr, vec::Vec, One, Zero};
+use ark_std::{str::FromStr, vec, vec::Vec, One, Zero};
+
+use libm::log2;
 use num_traits::ToPrimitive;
 use sha2::{Digest, Sha256};
-use std::cmp;
+
+extern crate alloc;
+use alloc::string::ToString;
+use core::cmp;
 
 use crate::{
     arith,
@@ -17,7 +23,6 @@ use crate::{
     errors::KzgError,
     polynomial::PolynomialEvalForm,
 };
-use ark_ec::AdditiveGroup;
 
 pub fn blob_to_polynomial(blob: &[u8]) -> Vec<Fr> {
     to_fr_array(blob)
@@ -622,16 +627,15 @@ pub fn evaluate_polynomial_in_evaluation_form(
 /// ```
 pub fn calculate_roots_of_unity(length_of_data_after_padding: u64) -> Result<Vec<Fr>, KzgError> {
     // Calculate log2 of the next power of two of the length of data after padding
-    let log2_of_evals = (length_of_data_after_padding
-        .div_ceil(32)
-        .next_power_of_two() as f64)
-        .log2()
-        .to_u8()
-        .ok_or_else(|| {
-            KzgError::GenericError(
-                "Failed to convert length_of_data_after_padding to u8".to_string(),
-            )
-        })?;
+    let log2_of_evals = log2(
+        length_of_data_after_padding
+            .div_ceil(32)
+            .next_power_of_two() as f64,
+    )
+    .to_u8()
+    .ok_or_else(|| {
+        KzgError::GenericError("Failed to convert length_of_data_after_padding to u8".to_string())
+    })?;
 
     // Check if the length of data after padding is valid with respect to the SRS order
     if length_of_data_after_padding

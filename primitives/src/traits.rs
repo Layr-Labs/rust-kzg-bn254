@@ -2,6 +2,10 @@ use ark_bn254::g1::G1Affine;
 use ark_ec::AffineRepr;
 use ark_serialize::CanonicalDeserialize;
 
+extern crate alloc;
+use alloc::format;
+use alloc::string::String;
+
 // We define our own error instead of using io::ErrorKind::InvalidData
 // because we want this to compile in no-std environments.
 #[derive(Debug, thiserror::Error)]

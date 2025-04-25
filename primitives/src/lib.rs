@@ -1,3 +1,4 @@
+#![no_std]
 mod arith;
 pub mod blob;
 pub mod consts;
