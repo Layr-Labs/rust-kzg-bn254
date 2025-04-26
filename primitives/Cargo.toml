@@ -17,7 +17,10 @@ sha2.workspace = true
 num-traits.workspace = true
 thiserror.workspace = true
 libm.workspace = true
-serde.workspace = true
+
+# serde_derive is no_std https://crates.io/crates/serde_derive
+# alloc is also no_std https://serde.rs/no-std.html#memory-allocation
+serde = { workspace = true, features = ["derive", "alloc"] }
 
 [dev-dependencies]
 rand = "0.8.5"
