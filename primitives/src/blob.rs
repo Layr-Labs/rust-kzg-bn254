@@ -6,7 +6,7 @@ use crate::{
 // Need to explicitly import alloc because we are in a no-std environment.
 extern crate alloc;
 use alloc::vec::Vec;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 /// A blob aligned with the Eigen DA specification.
 /// TODO: we should probably move to a transparent repr like
