@@ -67,7 +67,11 @@ error: package `half v2.5.0` cannot be built because it requires rustc 1.81 or n
 then run `cargo update half --precise 2.4.1` to downgrade this transitive dependency to a lower version that works with our MSRV.
 This issue can be permanently solved when [this rust RFC](https://rust-lang.github.io/rfcs/3537-msrv-resolver.html) is implemented.
 
+## Crates Releases
 
+Releasing a crate is done by creating a PR (see this [example](https://github.com/Layr-Labs/rust-kzg-bn254/pull/49)) that bumps the version in `Cargo.toml` and then [manually dispatching](https://github.com/Layr-Labs/rust-kzg-bn254/actions/workflows/crates-release-prod.yml) the [crates-release-prod.yml](./.github/workflows/crates-release-prod.yml) workflow. This will publish the new version to crates.io.
+
+```bash
 
 ## Warning & Disclaimer
 
