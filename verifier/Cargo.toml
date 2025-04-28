@@ -8,18 +8,19 @@ rust-version.workspace = true
 repository.workspace = true
 
 [dependencies]
-rust-kzg-bn254-primitives = {version = "0.1.1", path = "../primitives" }
-ark-bn254 = "0.5.0"
-ark-ec = { version = "0.5.0", features = ["parallel"] }
-ark-ff = { version = "0.5.0", features = ["parallel"] }
-ark-serialize = "0.5.0"
+rust-kzg-bn254-primitives.workspace = true
+
+ark-bn254.workspace = true
+ark-ec.workspace = true
+ark-ff.workspace = true
+ark-serialize.workspace = true
 
 [dev-dependencies]
 rand = "0.8.5"
 criterion = "0.5"
 lazy_static = "1.5"
-ark-std = { version = "0.5.0", features = ["parallel"] }
-rust-kzg-bn254-prover = { version = "0.1.0", path = "../prover" }
+ark-std = { workspace = true, features = ["parallel"] }
+rust-kzg-bn254-prover.workspace = true
 
 [[bench]]
 name = "bench_kzg_verify"

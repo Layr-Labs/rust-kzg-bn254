@@ -3,10 +3,15 @@ use crate::{
     polynomial::{PolynomialCoeffForm, PolynomialEvalForm},
 };
 
+// Need to explicitly import alloc because we are in a no-std environment.
+extern crate alloc;
+use alloc::vec::Vec;
+use serde::{Deserialize, Serialize};
+
 /// A blob aligned with the Eigen DA specification.
 /// TODO: we should probably move to a transparent repr like
 ///       <https://docs.rs/alloy-primitives/latest/alloy_primitives/struct.FixedBytes.html>
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Blob {
     /// The binary data contained within the blob.
     blob_data: Vec<u8>,

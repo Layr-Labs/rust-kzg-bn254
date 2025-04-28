@@ -131,7 +131,6 @@ fn test_montgomery_reduce() {
         .neg_in_place()
         .inverse()
         .unwrap();
-    println!("{}", inv.0);
 }
 
 #[cfg(test)]

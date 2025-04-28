@@ -7,15 +7,20 @@ repository.workspace = true
 license-file.workspace = true
 
 [dependencies]
-ark-bn254 = "0.5.0"
-ark-ec = { version = "0.5.0", features = ["parallel"] }
-ark-ff = { version = "0.5.0", features = ["parallel"] }
-ark-serialize = "0.5.0"
-ark-std = { version = "0.5.0", features = ["parallel"] }
-ark-poly = { version = "0.5.0", features = ["parallel"] }
-sha2 = "0.10.8"
-num-traits = "0.2"
-thiserror = "2.0.11"
+ark-bn254 = { workspace = true, features = ["curve"] }
+ark-ec.workspace = true
+ark-ff.workspace = true
+ark-serialize.workspace = true
+ark-std.workspace = true
+ark-poly.workspace = true
+sha2.workspace = true
+num-traits.workspace = true
+thiserror.workspace = true
+libm.workspace = true
+
+# serde_derive is no_std https://crates.io/crates/serde_derive
+# alloc is also no_std https://serde.rs/no-std.html#memory-allocation
+serde = { workspace = true, features = ["derive", "alloc"] }
 
 [dev-dependencies]
 rand = "0.8.5"

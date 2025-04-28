@@ -1,5 +1,9 @@
 use thiserror::Error;
 
+// Need to explicitly import alloc because we are in a no-std environment.
+extern crate alloc;
+use alloc::string::String;
+
 /// Errors related to Polynomial operations.
 ///
 /// The `PolynomialError` enum encapsulates all possible errors that can occur

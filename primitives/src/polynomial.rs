@@ -4,6 +4,10 @@ use ark_std::Zero;
 
 use crate::{consts::BYTES_PER_FIELD_ELEMENT, errors::PolynomialError, helpers};
 
+extern crate alloc;
+use alloc::string::ToString;
+use alloc::vec::Vec;
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct PolynomialEvalForm {
     /// evaluations contains the evaluations of the polynomial, padded with 0s

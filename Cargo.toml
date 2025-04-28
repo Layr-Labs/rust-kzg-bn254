@@ -1,20 +1,13 @@
-[workspace]
-members = [
-    "verifier",
-    "prover", 
-    "primitives",
-]
-resolver = "2"
-
-[workspace.dependencies]
-thiserror = "2.0.11"
-
 [workspace.package]
 edition = "2021"
 rust-version = "1.78"
 repository = "https://github.com/Layr-Labs/rust-kzg-bn254"
 homepage = ""
 license-file = "LICENSE"
+
+[workspace]
+members = ["verifier", "prover", "primitives"]
+resolver = "2"
 
 [profile.bench]
 opt-level = 3
@@ -23,7 +16,6 @@ strip = "none"
 debug-assertions = false
 overflow-checks = false
 lto = false
-panic = 'abort'
 incremental = false
 codegen-units = 16
 rpath = false
@@ -35,7 +27,6 @@ strip = "none"
 debug-assertions = false
 overflow-checks = false
 lto = false
-panic = 'abort'
 incremental = false
 codegen-units = 16
 rpath = false
@@ -52,4 +43,20 @@ incremental = false
 codegen-units = 16
 rpath = false
 
+[workspace.dependencies]
+rust-kzg-bn254-primitives = { version = "0.1.1", path = "./primitives" }
+rust-kzg-bn254-prover = { version = "0.1.1", path = "./prover" }
+rust-kzg-bn254-verifier = { version = "0.1.1", path = "./verifier" }
 
+thiserror = { version = "2.0.11", default-features = false }
+sha2 = { version = "0.10.8", default-features = false }
+num-traits = { version = "0.2", default-features = false }
+libm = "0.2.13"
+serde = { version = "1.0.219", default-features = false }
+
+ark-bn254 = { version = "0.5.0", default-features = false }
+ark-ec = { version = "0.5.0", default-features = false }
+ark-ff = { version = "0.5.0", default-features = false }
+ark-serialize = { version = "0.5.0", default-features = false }
+ark-std = { version = "0.5.0", default-features = false }
+ark-poly = { version = "0.5.0", default-features = false }

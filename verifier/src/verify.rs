@@ -2,6 +2,9 @@ use ark_bn254::{Fr, G1Affine, G2Affine};
 use ark_ec::{AffineRepr, CurveGroup};
 use rust_kzg_bn254_primitives::{blob::Blob, consts::G2_TAU, errors::KzgError, helpers};
 
+extern crate alloc;
+use alloc::string::ToString;
+
 /// Ref: https://github.com/ethereum/consensus-specs/blob/master/specs/deneb/polynomial-commitments.md#verify_proof
 /// TODO(anupsv): Accept bytes instead of Fr element and Affine points. Ref: https://github.com/Layr-Labs/rust-kzg-bn254/issues/30
 pub fn verify_proof(
