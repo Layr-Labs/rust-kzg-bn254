@@ -71,8 +71,6 @@ This issue can be permanently solved when [this rust RFC](https://rust-lang.gith
 
 Releasing a crate is done by creating a PR (see this [example](https://github.com/Layr-Labs/rust-kzg-bn254/pull/49)) that bumps the version in `Cargo.toml` and then [manually dispatching](https://github.com/Layr-Labs/rust-kzg-bn254/actions/workflows/crates-release-prod.yml) the [crates-release-prod.yml](./.github/workflows/crates-release-prod.yml) workflow. This will publish the new version to crates.io.
 
-```bash
-
 ## Warning & Disclaimer
 
 This code is unaudited and under construction. This is experimental software and is provided on an "as is" and "as available" basis. It may not work as expected and should not be used in production environments.
