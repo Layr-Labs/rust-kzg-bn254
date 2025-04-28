@@ -1,6 +1,6 @@
 [package]
 name = "rust-kzg-bn254-verifier"
-version = "0.1.1"
+version = "0.1.2"
 description = "This library offers a set of functions for verifying KZG commitments and proofs in bn254, with the motivation of supporting fraud and validity proof logic in EigenDA rollup integrations."
 license-file.workspace = true
 edition.workspace = true
