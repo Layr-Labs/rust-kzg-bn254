@@ -15,7 +15,6 @@ mod tests {
 
     #[test]
     fn test_validate_blob_data_as_canonical_field_elements() {
-
         let test_1 = &GETTYSBURG_ADDRESS_BYTES[0..62];
         let test_1_with_padding = helpers::convert_by_padding_empty_byte(test_1);
 
@@ -30,7 +29,8 @@ mod tests {
         let test_3 = [0xff; 32];
         let test_3_with_padding = helpers::convert_by_padding_empty_byte(&test_3);
         Blob::new(&test_3).expect_err("should fail: bad element");
-        Blob::new(test_3_with_padding.as_slice()).expect_err("should fail: bad element and not multiple of 32");
+        Blob::new(test_3_with_padding.as_slice())
+            .expect_err("should fail: bad element and not multiple of 32");
 
         let test_4 = [0xff; 31];
         let test_4_with_padding = helpers::convert_by_padding_empty_byte(&test_4);
@@ -43,8 +43,10 @@ mod tests {
     #[test]
     fn test_from_padded_bytes_unchecked() {
         let blob = Blob::from_raw_data(&GETTYSBURG_ADDRESS_BYTES[0..31]);
-        let blob_data_padded = helpers::convert_by_padding_empty_byte(&GETTYSBURG_ADDRESS_BYTES[0..31]);
-        let blob_unchecked = Blob::new(blob_data_padded.as_slice()).expect("Should create valid blob");
+        let blob_data_padded =
+            helpers::convert_by_padding_empty_byte(&GETTYSBURG_ADDRESS_BYTES[0..31]);
+        let blob_unchecked =
+            Blob::new(blob_data_padded.as_slice()).expect("Should create valid blob");
 
         assert_eq!(blob, blob_unchecked, "blob should be equal");
     }

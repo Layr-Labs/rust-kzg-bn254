@@ -1,7 +1,7 @@
 use crate::{
+    errors::KzgError,
     helpers,
     polynomial::{PolynomialCoeffForm, PolynomialEvalForm},
-    errors::KzgError,
 };
 
 // Need to explicitly import alloc because we are in a no-std environment.
@@ -23,8 +23,8 @@ impl Blob {
     /// blob_data should already be padded according to DA specs, meaning
     /// that it contains bn254 field elements.
     ///
-    /// This function validates that the input is a multiple of 32 and each 
-    /// 32-byte chunks in the data represents canonical bn254 field elements 
+    /// This function validates that the input is a multiple of 32 and each
+    /// 32-byte chunks in the data represents canonical bn254 field elements
     /// (i.e., they are less than the field modulus).
     /// Returns an error if any chunk contains bytes that exceed the field modulus.
     pub fn new(blob_data: &[u8]) -> Result<Self, KzgError> {
