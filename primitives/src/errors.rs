@@ -69,7 +69,7 @@ pub enum KzgError {
     InvalidDenominator,
 
     /// Error indicating an invalid input length scenario, typically in data processing.
-    #[error("invalid input length")]
+    #[error("input length must be a multiple of 32")]
     InvalidInputLength,
 
     /// Error indicating invalid field element bytes that exceed the field modulus.

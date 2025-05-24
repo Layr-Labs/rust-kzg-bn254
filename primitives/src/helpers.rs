@@ -3,6 +3,7 @@ use ark_ec::AdditiveGroup;
 use ark_ec::{pairing::Pairing, AffineRepr, CurveGroup, VariableBaseMSM};
 use ark_ff::{sbb, BigInt, BigInteger, Field, PrimeField};
 use ark_serialize::CanonicalSerialize;
+use ark_std::format;
 use ark_std::{str::FromStr, vec, vec::Vec, One, Zero};
 
 use libm::log2;
@@ -733,4 +734,27 @@ pub fn usize_to_be_bytes(number: usize) -> [u8; 8] {
         result.copy_from_slice(&number_bytes);
     }
     result
+}
+
+/// Validates that the blob data contains valid bn254 field elements.
+/// Uses round-trip validation: converts to field element and back to bytes.
+pub fn validate_blob_data_as_canonical_field_elements(data: &[u8]) -> Result<(), KzgError> {
+    use crate::consts::BYTES_PER_FIELD_ELEMENT;
+
+    if data.len() % BYTES_PER_FIELD_ELEMENT != 0 {
+        return Err(KzgError::InvalidInputLength);
+    }
+    
+    // iterate through every 32-byte chunk and check if the bytes are canonical
+    for (i, chunk) in data.chunks(BYTES_PER_FIELD_ELEMENT).enumerate() {
+        let field_element = set_bytes_canonical(chunk);
+        let bytes_from_field_element: Vec<u8> = to_byte_array(&[field_element], chunk.len());
+        if chunk != bytes_from_field_element.as_slice() {
+            return Err(KzgError::InvalidFieldElement(format!(
+                "Field element at position {} is not canonical", i
+            )));
+        }
+    }
+
+    Ok(())
 }
