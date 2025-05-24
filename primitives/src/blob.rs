@@ -1,12 +1,16 @@
 use crate::{
     helpers,
     polynomial::{PolynomialCoeffForm, PolynomialEvalForm},
+    errors::KzgError,
 };
 
 // Need to explicitly import alloc because we are in a no-std environment.
 extern crate alloc;
 use alloc::vec::Vec;
+use alloc::format;
+use ark_std::println;
 use serde::{Deserialize, Serialize};
+use ark_ff::{BigInteger, PrimeField};
 
 /// A blob aligned with the Eigen DA specification.
 /// TODO: we should probably move to a transparent repr like
@@ -17,22 +21,42 @@ pub struct Blob {
     blob_data: Vec<u8>,
 }
 
+/// Validates that the blob data contains valid bn254 field elements.
+/// Uses round-trip validation: converts to field element and back to bytes.
+fn validate_blob_data_as_canonical_field_elements(data: &[u8]) -> Result<(), KzgError> {
+    use crate::consts::BYTES_PER_FIELD_ELEMENT;
+    
+    // iterate through every 32-byte chunk and check if the bytes are canonical and also check the remaining bytes
+    for (i, chunk) in data.chunks(BYTES_PER_FIELD_ELEMENT).enumerate() {
+        if chunk.len() < BYTES_PER_FIELD_ELEMENT {
+            // if the chunk is less than 32 bytes it means it will fit in the field element.
+            continue;
+        }
+        let field_element = helpers::set_bytes_canonical(chunk);
+        let bytes_from_field_element: Vec<u8> = helpers::to_byte_array(&[field_element], chunk.len());
+        if chunk != bytes_from_field_element.as_slice() {
+            return Err(KzgError::InvalidFieldElement(format!(
+                "Field element at position {} is not canonical", i
+            )));
+        }
+    }
+
+    Ok(())
+}
+
 impl Blob {
     /// Creates a new `Blob` from the given blob_data.
     /// blob_data should already be padded according to DA specs, meaning
-    /// that it contains bn254 field elements. Otherwise, use
-    /// [`Blob::from_raw_data`].
+    /// that it contains bn254 field elements.
     ///
-    /// WARNING: This function does not check if the bytes are modulo bn254.
-    /// If the data has 32 byte segments exceeding the modulo of the field
-    /// then the bytes will be modded by the order of the field and the data
-    /// will be transformed incorrectly.
-    /// TODO: we should check that the bytes are correct and return an error
-    /// instead of relying on the users reading this documentation.
-    pub fn new(blob_data: &[u8]) -> Self {
-        Blob {
+    /// This function validates that all 32-byte chunks in the data represent
+    /// canonical bn254 field elements (i.e., they are less than the field modulus).
+    /// Returns an error if any chunk contains bytes that exceed the field modulus.
+    pub fn new(blob_data: &[u8]) -> Result<Self, KzgError> {
+        validate_blob_data_as_canonical_field_elements(blob_data)?;
+        Ok(Blob {
             blob_data: blob_data.to_vec(),
-        }
+        })
     }
 
     /// Creates a new `Blob` from the provided raw_data byte slice and pads it

@@ -71,4 +71,8 @@ pub enum KzgError {
     /// Error indicating an invalid input length scenario, typically in data processing.
     #[error("invalid input length")]
     InvalidInputLength,
+
+    /// Error indicating invalid field element bytes that exceed the field modulus.
+    #[error("invalid field element: {0}")]
+    InvalidFieldElement(String),
 }
