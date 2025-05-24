@@ -34,6 +34,11 @@ mod tests {
         let test_3_with_padding = helpers::convert_by_padding_empty_byte(&test_3);
         Blob::new(&test_3).expect_err("should fail");
         Blob::new(test_3_with_padding.as_slice()).expect("should succeed");
+
+        let test_4 = [0xff; 31];
+        let test_4_with_padding = helpers::convert_by_padding_empty_byte(&test_4);
+        Blob::new(&test_4).expect_err("should fail");
+        Blob::new(test_4_with_padding.as_slice()).expect("should succeed");
     }
 
     #[test]

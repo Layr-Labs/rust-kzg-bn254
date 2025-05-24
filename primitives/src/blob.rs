@@ -8,9 +8,7 @@ use crate::{
 extern crate alloc;
 use alloc::vec::Vec;
 use alloc::format;
-use ark_std::println;
 use serde::{Deserialize, Serialize};
-use ark_ff::{BigInteger, PrimeField};
 
 /// A blob aligned with the Eigen DA specification.
 /// TODO: we should probably move to a transparent repr like
