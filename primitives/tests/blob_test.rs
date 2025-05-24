@@ -22,19 +22,19 @@ mod tests {
         Blob::new(test_1_with_padding.as_slice()).expect("should succeed");
 
         let wrong_set = &GETTYSBURG_ADDRESS_BYTES[0..64];
-        Blob::new(wrong_set).expect_err("should fail");
+        Blob::new(wrong_set).expect_err("should fail: not valid elements");
 
         let test_2 = &GETTYSBURG_ADDRESS_BYTES[0..3];
-        Blob::new(test_2).expect_err("should fail");
+        Blob::new(test_2).expect_err("should fail: not a multiple of 32");
 
         let test_3 = [0xff; 32];
         let test_3_with_padding = helpers::convert_by_padding_empty_byte(&test_3);
-        Blob::new(&test_3).expect_err("should fail");
-        Blob::new(test_3_with_padding.as_slice()).expect_err("should fail");
+        Blob::new(&test_3).expect_err("should fail: bad element");
+        Blob::new(test_3_with_padding.as_slice()).expect_err("should fail: bad element and not multiple of 32");
 
         let test_4 = [0xff; 31];
         let test_4_with_padding = helpers::convert_by_padding_empty_byte(&test_4);
-        Blob::new(&test_4).expect_err("should fail");
+        Blob::new(&test_4).expect_err("should fail: not multiple of 32");
         Blob::new(test_4_with_padding.as_slice()).expect("should succeed");
 
         // testing 30 bytes set to 0xff
