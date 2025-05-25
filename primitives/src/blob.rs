@@ -1,4 +1,5 @@
 use crate::{
+    errors::KzgError,
     helpers,
     polynomial::{PolynomialCoeffForm, PolynomialEvalForm},
 };
@@ -20,19 +21,17 @@ pub struct Blob {
 impl Blob {
     /// Creates a new `Blob` from the given blob_data.
     /// blob_data should already be padded according to DA specs, meaning
-    /// that it contains bn254 field elements. Otherwise, use
-    /// [`Blob::from_raw_data`].
+    /// that it contains bn254 field elements.
     ///
-    /// WARNING: This function does not check if the bytes are modulo bn254.
-    /// If the data has 32 byte segments exceeding the modulo of the field
-    /// then the bytes will be modded by the order of the field and the data
-    /// will be transformed incorrectly.
-    /// TODO: we should check that the bytes are correct and return an error
-    /// instead of relying on the users reading this documentation.
-    pub fn new(blob_data: &[u8]) -> Self {
-        Blob {
+    /// This function validates that the input is a multiple of 32 and each
+    /// 32-byte chunks in the data represents canonical bn254 field elements
+    /// (i.e., they are less than the field modulus).
+    /// Returns an error if any chunk contains bytes that exceed the field modulus.
+    pub fn new(blob_data: &[u8]) -> Result<Self, KzgError> {
+        helpers::validate_blob_data_as_canonical_field_elements(blob_data)?;
+        Ok(Blob {
             blob_data: blob_data.to_vec(),
-        }
+        })
     }
 
     /// Creates a new `Blob` from the provided raw_data byte slice and pads it
