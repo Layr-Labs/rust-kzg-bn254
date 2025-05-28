@@ -4,9 +4,13 @@ use ark_ff::{BigInteger, PrimeField};
 use ark_serialize::CanonicalSerialize;
 use rust_kzg_bn254_primitives::{
     blob::Blob,
-    consts::{BYTES_PER_FIELD_ELEMENT, G2_TAU, RANDOM_CHALLENGE_KZG_BATCH_DOMAIN},
+    consts::{
+        BYTES_PER_FIELD_ELEMENT, G2_TAU, RANDOM_CHALLENGE_KZG_BATCH_DOMAIN,
+        SIZE_OF_G1_AFFINE_COMPRESSED,
+    },
     errors::KzgError,
     helpers::{self, is_on_curve_g1, usize_to_be_bytes},
+    traits::{ReadFrFromBytes, ReadPointFromBytes},
 };
 
 extern crate alloc;
@@ -76,6 +80,42 @@ pub fn verify_blob_kzg_proof_batch(
         proofs,
         &blobs_as_field_elements_length,
     )
+}
+
+// This function is used to verify a batch of KZG proofs where the commitments and proofs are in compressed form
+// The commitments and proofs are expected to be in big endian format
+pub fn verify_blob_kzg_proof_batch_bytes(
+    blobs_bytes: &[Vec<u8>],
+    commitments_compressed: &[[u8; SIZE_OF_G1_AFFINE_COMPRESSED]],
+    proofs_compressed: &[[u8; SIZE_OF_G1_AFFINE_COMPRESSED]],
+) -> Result<bool, KzgError> {
+    // Verify that the commitments and proofs are in big endian format
+    // We convert each commitment and proof to little endian format because the deserialize_compressed function expects little endian format
+    let commitments = commitments_compressed
+        .iter()
+        .map(|commitment| {
+            G1Affine::read_point_from_bytes_native_compressed_be(commitment).map_err(|_| {
+                KzgError::SerializationError("Failed to deserialize commitment".to_string())
+            })
+        })
+        .collect::<Result<Vec<G1Affine>, KzgError>>()?;
+
+    let proofs = proofs_compressed
+        .iter()
+        .map(|proof| {
+            G1Affine::read_point_from_bytes_native_compressed_be(proof).map_err(|_| {
+                KzgError::SerializationError("Failed to deserialize proof".to_string())
+            })
+        })
+        .collect::<Result<Vec<G1Affine>, KzgError>>()?;
+
+    // Convert the blobs to a Vec<Blob>
+    // This function also verifies that the blobs are valid bn254 field elements
+    let blobs = blobs_bytes
+        .iter()
+        .map(|blob| Blob::new(blob))
+        .collect::<Vec<Blob>>();
+    verify_blob_kzg_proof_batch(&blobs, &commitments, &proofs)
 }
 
 /// Ref: https://github.com/ethereum/consensus-specs/blob/master/specs/deneb/polynomial-commitments.md#verify_kzg_proof_batch
@@ -271,4 +311,60 @@ fn verify_kzg_proof_batch(
     let result =
         helpers::pairings_verify(proof_lincomb, G2_TAU, rhs_g1.into(), G2Affine::generator());
     Ok(result)
+}
+
+// This function is used to verify a batch of KZG proofs where the commitments and proofs are in compressed form
+// The commitments, proofs, and zs, ys are expected to be in big endian format
+pub fn verify_kzg_proof_batch_bytes(
+    commitments_compressed: &[[u8; SIZE_OF_G1_AFFINE_COMPRESSED]],
+    zs: &[[u8; BYTES_PER_FIELD_ELEMENT]],
+    ys: &[[u8; BYTES_PER_FIELD_ELEMENT]],
+    proofs_compressed: &[[u8; SIZE_OF_G1_AFFINE_COMPRESSED]],
+    blobs_as_field_elements_length: &[u64],
+) -> Result<bool, KzgError> {
+    // Verify that the commitments and proofs are in big endian format
+    // We convert each commitment, proof, z, y to little endian format because the deserialize_compressed function expects little endian format
+    let commitments = commitments_compressed
+        .iter()
+        .map(|commitment| {
+            G1Affine::read_point_from_bytes_native_compressed_be(commitment).map_err(|_| {
+                KzgError::SerializationError("Failed to deserialize commitment".to_string())
+            })
+        })
+        .collect::<Result<Vec<G1Affine>, KzgError>>()?;
+
+    // Verify that the proofs are in big endian format
+    let proofs = proofs_compressed
+        .iter()
+        .map(|proof| {
+            G1Affine::read_point_from_bytes_native_compressed_be(proof).map_err(|_| {
+                KzgError::SerializationError("Failed to deserialize proof".to_string())
+            })
+        })
+        .collect::<Result<Vec<G1Affine>, KzgError>>()?;
+
+    // Convert the zs and ys to Fr
+    let zs = zs
+        .iter()
+        .map(|z| {
+            Fr::deserialize_from_bytes_be(z)
+                .map_err(|_| KzgError::SerializationError("Failed to deserialize z".to_string()))
+        })
+        .collect::<Result<Vec<Fr>, KzgError>>()?;
+
+    let ys = ys
+        .iter()
+        .map(|y| {
+            Fr::deserialize_from_bytes_be(y)
+                .map_err(|_| KzgError::SerializationError("Failed to deserialize y".to_string()))
+        })
+        .collect::<Result<Vec<Fr>, KzgError>>()?;
+
+    verify_kzg_proof_batch(
+        &commitments,
+        &zs,
+        &ys,
+        &proofs,
+        blobs_as_field_elements_length,
+    )
 }

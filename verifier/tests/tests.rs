@@ -3,13 +3,17 @@ mod tests {
     use ark_bn254::{Fq, G1Affine};
     use ark_ec::AffineRepr;
     use ark_ff::UniformRand;
+    use ark_serialize::CanonicalSerialize;
     use lazy_static::lazy_static;
     use rand::Rng;
     const GETTYSBURG_ADDRESS_BYTES: &[u8] = "Fourscore and seven years ago our fathers brought forth, on this continent, a new nation, conceived in liberty, and dedicated to the proposition that all men are created equal. Now we are engaged in a great civil war, testing whether that nation, or any nation so conceived, and so dedicated, can long endure. We are met on a great battle-field of that war. We have come to dedicate a portion of that field, as a final resting-place for those who here gave their lives, that that nation might live. It is altogether fitting and proper that we should do this. But, in a larger sense, we cannot dedicate, we cannot consecrate—we cannot hallow—this ground. The brave men, living and dead, who struggled here, have consecrated it far above our poor power to add or detract. The world will little note, nor long remember what we say here, but it can never forget what they did here. It is for us the living, rather, to be dedicated here to the unfinished work which they who fought here have thus far so nobly advanced. It is rather for us to be here dedicated to the great task remaining before us—that from these honored dead we take increased devotion to that cause for which they here gave the last full measure of devotion—that we here highly resolve that these dead shall not have died in vain—that this nation, under God, shall have a new birth of freedom, and that government of the people, by the people, for the people, shall not perish from the earth.".as_bytes();
     use ark_std::{str::FromStr, One};
-    use rust_kzg_bn254_primitives::blob::Blob;
+    use rust_kzg_bn254_primitives::{blob::Blob, consts::SIZE_OF_G1_AFFINE_COMPRESSED};
     use rust_kzg_bn254_prover::{kzg::KZG, srs::SRS};
-    use rust_kzg_bn254_verifier::{batch::verify_blob_kzg_proof_batch, verify::verify_proof};
+    use rust_kzg_bn254_verifier::{
+        batch::{verify_blob_kzg_proof_batch, verify_blob_kzg_proof_batch_bytes},
+        verify::verify_proof_impl,
+    };
 
     // Define a static variable for setup
     lazy_static! {
@@ -56,12 +60,12 @@ mod tests {
             let value_fr = input_poly.get_evalualtion(index).unwrap();
             let z_fr = kzg.get_nth_root_of_unity(index).unwrap();
             let pairing_result =
-                verify_proof(commitment, proof, value_fr.clone(), z_fr.clone()).unwrap();
+                verify_proof_impl(commitment, proof, value_fr.clone(), z_fr.clone()).unwrap();
 
             assert_eq!(pairing_result, true);
 
             assert_eq!(
-                verify_proof(
+                verify_proof_impl(
                     commitment,
                     proof,
                     value_fr.clone(),
@@ -107,12 +111,12 @@ mod tests {
             let value_fr = input_poly.get_evalualtion(index).unwrap();
             let z_fr = kzg.get_nth_root_of_unity(index).unwrap();
             let pairing_result =
-                verify_proof(commitment, proof, value_fr.clone(), z_fr.clone()).unwrap();
+                verify_proof_impl(commitment, proof, value_fr.clone(), z_fr.clone()).unwrap();
             assert_eq!(pairing_result, true);
 
             // take random index, not the same index and check
             assert_eq!(
-                verify_proof(
+                verify_proof_impl(
                     commitment,
                     proof,
                     value_fr.clone(),
@@ -164,6 +168,38 @@ mod tests {
 
         let pairing_result = verify_blob_kzg_proof_batch(&blobs, &commitments, &proofs).unwrap();
         assert_eq!(pairing_result, true);
+
+        let blobs_bytes_vec = blobs
+            .iter()
+            .map(|blob| blob.data().to_vec())
+            .collect::<Vec<Vec<u8>>>();
+        let commitments_compressed = commitments
+            .iter()
+            .map(|commitment| {
+                let mut commitment_bytes = [0u8; SIZE_OF_G1_AFFINE_COMPRESSED];
+                commitment
+                    .serialize_compressed(&mut commitment_bytes[..])
+                    .unwrap();
+                commitment_bytes.reverse();
+                commitment_bytes
+            })
+            .collect::<Vec<[u8; SIZE_OF_G1_AFFINE_COMPRESSED]>>();
+        let proofs_compressed = proofs
+            .iter()
+            .map(|proof| {
+                let mut proof_bytes = [0u8; SIZE_OF_G1_AFFINE_COMPRESSED];
+                proof.serialize_compressed(&mut proof_bytes[..]).unwrap();
+                proof_bytes.reverse();
+                proof_bytes
+            })
+            .collect::<Vec<[u8; SIZE_OF_G1_AFFINE_COMPRESSED]>>();
+        let pairing_result_bytes = verify_blob_kzg_proof_batch_bytes(
+            &blobs_bytes_vec,
+            &commitments_compressed,
+            &proofs_compressed,
+        )
+        .unwrap();
+        assert_eq!(pairing_result_bytes, true);
 
         bad_blobs.pop();
         bad_blobs.push(Blob::from_raw_data(b"random"));

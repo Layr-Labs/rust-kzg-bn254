@@ -1,6 +1,8 @@
+use crate::srs::SRS;
 use ark_bn254::{Fr, G1Affine, G1Projective};
 use ark_ec::{CurveGroup, VariableBaseMSM};
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
+use ark_serialize::CanonicalSerialize;
 use ark_std::{ops::Div, Zero};
 use num_traits::ToPrimitive;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
@@ -10,8 +12,6 @@ use rust_kzg_bn254_primitives::{
     helpers,
     polynomial::{PolynomialCoeffForm, PolynomialEvalForm},
 };
-
-use crate::srs::SRS;
 
 /// Main interesting struct of the rust-kzg-bn254 crate.
 /// [Kzg] is a struct that holds the SRS points in monomial form, and
@@ -103,6 +103,25 @@ impl KZG {
         }
     }
 
+    // Commit the polynomial with the srs values loaded into [Kzg] but returns G1Affine compressed point bytes
+    // This returns the compressed point in big endian format
+    pub fn commit_eval_form_compressed(
+        &self,
+        polynomial: &PolynomialEvalForm,
+        srs: &SRS,
+    ) -> Result<[u8; 32], KzgError> {
+        let commitment = self.commit_eval_form(polynomial, srs)?;
+        let mut compressed_point = [0u8; 32];
+        commitment
+            .serialize_compressed(&mut compressed_point[..])
+            .map_err(|_| {
+                KzgError::SerializationError("Failed to serialize compressed point".to_string())
+            })?;
+        // serialize is in little endian, so we need to reverse it
+        compressed_point.reverse();
+        Ok(compressed_point)
+    }
+
     /// Commit the polynomial with the srs values loaded into [Kzg].
     pub fn commit_coeff_form(
         &self,
@@ -122,6 +141,25 @@ impl KZG {
             Ok(res) => Ok(res.into_affine()),
             Err(err) => Err(KzgError::CommitError(err.to_string())),
         }
+    }
+
+    // Commit the polynomial with the srs values loaded into [Kzg] but returns G1Affine compressed point bytes
+    // This returns the compressed point in big endian format
+    pub fn commit_coeff_form_compressed(
+        &self,
+        polynomial: &PolynomialCoeffForm,
+        srs: &SRS,
+    ) -> Result<[u8; 32], KzgError> {
+        let commitment = self.commit_coeff_form(polynomial, srs)?;
+        let mut compressed_point = [0u8; 32];
+        commitment
+            .serialize_compressed(&mut compressed_point[..])
+            .map_err(|_| {
+                KzgError::SerializationError("Failed to serialize compressed point".to_string())
+            })?;
+        // serialize is in little endian, so we need to reverse it
+        compressed_point.reverse();
+        Ok(compressed_point)
     }
 
     /// Helper function for `compute_kzg_proof()` and `compute_blob_kzg_proof()`

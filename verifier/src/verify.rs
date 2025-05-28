@@ -1,13 +1,20 @@
 use ark_bn254::{Fr, G1Affine, G2Affine};
 use ark_ec::{AffineRepr, CurveGroup};
-use rust_kzg_bn254_primitives::{blob::Blob, consts::G2_TAU, errors::KzgError, helpers};
+use rust_kzg_bn254_primitives::{
+    blob::Blob,
+    consts::{BYTES_PER_FIELD_ELEMENT, G2_TAU, SIZE_OF_G1_AFFINE_COMPRESSED},
+    errors::KzgError,
+    helpers,
+    traits::{ReadFrFromBytes, ReadPointFromBytes},
+};
 
 extern crate alloc;
 use alloc::string::ToString;
 
-/// Ref: https://github.com/ethereum/consensus-specs/blob/master/specs/deneb/polynomial-commitments.md#verify_proof
-/// TODO(anupsv): Accept bytes instead of Fr element and Affine points. Ref: https://github.com/Layr-Labs/rust-kzg-bn254/issues/30
-pub fn verify_proof(
+// verify_proof_impl is used to verify a KZG proof for a single blob
+// This accepts Affine points and Fr elements and acts as a helper function for verify_blob_kzg_proof
+// but also gives the user the option to verify a proof directly from points and Fr elements
+pub fn verify_proof_impl(
     commitment: G1Affine,
     proof: G1Affine,
     value_fr: Fr,
@@ -57,9 +64,27 @@ pub fn verify_proof(
     ))
 }
 
+/// Ref: https://github.com/ethereum/consensus-specs/blob/master/specs/deneb/polynomial-commitments.md#verify_kzg_proof
+pub fn verify_proof(
+    commitment: &[u8; SIZE_OF_G1_AFFINE_COMPRESSED],
+    proof: &[u8; SIZE_OF_G1_AFFINE_COMPRESSED],
+    value_fr: &[u8; BYTES_PER_FIELD_ELEMENT],
+    z_fr: &[u8; BYTES_PER_FIELD_ELEMENT],
+) -> Result<bool, KzgError> {
+    let commitment =
+        G1Affine::read_point_from_bytes_native_compressed_be(commitment).map_err(|_| {
+            KzgError::SerializationError("Failed to deserialize commitment".to_string())
+        })?;
+    let proof = G1Affine::read_point_from_bytes_native_compressed_be(proof)
+        .map_err(|_| KzgError::SerializationError("Failed to deserialize proof".to_string()))?;
+    let value_fr = Fr::deserialize_from_bytes_be(value_fr)
+        .map_err(|_| KzgError::SerializationError("Failed to deserialize value_fr".to_string()))?;
+    let z_fr = Fr::deserialize_from_bytes_be(z_fr)
+        .map_err(|_| KzgError::SerializationError("Failed to deserialize z_fr".to_string()))?;
+    verify_proof_impl(commitment, proof, value_fr, z_fr)
+}
 /// Ref: https://github.com/ethereum/consensus-specs/blob/master/specs/deneb/polynomial-commitments.md#verify_blob_kzg_proof
-/// TODO(anupsv): Accept bytes instead of Affine points. Ref: https://github.com/Layr-Labs/rust-kzg-bn254/issues/31
-pub fn verify_blob_kzg_proof(
+pub fn verify_blob_kzg_proof_impl(
     blob: &Blob,
     commitment: &G1Affine,
     proof: &G1Affine,
@@ -84,5 +109,21 @@ pub fn verify_blob_kzg_proof(
     let y = helpers::evaluate_polynomial_in_evaluation_form(&polynomial, &evaluation_challenge)?;
 
     // Verify the KZG proof
-    self::verify_proof(*commitment, *proof, y, evaluation_challenge)
+    verify_proof_impl(*commitment, *proof, y, evaluation_challenge)
+}
+
+/// Ref: https://github.com/ethereum/consensus-specs/blob/master/specs/deneb/polynomial-commitments.md#verify_blob_kzg_proof
+pub fn verify_blob_kzg_proof(
+    blob: &[u8],
+    commitment: &[u8; SIZE_OF_G1_AFFINE_COMPRESSED],
+    proof: &[u8; SIZE_OF_G1_AFFINE_COMPRESSED],
+) -> Result<bool, KzgError> {
+    let blob = Blob::new(blob);
+    let commitment =
+        G1Affine::read_point_from_bytes_native_compressed_be(commitment).map_err(|_| {
+            KzgError::SerializationError("Failed to deserialize commitment".to_string())
+        })?;
+    let proof = G1Affine::read_point_from_bytes_native_compressed_be(proof)
+        .map_err(|_| KzgError::SerializationError("Failed to deserialize proof".to_string()))?;
+    verify_blob_kzg_proof_impl(&blob, &commitment, &proof)
 }

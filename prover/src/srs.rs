@@ -53,7 +53,7 @@ impl SRS {
             .iter()
             .map(|(chunk, position, is_native)| {
                 let point: T = if is_native {
-                    T::read_point_from_bytes_native_compressed(&chunk)
+                    T::read_point_from_bytes_native_compressed_be(&chunk)
                         .expect("Failed to read point from bytes")
                 } else {
                     T::read_point_from_bytes_be(&chunk).expect("Failed to read point from bytes")
