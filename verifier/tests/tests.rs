@@ -11,7 +11,7 @@ mod tests {
     use rust_kzg_bn254_primitives::{blob::Blob, consts::SIZE_OF_G1_AFFINE_COMPRESSED};
     use rust_kzg_bn254_prover::{kzg::KZG, srs::SRS};
     use rust_kzg_bn254_verifier::{
-        batch::{verify_blob_kzg_proof_batch, verify_blob_kzg_proof_batch_bytes},
+        batch::{verify_blob_kzg_proof_batch, verify_blob_kzg_proof_batch_impl},
         verify::verify_proof_impl,
     };
 
@@ -132,6 +132,16 @@ mod tests {
         })
     }
 
+    // convert Affine points to compressed bytes in big endian format
+    fn convert_to_compressed_bytes(points: &[G1Affine]) -> [u8; SIZE_OF_G1_AFFINE_COMPRESSED] {
+        let mut bytes = [0u8; SIZE_OF_G1_AFFINE_COMPRESSED];
+        points.iter().for_each(|point| {
+            point.serialize_compressed(&mut bytes[..]).unwrap();
+            bytes.reverse();
+        });
+        bytes
+    }
+
     #[test]
     fn test_multiple_proof_random_100_blobs() {
         let mut rng = rand::thread_rng();
@@ -166,7 +176,8 @@ mod tests {
         let mut bad_commitments = commitments.clone();
         let mut bad_proofs = proofs.clone();
 
-        let pairing_result = verify_blob_kzg_proof_batch(&blobs, &commitments, &proofs).unwrap();
+        let pairing_result =
+            verify_blob_kzg_proof_batch_impl(&blobs, &commitments, &proofs).unwrap();
         assert_eq!(pairing_result, true);
 
         let blobs_bytes_vec = blobs
@@ -175,25 +186,14 @@ mod tests {
             .collect::<Vec<Vec<u8>>>();
         let commitments_compressed = commitments
             .iter()
-            .map(|commitment| {
-                let mut commitment_bytes = [0u8; SIZE_OF_G1_AFFINE_COMPRESSED];
-                commitment
-                    .serialize_compressed(&mut commitment_bytes[..])
-                    .unwrap();
-                commitment_bytes.reverse();
-                commitment_bytes
-            })
+            .map(|commitment| convert_to_compressed_bytes(&[*commitment]))
             .collect::<Vec<[u8; SIZE_OF_G1_AFFINE_COMPRESSED]>>();
         let proofs_compressed = proofs
             .iter()
-            .map(|proof| {
-                let mut proof_bytes = [0u8; SIZE_OF_G1_AFFINE_COMPRESSED];
-                proof.serialize_compressed(&mut proof_bytes[..]).unwrap();
-                proof_bytes.reverse();
-                proof_bytes
-            })
+            .map(|proof| convert_to_compressed_bytes(&[*proof]))
             .collect::<Vec<[u8; SIZE_OF_G1_AFFINE_COMPRESSED]>>();
-        let pairing_result_bytes = verify_blob_kzg_proof_batch_bytes(
+
+        let pairing_result_bytes = verify_blob_kzg_proof_batch(
             &blobs_bytes_vec,
             &commitments_compressed,
             &proofs_compressed,
@@ -204,24 +204,64 @@ mod tests {
         bad_blobs.pop();
         bad_blobs.push(Blob::from_raw_data(b"random"));
         let pairing_result_bad_blobs =
-            verify_blob_kzg_proof_batch(&bad_blobs, &commitments, &proofs).unwrap();
+            verify_blob_kzg_proof_batch_impl(&bad_blobs, &commitments, &proofs).unwrap();
         assert_eq!(pairing_result_bad_blobs, false);
+
+        // test with bad blobs
+        let bad_blobs_bytes_vec = bad_blobs
+            .iter()
+            .map(|blob| blob.data().to_vec())
+            .collect::<Vec<Vec<u8>>>();
+
+        let pairing_result_bad_blobs_bytes = verify_blob_kzg_proof_batch(
+            &bad_blobs_bytes_vec,
+            &commitments_compressed,
+            &proofs_compressed,
+        )
+        .unwrap();
+        assert_eq!(pairing_result_bad_blobs_bytes, false);
 
         bad_commitments.pop();
         bad_commitments.push(G1Affine::rand(&mut rng));
         let pairing_result_bad_commitments =
-            verify_blob_kzg_proof_batch(&blobs, &bad_commitments, &proofs).unwrap();
+            verify_blob_kzg_proof_batch_impl(&blobs, &bad_commitments, &proofs).unwrap();
         assert_eq!(pairing_result_bad_commitments, false);
+
+        let bad_commitments_compressed = bad_commitments
+            .iter()
+            .map(|commitment| convert_to_compressed_bytes(&[*commitment]))
+            .collect::<Vec<[u8; SIZE_OF_G1_AFFINE_COMPRESSED]>>();
+
+        let pairing_result_bad_commitments_bytes = verify_blob_kzg_proof_batch(
+            &blobs_bytes_vec,
+            &bad_commitments_compressed,
+            &proofs_compressed,
+        )
+        .unwrap();
+        assert_eq!(pairing_result_bad_commitments_bytes, false);
 
         bad_proofs.pop();
         bad_proofs.push(G1Affine::rand(&mut rng));
         let pairing_result_bad_proofs =
-            verify_blob_kzg_proof_batch(&blobs, &commitments, &bad_proofs).unwrap();
+            verify_blob_kzg_proof_batch_impl(&blobs, &commitments, &bad_proofs).unwrap();
         assert_eq!(pairing_result_bad_proofs, false);
 
         let pairing_result_everything_bad =
-            verify_blob_kzg_proof_batch(&bad_blobs, &bad_commitments, &bad_proofs).unwrap();
+            verify_blob_kzg_proof_batch_impl(&bad_blobs, &bad_commitments, &bad_proofs).unwrap();
         assert_eq!(pairing_result_everything_bad, false);
+
+        let bad_proofs_compressed = bad_proofs
+            .iter()
+            .map(|proof| convert_to_compressed_bytes(&[*proof]))
+            .collect::<Vec<[u8; SIZE_OF_G1_AFFINE_COMPRESSED]>>();
+
+        let pairing_result_bad_proofs_bytes = verify_blob_kzg_proof_batch(
+            &blobs_bytes_vec,
+            &commitments_compressed,
+            &bad_proofs_compressed,
+        )
+        .unwrap();
+        assert_eq!(pairing_result_bad_proofs_bytes, false);
     }
 
     #[test]
@@ -264,7 +304,8 @@ mod tests {
         let proofs = vec![proof_1, proof_2];
         // let res = kzg.verify_blob_kzg_proof(&input1, &commitment1, &auto_proof).unwrap();
 
-        let pairing_result = verify_blob_kzg_proof_batch(&blobs, &commitments, &proofs).unwrap();
+        let pairing_result =
+            verify_blob_kzg_proof_batch_impl(&blobs, &commitments, &proofs).unwrap();
 
         assert_eq!(pairing_result, true);
     }
@@ -294,9 +335,29 @@ mod tests {
         let proofs = vec![proof_at_infinity];
 
         // This should fail since a proof point at infinity is invalid
-        let result = verify_blob_kzg_proof_batch(&blobs, &commitments, &proofs);
-
+        let result = verify_blob_kzg_proof_batch_impl(&blobs, &commitments, &proofs);
         assert!(result.is_err());
+
+        let blobs_bytes_vec = blobs
+            .iter()
+            .map(|blob| blob.data().to_vec())
+            .collect::<Vec<Vec<u8>>>();
+        let commitments_compressed = commitments
+            .iter()
+            .map(|commitment| convert_to_compressed_bytes(&[*commitment]))
+            .collect::<Vec<[u8; SIZE_OF_G1_AFFINE_COMPRESSED]>>();
+        let proofs_compressed = proofs
+            .iter()
+            .map(|proof| convert_to_compressed_bytes(&[*proof]))
+            .collect::<Vec<[u8; SIZE_OF_G1_AFFINE_COMPRESSED]>>();
+
+        let result_bytes = verify_blob_kzg_proof_batch(
+            &blobs_bytes_vec,
+            &commitments_compressed,
+            &proofs_compressed,
+        );
+        // check that proof not on curve is in the error message
+        assert!(result_bytes.err().unwrap().to_string().contains("proof not on curve"));
 
         // Also test mixed case - one valid proof, one at infinity
         let input2 = Blob::from_raw_data(b"second input");
@@ -308,8 +369,28 @@ mod tests {
         let proofs_mixed = vec![proof_1, proof_at_infinity];
 
         let result_mixed =
-            verify_blob_kzg_proof_batch(&blobs_mixed, &commitments_mixed, &proofs_mixed);
+            verify_blob_kzg_proof_batch_impl(&blobs_mixed, &commitments_mixed, &proofs_mixed);
         assert!(result_mixed.is_err());
+
+        let blobs_bytes_vec = blobs_mixed
+            .iter()
+            .map(|blob| blob.data().to_vec())
+            .collect::<Vec<Vec<u8>>>();
+        let commitments_compressed = commitments_mixed
+            .iter()
+            .map(|commitment| convert_to_compressed_bytes(&[*commitment]))
+            .collect::<Vec<[u8; SIZE_OF_G1_AFFINE_COMPRESSED]>>();
+        let proofs_compressed = proofs_mixed
+            .iter()
+            .map(|proof| convert_to_compressed_bytes(&[*proof]))
+            .collect::<Vec<[u8; SIZE_OF_G1_AFFINE_COMPRESSED]>>();
+
+        let result_mixed_bytes = verify_blob_kzg_proof_batch(
+            &blobs_bytes_vec,
+            &commitments_compressed,
+            &proofs_compressed,
+        );
+        assert!(result_mixed_bytes.err().unwrap().to_string().contains("proof not on curve"));
     }
 
     #[test]
@@ -371,7 +452,7 @@ mod tests {
 
         for (commitments, proofs, case_description) in test_cases {
             let blobs = vec![input.clone(), input.clone()];
-            let result = verify_blob_kzg_proof_batch(&blobs, &commitments, &proofs);
+            let result = verify_blob_kzg_proof_batch_impl(&blobs, &commitments, &proofs);
 
             assert!(
                 result.is_err(),
