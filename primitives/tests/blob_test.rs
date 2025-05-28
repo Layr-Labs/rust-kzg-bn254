@@ -16,7 +16,6 @@ mod tests {
 
     #[test]
     fn test_validate_blob_data_as_canonical_field_elements() {
-        
         let mut rng = rand::thread_rng();
         let test_1 = &GETTYSBURG_ADDRESS_BYTES[0..62];
         let test_1_with_padding = helpers::convert_by_padding_empty_byte(test_1);
@@ -41,9 +40,7 @@ mod tests {
         Blob::new(test_4_with_padding.as_slice()).expect("should succeed");
 
         // a blob of 128 kb random blob after padding
-        let mut random_blob: Vec<u8> = (0..126976)
-            .map(|_| rng.gen_range(32..=126) as u8)
-            .collect();
+        let mut random_blob: Vec<u8> = (0..126976).map(|_| rng.gen_range(32..=126) as u8).collect();
 
         random_blob = helpers::convert_by_padding_empty_byte(&random_blob);
         assert_eq!(random_blob.len(), 128 * 1024);

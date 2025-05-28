@@ -761,7 +761,7 @@ pub fn validate_blob_data_as_canonical_field_elements(data: &[u8]) -> Result<(),
             let mut chunk_le = [0u8; BYTES_PER_FIELD_ELEMENT];
             chunk_le.copy_from_slice(chunk);
             chunk_le.reverse();
-            
+
             Fr::deserialize_uncompressed(&chunk_le[..])
                 .map(|_| ()) // Discard the field element, we only care about validation
                 .map_err(|_| {
