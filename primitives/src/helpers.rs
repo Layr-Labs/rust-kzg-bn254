@@ -743,11 +743,10 @@ pub fn usize_to_be_bytes(number: usize) -> [u8; 8] {
 /// Validates that the blob data contains valid bn254 field elements.
 /// Uses direct deserialization to check if bytes represent canonical field elements.
 /// The data provided is expected to be in big-endian format.
-/// 
+///
 /// When compiled with the `parallel` feature, this function uses rayon for parallel processing
 /// to improve performance on large datasets. Otherwise, it processes chunks sequentially.
 pub fn validate_blob_data_as_canonical_field_elements(data: &[u8]) -> Result<(), KzgError> {
-
     if data.len() % BYTES_PER_FIELD_ELEMENT != 0 {
         return Err(KzgError::InvalidInputLength);
     }
@@ -757,9 +756,7 @@ pub fn validate_blob_data_as_canonical_field_elements(data: &[u8]) -> Result<(),
         // Parallel processing with rayon - each chunk is processed independently
         data.par_chunks(BYTES_PER_FIELD_ELEMENT)
             .enumerate()
-            .try_for_each(|(i, chunk)| {
-                validate_chunk(chunk, i)
-            })
+            .try_for_each(|(i, chunk)| validate_chunk(chunk, i))
     }
 
     #[cfg(not(feature = "parallel"))]
@@ -775,7 +772,6 @@ pub fn validate_blob_data_as_canonical_field_elements(data: &[u8]) -> Result<(),
 /// Helper function to validate a single chunk of field element bytes
 /// This function is used by both parallel and sequential versions
 fn validate_chunk(chunk: &[u8], index: usize) -> Result<(), KzgError> {
-    
     // Try to deserialize the chunk as a canonical field element
     // There is no difference between the compressed and uncompressed deserialization since
     // it doesn't apply to Fr and also the implementation is done with empty flags on arkworks.
