@@ -16,8 +16,10 @@ use rust_kzg_bn254_primitives::{
 extern crate alloc;
 use alloc::{string::ToString, vec, vec::Vec};
 
-/// Ref: https://github.com/ethereum/consensus-specs/blob/master/specs/deneb/polynomial-commitments.md#verify_blob_kzg_proof_batch
-pub fn verify_blob_kzg_proof_batch(
+// verify_blob_kzg_proof_batch_impl is used to verify a batch of KZG proofs where the commitments and proofs are in Affine form
+// This accepts Affine points and acts as a helper function for verify_blob_kzg_proof_batch
+// but also gives the user the option to verify a batch of proofs directly from Affine points
+pub fn verify_blob_kzg_proof_batch_impl(
     blobs: &[Blob],
     commitments: &[G1Affine],
     proofs: &[G1Affine],
@@ -73,7 +75,7 @@ pub fn verify_blob_kzg_proof_batch(
     // - ys: Values of polynomials at evaluation points
     // - proofs: KZG proofs for each evaluation
     // - blobs_as_field_elements_length: Length of each blob's polynomial
-    verify_kzg_proof_batch(
+    verify_kzg_proof_batch_impl(
         commitments,
         &evaluation_challenges,
         &ys,
@@ -82,9 +84,10 @@ pub fn verify_blob_kzg_proof_batch(
     )
 }
 
-// This function is used to verify a batch of KZG proofs where the commitments and proofs are in compressed form
-// The commitments and proofs are expected to be in big endian format
-pub fn verify_blob_kzg_proof_batch_bytes(
+/// Ref: https://github.com/ethereum/consensus-specs/blob/master/specs/deneb/polynomial-commitments.md#verify_blob_kzg_proof_batch
+/// This function is used to verify a batch of KZG proofs where the commitments and proofs are in compressed form
+/// The commitments and proofs are expected to be in big endian format
+pub fn verify_blob_kzg_proof_batch(
     blobs_bytes: &[Vec<u8>],
     commitments_compressed: &[[u8; SIZE_OF_G1_AFFINE_COMPRESSED]],
     proofs_compressed: &[[u8; SIZE_OF_G1_AFFINE_COMPRESSED]],
@@ -115,7 +118,7 @@ pub fn verify_blob_kzg_proof_batch_bytes(
         .iter()
         .map(|blob| Blob::new(blob))
         .collect::<Vec<Blob>>();
-    verify_blob_kzg_proof_batch(&blobs, &commitments, &proofs)
+    verify_blob_kzg_proof_batch_impl(&blobs, &commitments, &proofs)
 }
 
 /// Ref: https://github.com/ethereum/consensus-specs/blob/master/specs/deneb/polynomial-commitments.md#verify_kzg_proof_batch
@@ -232,7 +235,7 @@ fn compute_r_powers(
 /// * `Ok(false)` if any proof is invalid.
 /// * `Err(KzgError)` if an error occurs during verification.
 ///
-fn verify_kzg_proof_batch(
+fn verify_kzg_proof_batch_impl(
     commitments: &[G1Affine],
     zs: &[Fr],
     ys: &[Fr],
@@ -315,7 +318,7 @@ fn verify_kzg_proof_batch(
 
 // This function is used to verify a batch of KZG proofs where the commitments and proofs are in compressed form
 // The commitments, proofs, and zs, ys are expected to be in big endian format
-pub fn verify_kzg_proof_batch_bytes(
+pub fn verify_kzg_proof_batch(
     commitments_compressed: &[[u8; SIZE_OF_G1_AFFINE_COMPRESSED]],
     zs: &[[u8; BYTES_PER_FIELD_ELEMENT]],
     ys: &[[u8; BYTES_PER_FIELD_ELEMENT]],
@@ -360,7 +363,7 @@ pub fn verify_kzg_proof_batch_bytes(
         })
         .collect::<Result<Vec<Fr>, KzgError>>()?;
 
-    verify_kzg_proof_batch(
+    verify_kzg_proof_batch_impl(
         &commitments,
         &zs,
         &ys,
