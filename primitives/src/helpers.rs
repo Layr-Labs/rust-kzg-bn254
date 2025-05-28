@@ -2,12 +2,13 @@ use ark_bn254::{Bn254, Fq, Fq2, Fr, G1Affine, G1Projective, G2Affine, G2Projecti
 use ark_ec::AdditiveGroup;
 use ark_ec::{pairing::Pairing, AffineRepr, CurveGroup, VariableBaseMSM};
 use ark_ff::{sbb, BigInt, BigInteger, Field, PrimeField};
-use ark_serialize::CanonicalSerialize;
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use ark_std::format;
 use ark_std::{str::FromStr, vec, vec::Vec, One, Zero};
 
 use libm::log2;
 use num_traits::ToPrimitive;
+use rayon::prelude::*;
 use sha2::{Digest, Sha256};
 
 extern crate alloc;
@@ -737,7 +738,9 @@ pub fn usize_to_be_bytes(number: usize) -> [u8; 8] {
 }
 
 /// Validates that the blob data contains valid bn254 field elements.
-/// Uses round-trip validation: converts to field element and back to bytes.
+/// Uses direct deserialization to check if bytes represent canonical field elements.
+/// The data provided is expected to be in big-endian format.
+/// This function uses parallel processing via rayon for improved performance on large datasets.
 pub fn validate_blob_data_as_canonical_field_elements(data: &[u8]) -> Result<(), KzgError> {
     use crate::consts::BYTES_PER_FIELD_ELEMENT;
 
@@ -745,17 +748,27 @@ pub fn validate_blob_data_as_canonical_field_elements(data: &[u8]) -> Result<(),
         return Err(KzgError::InvalidInputLength);
     }
 
-    // iterate through every 32-byte chunk and check if the bytes are canonical
-    for (i, chunk) in data.chunks(BYTES_PER_FIELD_ELEMENT).enumerate() {
-        let field_element = set_bytes_canonical(chunk);
-        let bytes_from_field_element: Vec<u8> = to_byte_array(&[field_element], chunk.len());
-        if chunk != bytes_from_field_element.as_slice() {
-            return Err(KzgError::InvalidFieldElement(format!(
-                "Field element at position {} is not canonical",
-                i
-            )));
-        }
-    }
-
-    Ok(())
+    // Parallelize the validation across chunks using rayon
+    // Each chunk is processed independently, making this embarrassingly parallel
+    data.par_chunks(BYTES_PER_FIELD_ELEMENT)
+        .enumerate()
+        .try_for_each(|(i, chunk)| {
+            // Try to deserialize the chunk as a canonical field element
+            // There is no difference between the compressed and uncompressed deserialization since
+            // it doesn't apply to Fr and also the implementation is done with empty flags on arkworks.
+            // The deserialization is done in little-endian format, so we need to reverse the bytes.
+            // Use fixed-size array to avoid heap allocation and optimize byte reversal
+            let mut chunk_le = [0u8; BYTES_PER_FIELD_ELEMENT];
+            chunk_le.copy_from_slice(chunk);
+            chunk_le.reverse();
+            
+            Fr::deserialize_uncompressed(&chunk_le[..])
+                .map(|_| ()) // Discard the field element, we only care about validation
+                .map_err(|_| {
+                    KzgError::InvalidFieldElement(format!(
+                        "Field element at position {} is not canonical or invalid",
+                        i
+                    ))
+                })
+        })
 }
