@@ -8,12 +8,11 @@ use ark_std::{str::FromStr, vec, vec::Vec, One, Zero};
 
 use libm::log2;
 use num_traits::ToPrimitive;
-use rayon::prelude::*;
-use sha2::{Digest, Sha256};
 
 extern crate alloc;
 use alloc::string::ToString;
 use core::cmp;
+use sha2::{Digest, Sha256};
 
 use crate::{
     arith,
@@ -748,27 +747,24 @@ pub fn validate_blob_data_as_canonical_field_elements(data: &[u8]) -> Result<(),
         return Err(KzgError::InvalidInputLength);
     }
 
-    // Parallelize the validation across chunks using rayon
-    // Each chunk is processed independently, making this embarrassingly parallel
-    data.par_chunks(BYTES_PER_FIELD_ELEMENT)
-        .enumerate()
-        .try_for_each(|(i, chunk)| {
-            // Try to deserialize the chunk as a canonical field element
-            // There is no difference between the compressed and uncompressed deserialization since
-            // it doesn't apply to Fr and also the implementation is done with empty flags on arkworks.
-            // The deserialization is done in little-endian format, so we need to reverse the bytes.
-            // Use fixed-size array to avoid heap allocation and optimize byte reversal
-            let mut chunk_le = [0u8; BYTES_PER_FIELD_ELEMENT];
-            chunk_le.copy_from_slice(chunk);
-            chunk_le.reverse();
+    for (i, chunk) in data.chunks(BYTES_PER_FIELD_ELEMENT).enumerate() {
+        // Try to deserialize the chunk as a canonical field element
+        // There is no difference between the compressed and uncompressed deserialization since
+        // it doesn't apply to Fr and also the implementation is done with empty flags on arkworks.
+        // The deserialization is done in little-endian format, so we need to reverse the bytes.
+        // Use fixed-size array to avoid heap allocation and optimize byte reversal
+        let mut chunk_le = [0u8; BYTES_PER_FIELD_ELEMENT];
+        chunk_le.copy_from_slice(chunk);
+        chunk_le.reverse();
 
-            Fr::deserialize_uncompressed(&chunk_le[..])
-                .map(|_| ()) // Discard the field element, we only care about validation
-                .map_err(|_| {
-                    KzgError::InvalidFieldElement(format!(
-                        "Field element at position {} is not canonical or invalid",
-                        i
-                    ))
-                })
-        })
+        Fr::deserialize_uncompressed(&chunk_le[..])
+            .map(|_| ()) // Discard the field element, we only care about validation
+            .map_err(|_| {
+                KzgError::InvalidFieldElement(format!(
+                    "Field element at position {} is not canonical or invalid",
+                    i
+                ))
+            })?;
+    }
+    Ok(())
 }
