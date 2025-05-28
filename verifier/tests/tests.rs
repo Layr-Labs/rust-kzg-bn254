@@ -453,12 +453,31 @@ mod tests {
         for (commitments, proofs, case_description) in test_cases {
             let blobs = vec![input.clone(), input.clone()];
             let result = verify_blob_kzg_proof_batch_impl(&blobs, &commitments, &proofs);
-
             assert!(
                 result.is_err(),
                 "Failed to detect invalid curve point - {}",
                 case_description
             );
+
+            let blobs_bytes_vec = blobs
+                .iter()
+                .map(|blob| blob.data().to_vec())
+                .collect::<Vec<Vec<u8>>>();
+            let commitments_compressed = commitments
+                .iter()
+                .map(|commitment| convert_to_compressed_bytes(&[*commitment]))
+                .collect::<Vec<[u8; SIZE_OF_G1_AFFINE_COMPRESSED]>>();
+            let proofs_compressed = proofs
+                .iter()
+                .map(|proof| convert_to_compressed_bytes(&[*proof]))
+                .collect::<Vec<[u8; SIZE_OF_G1_AFFINE_COMPRESSED]>>();
+
+            let result_bytes = verify_blob_kzg_proof_batch(
+                &blobs_bytes_vec,
+                &commitments_compressed,
+                &proofs_compressed,
+            );
+            assert!(result_bytes.is_err());
         }
     }
 
