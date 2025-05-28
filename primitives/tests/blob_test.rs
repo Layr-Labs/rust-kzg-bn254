@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests {
-    use rust_kzg_bn254_primitives::blob::Blob;
+    use rand::Rng;
+    use rust_kzg_bn254_primitives::{blob::Blob, helpers};
 
     const GETTYSBURG_ADDRESS_BYTES: &[u8] = "Fourscore and seven years ago our fathers brought forth, on this continent, a new nation, conceived in liberty, and dedicated to the proposition that all men are created equal. Now we are engaged in a great civil war, testing whether that nation, or any nation so conceived, and so dedicated, can long endure. We are met on a great battle-field of that war. We have come to dedicate a portion of that field, as a final resting-place for those who here gave their lives, that that nation might live. It is altogether fitting and proper that we should do this. But, in a larger sense, we cannot dedicate, we cannot consecrate—we cannot hallow—this ground. The brave men, living and dead, who struggled here, have consecrated it far above our poor power to add or detract. The world will little note, nor long remember what we say here, but it can never forget what they did here. It is for us the living, rather, to be dedicated here to the unfinished work which they who fought here have thus far so nobly advanced. It is rather for us to be here dedicated to the great task remaining before us—that from these honored dead we take increased devotion to that cause for which they here gave the last full measure of devotion—that we here highly resolve that these dead shall not have died in vain—that this nation, under God, shall have a new birth of freedom, and that government of the people, by the people, for the people, shall not perish from the earth.".as_bytes();
 
@@ -14,9 +15,47 @@ mod tests {
     }
 
     #[test]
+    fn test_validate_blob_data_as_canonical_field_elements() {
+        let mut rng = rand::thread_rng();
+        let test_1 = &GETTYSBURG_ADDRESS_BYTES[0..62];
+        let test_1_with_padding = helpers::convert_by_padding_empty_byte(test_1);
+
+        Blob::new(test_1_with_padding.as_slice()).expect("should succeed");
+
+        let wrong_set = &GETTYSBURG_ADDRESS_BYTES[0..64];
+        Blob::new(wrong_set).expect_err("should fail: not valid elements");
+
+        let test_2 = &GETTYSBURG_ADDRESS_BYTES[0..3];
+        Blob::new(test_2).expect_err("should fail: not a multiple of 32");
+
+        let test_3 = [0xff; 32];
+        let test_3_with_padding = helpers::convert_by_padding_empty_byte(&test_3);
+        Blob::new(&test_3).expect_err("should fail: bad element");
+        Blob::new(test_3_with_padding.as_slice())
+            .expect_err("should fail: bad element and not multiple of 32");
+
+        let test_4 = [0xff; 62];
+        let test_4_with_padding = helpers::convert_by_padding_empty_byte(&test_4);
+        Blob::new(&test_4).expect_err("should fail: not multiple of 32");
+        Blob::new(test_4_with_padding.as_slice()).expect("should succeed");
+
+        // a blob of 128 kb random blob after padding
+        let mut random_blob: Vec<u8> = (0..126976).map(|_| rng.gen_range(32..=126) as u8).collect();
+
+        random_blob = helpers::convert_by_padding_empty_byte(&random_blob);
+        assert_eq!(random_blob.len(), 128 * 1024);
+        Blob::new(random_blob.as_slice()).expect("should succeed");
+
+        // testing 30 bytes set to 0xff
+    }
+
+    #[test]
     fn test_from_padded_bytes_unchecked() {
-        let blob = Blob::from_raw_data("hi".as_bytes());
-        let blob_unchecked = Blob::new(blob.data());
+        let blob = Blob::from_raw_data(&GETTYSBURG_ADDRESS_BYTES[0..31]);
+        let blob_data_padded =
+            helpers::convert_by_padding_empty_byte(&GETTYSBURG_ADDRESS_BYTES[0..31]);
+        let blob_unchecked =
+            Blob::new(blob_data_padded.as_slice()).expect("Should create valid blob");
 
         assert_eq!(blob, blob_unchecked, "blob should be equal");
     }
