@@ -116,8 +116,12 @@ pub fn verify_blob_kzg_proof_batch(
     // This function also verifies that the blobs are valid bn254 field elements
     let blobs = blobs_bytes
         .iter()
-        .map(|blob| Blob::new(blob))
-        .collect::<Vec<Blob>>();
+        .map(|blob| {
+            Blob::new(blob)
+                .map_err(|_| KzgError::SerializationError("Failed to deserialize blob".to_string()))
+        })
+        .collect::<Result<Vec<Blob>, KzgError>>()?;
+
     verify_blob_kzg_proof_batch_impl(&blobs, &commitments, &proofs)
 }
 

@@ -118,7 +118,7 @@ pub fn verify_blob_kzg_proof(
     commitment: &[u8; SIZE_OF_G1_AFFINE_COMPRESSED],
     proof: &[u8; SIZE_OF_G1_AFFINE_COMPRESSED],
 ) -> Result<bool, KzgError> {
-    let blob = Blob::new(blob);
+    let blob = Blob::new(blob)?;
     let commitment =
         G1Affine::read_point_from_bytes_native_compressed_be(commitment).map_err(|_| {
             KzgError::SerializationError("Failed to deserialize commitment".to_string())
