@@ -491,7 +491,8 @@ mod tests {
                 .map(|blob| {
                     let poly = blob.to_polynomial_eval_form();
                     let evaluations = poly.evaluations();
-                    let evaluations_bytes = helpers::to_byte_array(evaluations, evaluations.len() * 32);
+                    let evaluations_bytes =
+                        helpers::to_byte_array(evaluations, evaluations.len() * 32);
                     evaluations_bytes
                 })
                 .collect::<Vec<Vec<u8>>>();
