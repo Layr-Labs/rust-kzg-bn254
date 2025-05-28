@@ -17,6 +17,14 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      matrix:
+        features: ["", "--features parallel"]
+        include:
+          - features: ""
+            feature_name: "default"
+          - features: "--features parallel"
+            feature_name: "parallel"
 
     steps:
     - uses: step-security/harden-runner@446798f8213ac2e75931c1b0769676d927801858 # v2.10.3
@@ -32,20 +40,23 @@ jobs:
           static.crates.io:443
           static.rust-lang.org:443
     - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-    - name: Build
-      run: cargo build --verbose
+    - name: Build (${{ matrix.feature_name }})
+      run: cargo build --verbose ${{ matrix.features }}
     - name: Fmt check
       run: cargo fmt --all -- --check
-    - name: Clippy Format test
-      run: cargo clippy --all --manifest-path Cargo.toml -- -D warnings
+    - name: Clippy Format test (${{ matrix.feature_name }})
+      run: cargo clippy --all --manifest-path Cargo.toml ${{ matrix.features }} -- -D warnings
     # Refer to readme as to why this is done.
     - name: Update cargo lock with compatible `half` library at version 2.4.1.
       run: cargo update half --precise 2.4.1 
-    - name: Run tests
-      run: cargo test --verbose
-    - name: 32bit compilation test
-      run: cargo build --target i686-unknown-linux-gnu --verbose
-    - name: Running tests under 32bit architecture
-      run: cargo install --locked cross@0.1.16 && cross test --target i686-unknown-linux-gnu --verbose
+    - name: Run tests (${{ matrix.feature_name }})
+      run: cargo test --verbose ${{ matrix.features }}
+    # Test primitives package specifically with features to ensure isolation
+    - name: Test primitives package (${{ matrix.feature_name }})
+      run: cd primitives && cargo test --verbose ${{ matrix.features }}
+    - name: 32bit compilation test (${{ matrix.feature_name }})
+      run: cargo build --target i686-unknown-linux-gnu --verbose ${{ matrix.features }}
+    - name: Running tests under 32bit architecture (${{ matrix.feature_name }})
+      run: cargo install --locked cross@0.1.16 && cross test --target i686-unknown-linux-gnu --verbose ${{ matrix.features }}
 
     
