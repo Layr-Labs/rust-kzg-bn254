@@ -16,9 +16,46 @@ use rust_kzg_bn254_primitives::{
 extern crate alloc;
 use alloc::{string::ToString, vec, vec::Vec};
 
-// verify_blob_kzg_proof_batch_impl is used to verify a batch of KZG proofs where the commitments and proofs are in Affine form
-// This accepts Affine points and acts as a helper function for verify_blob_kzg_proof_batch
-// but also gives the user the option to verify a batch of proofs directly from Affine points
+/// This function performs batch verification of KZG proofs where commitments and proofs
+/// are provided as `G1Affine` points. It implements the batch verification algorithm
+/// from the Ethereum consensus specifications for efficient verification of multiple
+/// proofs simultaneously.
+///
+/// # Arguments
+///
+/// * `blobs` - A list of `Blob` objects
+/// * `commitments` - A list of `G1Affine` points representing KZG commitments
+/// * `proofs` - A list of `G1Affine` points representing KZG proofs
+///
+/// # Returns
+///
+/// * `Ok(true)` - If all proofs are valid and verification succeeds
+/// * `Ok(false)` - If any proof is invalid but no errors occurred during verification
+/// * `Err(KzgError)` - If an error occurs during verification (e.g., invalid curve points,
+///   mismatched input lengths, or serialization errors)
+///
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use rust_kzg_bn254_verifier::batch::verify_blob_kzg_proof_batch_impl;
+/// use rust_kzg_bn254_primitives::blob::Blob;
+/// use ark_bn254::G1Affine;
+///
+/// let blobs = vec![/* your blobs */];
+/// let commitments = vec![/* your G1Affine commitments */];
+/// let proofs = vec![/* your G1Affine proofs */];
+///
+/// match verify_blob_kzg_proof_batch_impl(&blobs, &commitments, &proofs) {
+///     Ok(true) => println!("All proofs are valid!"),
+///     Ok(false) => println!("Some proofs are invalid"),
+///     Err(e) => println!("Verification error: {}", e),
+/// }
+/// ```
+///
+/// # References
+///
+/// * [Ethereum Consensus Specs - Polynomial Commitments](https://github.com/ethereum/consensus-specs/blob/master/specs/deneb/polynomial-commitments.md#verify_blob_kzg_proof_batch)
 pub fn verify_blob_kzg_proof_batch_impl(
     blobs: &[Blob],
     commitments: &[G1Affine],
@@ -84,9 +121,54 @@ pub fn verify_blob_kzg_proof_batch_impl(
     )
 }
 
-/// Ref: https://github.com/ethereum/consensus-specs/blob/master/specs/deneb/polynomial-commitments.md#verify_blob_kzg_proof_batch
-/// This function is used to verify a batch of KZG proofs where the commitments and proofs are in compressed form
-/// The commitments and proofs are expected to be in big endian format
+/// This function performs batch verification of KZG proofs where commitments and proofs
+/// are provided as compressed byte arrays in big-endian format. It deserializes the
+/// compressed points, validates the blob data, and then performs batch verification.
+///
+/// # Arguments
+///
+/// * `blobs_bytes` - A slice of byte vectors containing the blob data to verify
+/// * `commitments_compressed` - A slice of 48-byte arrays containing compressed G1 points
+///   representing KZG commitments in big-endian format
+/// * `proofs_compressed` - A slice of 48-byte arrays containing compressed G1 points
+///   representing KZG proofs in big-endian format
+///
+/// # Returns
+///
+/// * `Ok(true)` - If all proofs are valid and verification succeeds
+/// * `Ok(false)` - If any proof is invalid but no errors occurred during verification
+/// * `Err(KzgError)` - If an error occurs during verification
+///
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use rust_kzg_bn254_verifier::batch::verify_blob_kzg_proof_batch;
+/// use rust_kzg_bn254_primitives::consts::SIZE_OF_G1_AFFINE_COMPRESSED;
+///
+/// let blobs_bytes = vec![
+///     vec![0u8; 1024], // Example blob data
+///     vec![1u8; 2048], // Another blob
+/// ];
+/// let commitments = vec![
+///     [0u8; SIZE_OF_G1_AFFINE_COMPRESSED], // Compressed commitment
+///     [1u8; SIZE_OF_G1_AFFINE_COMPRESSED], // Another commitment
+/// ];
+/// let proofs = vec![
+///     [0u8; SIZE_OF_G1_AFFINE_COMPRESSED], // Compressed proof
+///     [1u8; SIZE_OF_G1_AFFINE_COMPRESSED], // Another proof
+/// ];
+///
+/// match verify_blob_kzg_proof_batch(&blobs_bytes, &commitments, &proofs) {
+///     Ok(true) => println!("All proofs are valid!"),
+///     Ok(false) => println!("Some proofs are invalid"),
+///     Err(e) => println!("Verification error: {}", e),
+/// }
+/// ```
+///
+/// # References
+///
+/// * [Ethereum Consensus Specs - Polynomial Commitments](https://github.com/ethereum/consensus-specs/blob/master/specs/deneb/polynomial-commitments.md#verify_blob_kzg_proof_batch)
 pub fn verify_blob_kzg_proof_batch(
     blobs_bytes: &[Vec<u8>],
     commitments_compressed: &[[u8; SIZE_OF_G1_AFFINE_COMPRESSED]],
@@ -125,11 +207,123 @@ pub fn verify_blob_kzg_proof_batch(
     verify_blob_kzg_proof_batch_impl(&blobs, &commitments, &proofs)
 }
 
-/// Ref: https://github.com/ethereum/consensus-specs/blob/master/specs/deneb/polynomial-commitments.md#verify_kzg_proof_batch
-/// A helper function to the `helpers::compute_powers` function. This does the below reference code from the 4844 spec.
-/// Ref: `# Append all inputs to the transcript before we hash
-///      for commitment, z, y, proof in zip(commitments, zs, ys, proofs):
-///          data += commitment + bls_field_to_bytes(z) + bls_field_to_bytes(y) + proof``
+/// This function performs the mathematical core of batch verification using the
+/// aggregation technique. It takes deserialized curve points and field elements
+/// and verifies multiple KZG proofs simultaneously using a single pairing check.
+///
+/// # Arguments
+///
+/// * `commitments` - A list of G1Affine commitments to polynomials
+/// * `zs` - A list of field elements representing evaluation points
+/// * `ys` - A list of field elements representing polynomial values at evaluation points
+/// * `proofs` - A list of G1Affine proofs for the evaluations
+/// * `blobs_as_field_elements_length` - A list of u64 values indicating blob lengths
+///
+/// # References
+///
+/// * [Ethereum Consensus Specs](https://github.com/ethereum/consensus-specs/blob/master/specs/deneb/polynomial-commitments.md#verify_kzg_proof_batch)
+fn verify_kzg_proof_batch_impl(
+    commitments: &[G1Affine],
+    zs: &[Fr],
+    ys: &[Fr],
+    proofs: &[G1Affine],
+    blobs_as_field_elements_length: &[u64],
+) -> Result<bool, KzgError> {
+    // Verify that all input arrays have the same length
+    // This is crucial for batch verification to work correctly
+    if !(commitments.len() == zs.len() && zs.len() == ys.len() && ys.len() == proofs.len()) {
+        return Err(KzgError::GenericError(
+            "length's of the input are not the same".to_string(),
+        ));
+    }
+
+    // Check that all commitments are valid points on the G1 curve
+    // This prevents invalid curve attacks
+    if !commitments
+        .iter()
+        .all(|commitment| is_on_curve_g1(&G1Projective::from(*commitment)))
+    {
+        return Err(KzgError::NotOnCurveError(
+            "commitment not on curve".to_string(),
+        ));
+    }
+
+    // Check that all proofs are valid points on the G1 curve
+    if !proofs
+        .iter()
+        .all(|proof| is_on_curve_g1(&G1Projective::from(*proof)))
+    {
+        return Err(KzgError::NotOnCurveError("proof".to_string()));
+    }
+
+    // Verify that the trusted setup point τ*G2 is on the G2 curve
+    if !helpers::is_on_curve_g2(&G2Projective::from(G2_TAU)) {
+        return Err(KzgError::NotOnCurveError("g2 tau".to_string()));
+    }
+
+    let n = commitments.len();
+
+    // Initialize vectors to store:
+    // c_minus_y: [C_i - [y_i]]  (commitment minus the evaluation point encrypted)
+    // r_times_z: [r^i * z_i]    (powers of random challenge times evaluation points)
+    let mut c_minus_y: Vec<G1Affine> = Vec::with_capacity(n);
+    let mut r_times_z: Vec<Fr> = Vec::with_capacity(n);
+
+    // Compute powers of the random challenge: [r^0, r^1, r^2, ..., r^(n-1)]
+    let r_powers = compute_r_powers(commitments, zs, ys, proofs, blobs_as_field_elements_length)?;
+
+    // Compute Σ(r^i * proof_i)
+    let proof_lincomb = helpers::g1_lincomb(proofs, &r_powers)?;
+
+    // For each proof i:
+    // 1. Compute C_i - [y_i]
+    // 2. Compute r^i * z_i
+    for i in 0..n {
+        // Encrypt y_i as a point on G1
+        let ys_encrypted = G1Affine::generator() * ys[i];
+        // Compute C_i - [y_i] and convert to affine coordinates
+        c_minus_y.push((commitments[i] - ys_encrypted).into_affine());
+        // Compute r^i * z_i
+        r_times_z.push(r_powers[i] * zs[i]);
+    }
+
+    // Compute:
+    // proof_z_lincomb = Σ(r^i * z_i * proof_i)
+    // c_minus_y_lincomb = Σ(r^i * (C_i - [y_i]))
+    let proof_z_lincomb = helpers::g1_lincomb(proofs, &r_times_z)?;
+    let c_minus_y_lincomb = helpers::g1_lincomb(&c_minus_y, &r_powers)?;
+
+    // Compute right-hand side of the pairing equation
+    let rhs_g1 = c_minus_y_lincomb + proof_z_lincomb;
+
+    // Verify the pairing equation:
+    // e(Σ(r^i * proof_i), [τ]) = e(Σ(r^i * (C_i - [y_i])) + Σ(r^i * z_i * proof_i), [1])
+    let result =
+        helpers::pairings_verify(proof_lincomb, G2_TAU, rhs_g1.into(), G2Affine::generator());
+    Ok(result)
+}
+
+/// This function implements the Fiat-Shamir transform to generate a random challenge
+/// and then computes powers of that challenge for use in batch verification. It follows
+/// the Ethereum consensus specification for generating the challenge from all input data.
+///
+/// # Arguments
+///
+/// * `commitments` - A list of G1Affine commitments
+/// * `zs` - A list of field elements representing evaluation points
+/// * `ys` - A list of field elements representing polynomial values at evaluation points
+/// * `proofs` - A list of G1Affine proofs
+/// * `blobs_as_field_elements_length` - A list of u64 values indicating blob lengths
+///
+/// # Returns
+///
+/// * `Ok(Vec<Fr>)` - A vector containing powers [r^0, r^1, r^2, ..., r^(n-1)] where
+///   r is the random challenge and n is the number of proofs
+/// * `Err(KzgError)` - If serialization fails or buffer size calculations are incorrect
+///
+/// # References
+///
+/// * [Ethereum Consensus Specs - Batch Verification](https://github.com/ethereum/consensus-specs/blob/master/specs/deneb/polynomial-commitments.md#verify_kzg_proof_batch)
 fn compute_r_powers(
     commitments: &[G1Affine],
     zs: &[Fr],
@@ -224,104 +418,61 @@ fn compute_r_powers(
     Ok(helpers::compute_powers(&r, n))
 }
 
-/// Verifies multiple KZG proofs efficiently.
-/// Ref: https://github.com/ethereum/consensus-specs/blob/master/specs/deneb/polynomial-commitments.md#verify_kzg_proof_batch
+
+/// This function performs batch verification of KZG proofs where all parameters
+/// (commitments, proofs, evaluation points, and values) are provided as compressed
+/// byte arrays in big-endian format. This is a lower-level function that gives
+/// direct control over the evaluation points and values used in verification.
+///
 /// # Arguments
 ///
-/// * `commitments` - A slice of `G1Affine` commitments.
-/// * `zs` - A slice of `Fr` elements representing z values.
-/// * `ys` - A slice of `Fr` elements representing y values.
-/// * `proofs` - A slice of `G1Affine` proofs.
+/// * `commitments_compressed` - A slice of 48-byte arrays containing compressed G1 points
+///   representing KZG commitments in big-endian format
+/// * `zs` - A slice of 32-byte arrays containing field elements representing evaluation
+///   points in big-endian format
+/// * `ys` - A slice of 32-byte arrays containing field elements representing polynomial
+///   values at the evaluation points in big-endian format
+/// * `proofs_compressed` - A slice of 48-byte arrays containing compressed G1 points
+///   representing KZG proofs in big-endian format
+/// * `blobs_as_field_elements_length` - A slice of u64 values indicating the number
+///   of field elements in each corresponding blob
 ///
 /// # Returns
 ///
-/// * `Ok(true)` if all proofs are valid.
-/// * `Ok(false)` if any proof is invalid.
-/// * `Err(KzgError)` if an error occurs during verification.
+/// * `Ok(true)` - If all proofs are valid and verification succeeds
+/// * `Ok(false)` - If any proof is invalid but no errors occurred during verification
+/// * `Err(KzgError)` - If an error occurs during verification
 ///
-fn verify_kzg_proof_batch_impl(
-    commitments: &[G1Affine],
-    zs: &[Fr],
-    ys: &[Fr],
-    proofs: &[G1Affine],
-    blobs_as_field_elements_length: &[u64],
-) -> Result<bool, KzgError> {
-    // Verify that all input arrays have the same length
-    // This is crucial for batch verification to work correctly
-    if !(commitments.len() == zs.len() && zs.len() == ys.len() && ys.len() == proofs.len()) {
-        return Err(KzgError::GenericError(
-            "length's of the input are not the same".to_string(),
-        ));
-    }
-
-    // Check that all commitments are valid points on the G1 curve
-    // This prevents invalid curve attacks
-    if !commitments
-        .iter()
-        .all(|commitment| is_on_curve_g1(&G1Projective::from(*commitment)))
-    {
-        return Err(KzgError::NotOnCurveError(
-            "commitment not on curve".to_string(),
-        ));
-    }
-
-    // Check that all proofs are valid points on the G1 curve
-    if !proofs
-        .iter()
-        .all(|proof| is_on_curve_g1(&G1Projective::from(*proof)))
-    {
-        return Err(KzgError::NotOnCurveError("proof".to_string()));
-    }
-
-    // Verify that the trusted setup point τ*G2 is on the G2 curve
-    if !helpers::is_on_curve_g2(&G2Projective::from(G2_TAU)) {
-        return Err(KzgError::NotOnCurveError("g2 tau".to_string()));
-    }
-
-    let n = commitments.len();
-
-    // Initialize vectors to store:
-    // c_minus_y: [C_i - [y_i]]  (commitment minus the evaluation point encrypted)
-    // r_times_z: [r^i * z_i]    (powers of random challenge times evaluation points)
-    let mut c_minus_y: Vec<G1Affine> = Vec::with_capacity(n);
-    let mut r_times_z: Vec<Fr> = Vec::with_capacity(n);
-
-    // Compute powers of the random challenge: [r^0, r^1, r^2, ..., r^(n-1)]
-    let r_powers = compute_r_powers(commitments, zs, ys, proofs, blobs_as_field_elements_length)?;
-
-    // Compute Σ(r^i * proof_i)
-    let proof_lincomb = helpers::g1_lincomb(proofs, &r_powers)?;
-
-    // For each proof i:
-    // 1. Compute C_i - [y_i]
-    // 2. Compute r^i * z_i
-    for i in 0..n {
-        // Encrypt y_i as a point on G1
-        let ys_encrypted = G1Affine::generator() * ys[i];
-        // Compute C_i - [y_i] and convert to affine coordinates
-        c_minus_y.push((commitments[i] - ys_encrypted).into_affine());
-        // Compute r^i * z_i
-        r_times_z.push(r_powers[i] * zs[i]);
-    }
-
-    // Compute:
-    // proof_z_lincomb = Σ(r^i * z_i * proof_i)
-    // c_minus_y_lincomb = Σ(r^i * (C_i - [y_i]))
-    let proof_z_lincomb = helpers::g1_lincomb(proofs, &r_times_z)?;
-    let c_minus_y_lincomb = helpers::g1_lincomb(&c_minus_y, &r_powers)?;
-
-    // Compute right-hand side of the pairing equation
-    let rhs_g1 = c_minus_y_lincomb + proof_z_lincomb;
-
-    // Verify the pairing equation:
-    // e(Σ(r^i * proof_i), [τ]) = e(Σ(r^i * (C_i - [y_i])) + Σ(r^i * z_i * proof_i), [1])
-    let result =
-        helpers::pairings_verify(proof_lincomb, G2_TAU, rhs_g1.into(), G2Affine::generator());
-    Ok(result)
-}
-
-// This function is used to verify a batch of KZG proofs where the commitments and proofs are in compressed form
-// The commitments, proofs, and zs, ys are expected to be in big endian format
+/// # Examples
+///
+/// ```rust,no_run
+/// use rust_kzg_bn254_verifier::batch::verify_kzg_proof_batch;
+/// use rust_kzg_bn254_primitives::consts::{SIZE_OF_G1_AFFINE_COMPRESSED, BYTES_PER_FIELD_ELEMENT};
+///
+/// let commitments = vec![
+///     [0u8; SIZE_OF_G1_AFFINE_COMPRESSED], // Compressed commitment
+/// ];
+/// let zs = vec![
+///     [0u8; BYTES_PER_FIELD_ELEMENT], // Evaluation point
+/// ];
+/// let ys = vec![
+///     [0u8; BYTES_PER_FIELD_ELEMENT], // Polynomial value at z
+/// ];
+/// let proofs = vec![
+///     [0u8; SIZE_OF_G1_AFFINE_COMPRESSED], // Compressed proof
+/// ];
+/// let blob_lengths = vec![1024u64]; // Number of field elements in blob
+///
+/// match verify_kzg_proof_batch(&commitments, &zs, &ys, &proofs, &blob_lengths) {
+///     Ok(true) => println!("All proofs are valid!"),
+///     Ok(false) => println!("Some proofs are invalid"),
+///     Err(e) => println!("Verification error: {}", e),
+/// }
+/// ```
+///
+/// # References
+///
+/// * [Ethereum Consensus Specs - Polynomial Commitments](https://github.com/ethereum/consensus-specs/blob/master/specs/deneb/polynomial-commitments.md#verify_kzg_proof_batch)
 pub fn verify_kzg_proof_batch(
     commitments_compressed: &[[u8; SIZE_OF_G1_AFFINE_COMPRESSED]],
     zs: &[[u8; BYTES_PER_FIELD_ELEMENT]],
