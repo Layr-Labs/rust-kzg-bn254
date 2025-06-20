@@ -42,7 +42,7 @@ mod tests {
         // a random blob of max 16MB after padding. So it's 16252928 before padding.
         let mut random_blob: Vec<u8> = (0..16252928).map(|_| rng.gen::<u8>()).collect();
         random_blob = helpers::convert_by_padding_empty_byte(&random_blob);
-        
+
         assert_eq!(random_blob.len(), 16 * 1024 * 1024);
         Blob::new(random_blob.as_slice()).expect("should succeed");
 
