@@ -39,11 +39,11 @@ mod tests {
         Blob::new(&test_4).expect_err("should fail: not multiple of 32");
         Blob::new(test_4_with_padding.as_slice()).expect("should succeed");
 
-        // a blob of 128 kb random blob after padding
-        let mut random_blob: Vec<u8> = (0..126976).map(|_| rng.gen_range(32..=126) as u8).collect();
-
+        // a random blob of max 16MB after padding. So it's 16252928 before padding.
+        let mut random_blob: Vec<u8> = (0..16252928).map(|_| rng.gen::<u8>()).collect();
         random_blob = helpers::convert_by_padding_empty_byte(&random_blob);
-        assert_eq!(random_blob.len(), 128 * 1024);
+        
+        assert_eq!(random_blob.len(), 16 * 1024 * 1024);
         Blob::new(random_blob.as_slice()).expect("should succeed");
 
         // testing 30 bytes set to 0xff
