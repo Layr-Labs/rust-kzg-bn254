@@ -739,7 +739,6 @@ pub fn usize_to_be_bytes(number: usize) -> [u8; 8] {
 /// Validates that the blob data contains valid bn254 field elements.
 /// Uses direct deserialization to check if bytes represent canonical field elements.
 /// The data provided is expected to be in big-endian format.
-/// This function uses parallel processing via rayon for improved performance on large datasets.
 pub fn validate_blob_data_as_canonical_field_elements(data: &[u8]) -> Result<(), KzgError> {
     use crate::consts::BYTES_PER_FIELD_ELEMENT;
 
