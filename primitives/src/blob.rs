@@ -38,14 +38,14 @@ impl Blob {
     /// according to DA specs. If the data is already padded, use
     /// [`Blob::new`] instead.
     pub fn from_raw_data(raw_data: &[u8]) -> Self {
-        let blob_data = helpers::convert_by_padding_empty_byte(raw_data);
+        let blob_data = helpers::pad_payload(raw_data);
         Blob { blob_data }
     }
 
     /// Returns the raw data of the blob, removing any padding added by
     /// [`Blob::from_raw_data`].
-    pub fn to_raw_data(&self) -> Vec<u8> {
-        helpers::remove_empty_byte_from_padded_bytes_unchecked(&self.blob_data)
+    pub fn to_raw_data(&self) -> Result<Vec<u8>, KzgError> {
+        helpers::remove_internal_padding(&self.blob_data)
     }
 
     /// Returns the blob data
