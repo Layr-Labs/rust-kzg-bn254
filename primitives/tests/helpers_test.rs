@@ -9,7 +9,9 @@ use ark_std::{str::FromStr, One};
 use rust_kzg_bn254_primitives::{
     consts::{BYTES_PER_FIELD_ELEMENT, PRIMITIVE_ROOTS_OF_UNITY, SIZE_OF_G1_AFFINE_COMPRESSED},
     helpers::{
-        blob_to_polynomial, get_num_element, is_on_curve_g1, is_on_curve_g2, is_zeroed, pad_payload, remove_internal_padding, set_bytes_canonical, set_bytes_canonical_manual, to_byte_array, to_fr_array
+        blob_to_polynomial, get_num_element, is_on_curve_g1, is_on_curve_g2, is_zeroed,
+        pad_payload, remove_internal_padding, set_bytes_canonical, set_bytes_canonical_manual,
+        to_byte_array, to_fr_array,
     },
 };
 
@@ -135,18 +137,33 @@ fn test_set_canonical_bytes() {
 #[test]
 fn test_convert_by_padding_empty_byte() {
     let mut padded_data = pad_payload("hi".as_bytes());
-    assert_eq!(padded_data, vec![0, 104, 105, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "testing adding padding");
+    assert_eq!(
+        padded_data,
+        vec![
+            0, 104, 105, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0
+        ],
+        "testing adding padding"
+    );
 
     let mut unpadded_data = remove_internal_padding(&padded_data).unwrap();
-    assert_eq!(unpadded_data, vec![104, 105, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "testing removing padding");
-
+    assert_eq!(
+        unpadded_data,
+        vec![
+            104, 105, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0
+        ],
+        "testing removing padding"
+    );
 
     padded_data = pad_payload(GETTYSBURG_ADDRESS_BYTES);
     unpadded_data = remove_internal_padding(&padded_data).unwrap();
 
-    assert_eq!(GETTYSBURG_ADDRESS_BYTES.len() > (unpadded_data.len() - 32), true);
+    assert_eq!(
+        GETTYSBURG_ADDRESS_BYTES.len() > (unpadded_data.len() - 32),
+        true
+    );
     assert_eq!(GETTYSBURG_ADDRESS_BYTES.len() <= unpadded_data.len(), true);
-
 }
 
 #[test]
