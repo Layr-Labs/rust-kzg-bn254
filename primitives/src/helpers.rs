@@ -48,6 +48,7 @@ pub fn set_bytes_canonical_manual(data: &[u8]) -> Fr {
 /// the bn254 curve. If the input data is not a multiple of 31 bytes, the
 /// remainder is added to the output by inserting a 0 and the remainder. The
 /// output is thus not necessarily a multiple of 32.
+/// Note: this function is not used in the codebase, but is kept for reference and is replaced by pad_payload
 pub fn convert_by_padding_empty_byte(data: &[u8]) -> Vec<u8> {
     let data_size = data.len();
     let parse_size = BYTES_PER_FIELD_ELEMENT - 1;
