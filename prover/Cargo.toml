@@ -17,7 +17,7 @@ ark-ec = { workspace = true, features = ["parallel"] }
 ark-ff = { workspace = true, features = ["parallel"] }
 ark-std = { workspace = true, features = ["parallel"] }
 ark-poly = { workspace = true, features = ["parallel"] }
-
+ark-serialize.workspace = true
 num-traits.workspace = true
 
 # We keep these here instead of in Cargo.toml because (I think?) they require std

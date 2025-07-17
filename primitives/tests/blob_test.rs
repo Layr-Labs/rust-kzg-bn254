@@ -44,6 +44,7 @@ mod tests {
         random_blob = helpers::convert_by_padding_empty_byte(&random_blob);
 
         assert_eq!(random_blob.len(), 16 * 1024 * 1024);
+
         Blob::new(random_blob.as_slice()).expect("should succeed");
 
         // testing 30 bytes set to 0xff
