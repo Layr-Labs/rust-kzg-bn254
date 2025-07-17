@@ -106,9 +106,9 @@ pub fn verify_proof_impl(
 ///
 /// # Arguments
 ///
-/// * `commitment` - A 32-byte array containing a compressed G1 point representing 
+/// * `commitment` - A 32-byte array containing a compressed G1 point representing
 ///   the KZG commitment in big-endian format
-/// * `proof` - A 32-byte array containing a compressed G1 point representing 
+/// * `proof` - A 32-byte array containing a compressed G1 point representing
 ///   the KZG proof in big-endian format  
 /// * `value_fr` - A 32-byte array containing a field element representing the
 ///   claimed polynomial value at the evaluation point in big-endian format
@@ -168,9 +168,9 @@ pub fn verify_proof(
 /// # Arguments
 ///
 /// * `blob` - A byte slice containing the blob data to verify
-/// * `commitment` - A 32-byte array containing a compressed G1 point representing 
+/// * `commitment` - A 32-byte array containing a compressed G1 point representing
 ///   the KZG commitment in big-endian format
-/// * `proof` - A 32-byte array containing a compressed G1 point representing 
+/// * `proof` - A 32-byte array containing a compressed G1 point representing
 ///   the KZG proof in big-endian format
 ///
 /// # Returns

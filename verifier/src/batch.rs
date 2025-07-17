@@ -418,7 +418,6 @@ fn compute_r_powers(
     Ok(helpers::compute_powers(&r, n))
 }
 
-
 /// This function performs batch verification of KZG proofs where all parameters
 /// (commitments, proofs, evaluation points, and values) are provided as compressed
 /// byte arrays in big-endian format. This is a lower-level function that gives
