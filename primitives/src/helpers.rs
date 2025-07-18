@@ -769,15 +769,38 @@ pub fn validate_blob_data_as_canonical_field_elements(data: &[u8]) -> Result<(),
     Ok(())
 }
 
-fn get_padded_data_length(input_len: usize) -> usize {
-    let bytes_per_chunk = BYTES_PER_FIELD_ELEMENT - 1;
-    let mut chunk_count = input_len / bytes_per_chunk;
-
-    if input_len % bytes_per_chunk != 0 {
-        chunk_count += 1;
-    }
-
-    chunk_count * BYTES_PER_FIELD_ELEMENT
+/// Calculates the length that a byte array would have after adding internal byte padding.
+///
+/// This function computes the output size for the `pad_payload` function by determining
+/// how many 32-byte chunks are needed to store the input data with internal padding.
+///
+/// # Arguments
+/// * `input_len` - Length of the input byte array
+///
+/// # Returns
+/// * `usize` - Length after padding (always a multiple of BYTES_PER_FIELD_ELEMENT)
+///
+/// # Details
+/// - Each 31 bytes of input becomes 32 bytes of output (with a 0x00 prefix)
+/// - The result is always aligned to BYTES_PER_FIELD_ELEMENT (32 bytes)
+/// - Partial chunks are rounded up to full 32-byte chunks
+///
+/// # Example
+/// ```
+/// use rust_kzg_bn254_primitives::helpers::get_padded_data_length;
+/// 
+/// // 31 bytes -> 32 bytes (1 chunk)
+/// assert_eq!(get_padded_data_length(31), 32);
+/// 
+/// // 32 bytes -> 64 bytes (2 chunks, since 32 bytes = 31 + 1)
+/// assert_eq!(get_padded_data_length(32), 64);
+/// 
+/// // 62 bytes -> 64 bytes (2 chunks)
+/// assert_eq!(get_padded_data_length(62), 64);
+/// ```
+pub fn get_padded_data_length(input_len: usize) -> usize {
+    let bytes_per_chunk = BYTES_PER_FIELD_ELEMENT - 1; // 31 bytes
+    input_len.div_ceil(bytes_per_chunk) * BYTES_PER_FIELD_ELEMENT
 }
 
 // Internally pads the input data by prepending a 0x00 to each chunk of 31 bytes. This guarantees that
@@ -789,60 +812,57 @@ fn get_padded_data_length(input_len: usize) -> usize {
 // of the output to encoding.BYTES_PER_SYMBOL. This alignment actually makes the padding logic simpler, and the
 // code that uses this function needs an aligned output anyway.
 pub fn pad_payload(input_data: &[u8]) -> Vec<u8> {
-    let bytes_per_chunk = BYTES_PER_FIELD_ELEMENT - 1;
-    let output_length = get_padded_data_length(input_data.len());
+    let bytes_per_chunk = BYTES_PER_FIELD_ELEMENT - 1; // 31 bytes
+    let chunk_count = input_data.len().div_ceil(bytes_per_chunk);
+    let output_length = chunk_count * BYTES_PER_FIELD_ELEMENT;
 
-    // Calculate the number of padding bytes needed
-    let required_pad = (bytes_per_chunk - (input_data.len() % bytes_per_chunk)) % bytes_per_chunk;
-
-    // Create the pre-padded input
-    let mut pre_padded_payload = Vec::with_capacity(input_data.len() + required_pad);
-    pre_padded_payload.extend_from_slice(input_data);
-    pre_padded_payload.resize(input_data.len() + required_pad, 0u8); // pad with zeroes
-
-    // Prepare the output buffer
     let mut padded_output = vec![0u8; output_length];
 
-    // Populate the output buffer
-    for element in 0..(output_length / BYTES_PER_FIELD_ELEMENT) {
-        let zero_byte_index = element * BYTES_PER_FIELD_ELEMENT;
-        padded_output[zero_byte_index] = 0x00;
+    for chunk_idx in 0..chunk_count {
+        let input_start = chunk_idx * bytes_per_chunk;
+        let input_end = core::cmp::min(input_start + bytes_per_chunk, input_data.len());
+        let output_start = chunk_idx * BYTES_PER_FIELD_ELEMENT + 1;
 
-        let dest_index = zero_byte_index + 1;
-        let src_index = element * bytes_per_chunk;
-
-        padded_output[dest_index..dest_index + bytes_per_chunk]
-            .copy_from_slice(&pre_padded_payload[src_index..src_index + bytes_per_chunk]);
+        padded_output[output_start..output_start + (input_end - input_start)]
+            .copy_from_slice(&input_data[input_start..input_end]);
     }
+
     padded_output
 }
 
-// Accepts an array of padded data, and removes the internal padding that was added in pad_payload
-//
-// This function assumes that the input aligns to 32 bytes. Since it is removing 1 byte for every 31 bytes kept, the
-// output from this function is not guaranteed to align to 32 bytes.
-//
-// NOTE: this method is a reimplementation of remove_empty_byte_from_padded_bytes_unchecked, with one meaningful difference: this
-// function relies on the assumption that the input is aligned to BYTES_PER_FIELD_ELEMENT, which makes the padding
-// removal logic simpler.
+/// Removes internal padding from data that was processed by `pad_payload`.
+///
+/// This is the inverse of `pad_payload` - removes the 0x00 prefix from each 32-byte chunk.
+/// Uses the same optimization pattern as `remove_empty_byte_from_padded_bytes_unchecked`.
+///
+/// # Example
+/// ```
+/// use rust_kzg_bn254_primitives::helpers::{pad_payload, remove_internal_padding};
+///
+/// let original = b"hello world";
+/// let padded = pad_payload(original);
+/// let recovered = remove_internal_padding(&padded).unwrap();
+/// assert_eq!(original, &recovered[..original.len()]);
+/// ```
 pub fn remove_internal_padding(padded_data: &[u8]) -> Result<Vec<u8>, KzgError> {
     if padded_data.len() % BYTES_PER_FIELD_ELEMENT != 0 {
         return Err(KzgError::InvalidInputLength);
     }
 
     let bytes_per_chunk = BYTES_PER_FIELD_ELEMENT - 1;
-    let symbol_count = padded_data.len() / BYTES_PER_FIELD_ELEMENT;
-    let output_length = symbol_count * bytes_per_chunk;
+    let chunk_count = padded_data.len() / BYTES_PER_FIELD_ELEMENT;
+    let output_length = chunk_count * bytes_per_chunk;
 
-    let mut output_data = vec![0u8; output_length];
+    // Use capacity-only allocation to avoid zero-initialization waste
+    let mut output_data = Vec::with_capacity(output_length);
 
-    for i in 0..symbol_count {
-        let dst_index = i * bytes_per_chunk;
-        let src_index = i * BYTES_PER_FIELD_ELEMENT + 1; // skip the 0x00 prefix
-
-        output_data[dst_index..dst_index + bytes_per_chunk]
-            .copy_from_slice(&padded_data[src_index..src_index + bytes_per_chunk]);
+    // Use chunks_exact for SIMD optimization (same pattern as remove_empty_byte_from_padded_bytes_unchecked)
+    for chunk in padded_data.chunks_exact(BYTES_PER_FIELD_ELEMENT) {
+        output_data.extend_from_slice(&chunk[1..]);
     }
+
+    // Since we validated alignment above, there should be no remainder
+    debug_assert!(padded_data.chunks_exact(BYTES_PER_FIELD_ELEMENT).remainder().is_empty());
 
     Ok(output_data)
 }
