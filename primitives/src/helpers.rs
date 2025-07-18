@@ -788,13 +788,13 @@ pub fn validate_blob_data_as_canonical_field_elements(data: &[u8]) -> Result<(),
 /// # Example
 /// ```
 /// use rust_kzg_bn254_primitives::helpers::get_padded_data_length;
-/// 
+///
 /// // 31 bytes -> 32 bytes (1 chunk)
 /// assert_eq!(get_padded_data_length(31), 32);
-/// 
+///
 /// // 32 bytes -> 64 bytes (2 chunks, since 32 bytes = 31 + 1)
 /// assert_eq!(get_padded_data_length(32), 64);
-/// 
+///
 /// // 62 bytes -> 64 bytes (2 chunks)
 /// assert_eq!(get_padded_data_length(62), 64);
 /// ```
@@ -862,7 +862,10 @@ pub fn remove_internal_padding(padded_data: &[u8]) -> Result<Vec<u8>, KzgError> 
     }
 
     // Since we validated alignment above, there should be no remainder
-    debug_assert!(padded_data.chunks_exact(BYTES_PER_FIELD_ELEMENT).remainder().is_empty());
+    debug_assert!(padded_data
+        .chunks_exact(BYTES_PER_FIELD_ELEMENT)
+        .remainder()
+        .is_empty());
 
     Ok(output_data)
 }
