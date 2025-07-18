@@ -135,7 +135,7 @@ fn test_set_canonical_bytes() {
 }
 
 #[test]
-fn test_convert_by_padding_empty_byte() {
+fn test_pad_payload() {
     let mut padded_data = pad_payload("hi".as_bytes());
     assert_eq!(
         padded_data,
@@ -158,10 +158,8 @@ fn test_convert_by_padding_empty_byte() {
 
     padded_data = pad_payload(GETTYSBURG_ADDRESS_BYTES);
     unpadded_data = remove_internal_padding(&padded_data).unwrap();
-
     assert_eq!(
-        GETTYSBURG_ADDRESS_BYTES.len() > (unpadded_data.len() - 32),
-        true
+        unpadded_data.len(), 1488
     );
     assert_eq!(GETTYSBURG_ADDRESS_BYTES.len() <= unpadded_data.len(), true);
 }
