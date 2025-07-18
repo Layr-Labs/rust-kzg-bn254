@@ -770,6 +770,8 @@ pub fn validate_blob_data_as_canonical_field_elements(data: &[u8]) -> Result<(),
 }
 
 /// Calculates the length that a byte array would have after adding internal byte padding.
+/// The specific implementation below is set to be encoding version 0, and in the future,
+/// we might use a more sophisticated encoding formats.
 ///
 /// This function computes the output size for the `pad_payload` function by determining
 /// how many 32-byte chunks are needed to store the input data with internal padding.
@@ -809,8 +811,10 @@ pub fn get_padded_data_length(input_len: usize) -> usize {
 // # Additionally, this function will add necessary padding to align the output to 32 bytes
 //
 // NOTE: this method is a reimplementation of convert_by_padding_empty_byte, with one meaningful difference: the alignment
-// of the output to encoding.BYTES_PER_SYMBOL. This alignment actually makes the padding logic simpler, and the
+// of the output to BYTES_PER_FIELD_ELEMENT. This alignment actually makes the padding logic simpler, and the
 // code that uses this function needs an aligned output anyway.
+//
+// Ref: https://github.com/Layr-Labs/eigenda/blob/master/encoding/utils/codec/codec.go#L90
 pub fn pad_payload(input_data: &[u8]) -> Vec<u8> {
     let bytes_per_chunk = BYTES_PER_FIELD_ELEMENT - 1; // 31 bytes
     let chunk_count = input_data.len().div_ceil(bytes_per_chunk);

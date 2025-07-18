@@ -37,6 +37,7 @@ impl Blob {
     /// Creates a new `Blob` from the provided raw_data byte slice and pads it
     /// according to DA specs. If the data is already padded, use
     /// [`Blob::new`] instead.
+    /// Ref: https://layr-labs.github.io/eigenda/integration/spec/3-data-structs.html#encodedpayload
     pub fn from_raw_data(raw_data: &[u8]) -> Self {
         let blob_data = helpers::pad_payload(raw_data);
         Blob { blob_data }
