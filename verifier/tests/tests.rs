@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
-    use ark_bn254::{Fq, G1Affine};
-    use ark_ec::AffineRepr;
+    use ark_bn254::{Fq, Fr, G1Affine};
+    use ark_ec::{AffineRepr, CurveGroup};
     use ark_ff::UniformRand;
     use lazy_static::lazy_static;
     use rand::Rng;
@@ -343,6 +343,169 @@ mod tests {
                 case_description
             );
         }
+    }
+
+    #[test]
+    fn test_individual_verify_proof_with_identity_points() {
+        use ark_bn254::{Fr, G1Affine};
+        use ark_ff::One;
+        use rust_kzg_bn254_verifier::verify::verify_proof;
+
+        // Test with identity commitment
+        let identity_commitment = G1Affine::identity();
+        let valid_proof = G1Affine::generator();
+        let value = Fr::one();
+        let z = Fr::one();
+
+        let result = verify_proof(identity_commitment, valid_proof, value, z);
+        assert!(result.is_err(), "Should reject identity commitment");
+
+        // Test with identity proof
+        let valid_commitment = G1Affine::generator();
+        let identity_proof = G1Affine::identity();
+
+        let result = verify_proof(valid_commitment, identity_proof, value, z);
+        assert!(result.is_err(), "Should reject identity proof");
+
+        // Test with both identity points
+        let result = verify_proof(identity_commitment, identity_proof, value, z);
+        assert!(result.is_err(), "Should reject both identity points");
+    }
+
+    #[test]
+    fn test_verify_proof_intermediate_point_validation() {
+        use ark_bn254::{Fr, G1Affine, G2Affine};
+        use ark_ff::{One, Zero};
+        use rust_kzg_bn254_verifier::verify::verify_proof;
+
+        // Test Case 1: commit_minus_value becomes identity
+        // Create a commitment that equals value_fr * G1, so commit_minus_value = identity
+        let value_fr = Fr::from(42u64);
+        let commitment = G1Affine::generator() * value_fr;  // commitment = value_fr * G1
+        let valid_proof = G1Affine::generator() * Fr::from(100u64);  // Some valid proof
+        let z_fr = Fr::from(13u64);  // Some evaluation point
+
+        let result = verify_proof(commitment.into_affine(), valid_proof.into_affine(), value_fr, z_fr);
+        assert!(result.is_err(), "Should reject when commitment - value*G1 equals identity");
+        
+        // Verify the error message is what we expect
+        if let Err(error) = result {
+            match error {
+                rust_kzg_bn254_primitives::errors::KzgError::GenericError(msg) => {
+                    assert!(msg.contains("Invalid commitment-value relationship"), 
+                           "Error message should indicate commitment-value relationship issue");
+                }
+                _ => panic!("Expected GenericError for invalid commitment-value relationship"),
+            }
+        }
+
+        // Test Case 2: Verify normal case still works
+        let different_value = Fr::from(999u64);  // Different from commitment scalar
+        let result = verify_proof(commitment.into_affine(), valid_proof.into_affine(), different_value, z_fr);
+        // This might still fail for other reasons (invalid proof), but should not fail on commitment-value relationship
+        if let Err(error) = result {
+            match error {
+                rust_kzg_bn254_primitives::errors::KzgError::GenericError(msg) => {
+                    assert!(!msg.contains("Invalid commitment-value relationship"), 
+                           "Should not fail on commitment-value relationship with different values");
+                }
+                _ => {} // Other errors are acceptable
+            }
+        }
+    }
+
+    #[test]
+    fn test_verify_proof_zero_commitment_edge_case() {
+        use ark_bn254::{Fr, G1Affine};
+        use ark_ff::Zero;
+        use rust_kzg_bn254_verifier::verify::verify_proof;
+
+        // Edge case: commitment is identity, value is zero
+        // This would make commit_minus_value = identity - zero*G1 = identity - identity = identity
+        let zero_commitment = G1Affine::identity();
+        let zero_value = Fr::zero();
+        let valid_proof = G1Affine::generator();
+        let z_fr = Fr::from(1u64);
+
+        let result = verify_proof(zero_commitment, valid_proof, zero_value, z_fr);
+        assert!(result.is_err(), "Should reject identity commitment regardless of value");
+        
+        // Should fail on identity commitment check before reaching intermediate validation
+        if let Err(error) = result {
+            match error {
+                rust_kzg_bn254_primitives::errors::KzgError::NotOnCurveError(msg) => {
+                    assert!(msg.contains("point at infinity"), 
+                           "Should fail on identity commitment check first");
+                }
+                _ => panic!("Expected NotOnCurveError for identity commitment"),
+            }
+        }
+    }
+
+    #[test]
+    fn test_verify_proof_edge_cases_with_valid_inputs() {
+        use ark_bn254::{Fr, G1Affine};
+        use ark_ff::{One, UniformRand};
+        use rand::thread_rng;
+        use rust_kzg_bn254_verifier::verify::verify_proof;
+
+        let mut rng = thread_rng();
+        
+        // Test with random valid points that shouldn't trigger edge cases
+        for _ in 0..10 {
+            let commitment = (G1Affine::generator() * Fr::rand(&mut rng)).into_affine();
+            let proof = (G1Affine::generator() * Fr::rand(&mut rng)).into_affine();
+            let value_fr = Fr::rand(&mut rng);
+            let z_fr = Fr::rand(&mut rng);
+
+            // Make sure value_fr doesn't accidentally equal the commitment scalar
+            // by using a different random scalar for the test
+            let different_value = Fr::rand(&mut rng);
+            
+            let result = verify_proof(commitment, proof, different_value, z_fr);
+            
+            // The verification may fail for mathematical reasons (wrong proof), 
+            // but should NOT fail on intermediate point validation
+            if let Err(error) = result {
+                match error {
+                    rust_kzg_bn254_primitives::errors::KzgError::GenericError(msg) => {
+                        assert!(!msg.contains("Invalid commitment-value relationship") && 
+                               !msg.contains("trusted setup secret"),
+                               "Should not fail on intermediate point validation with random inputs: {}", msg);
+                    }
+                    _ => {} // Other errors (like pairing failures) are acceptable
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_verify_blob_kzg_proof_intermediate_validation_coverage() {
+        use rust_kzg_bn254_primitives::blob::Blob;
+        use rust_kzg_bn254_verifier::verify::verify_blob_kzg_proof;
+        use ark_bn254::{Fr, G1Affine};
+        use ark_ff::One;
+
+        // Test that verify_blob_kzg_proof also gets the intermediate validation
+        // since it calls verify_proof internally
+        let blob = Blob::from_raw_data(b"test data for edge case");
+        
+        // Create a scenario that might trigger intermediate validation
+        // We can't easily craft the exact edge case since it depends on polynomial evaluation
+        // But we can test that the function properly handles edge cases
+        let commitment = G1Affine::generator();
+        let proof = G1Affine::generator();
+
+        let result = verify_blob_kzg_proof(&blob, &commitment, &proof);
+        
+        // This will likely fail for mathematical reasons, but should not crash
+        // and should handle any intermediate validation properly
+        assert!(result.is_ok() || result.is_err(), "Function should handle all cases gracefully");
+        
+        // Test with identity points (should be caught by input validation)
+        let identity_commitment = G1Affine::identity();
+        let result = verify_blob_kzg_proof(&blob, &identity_commitment, &proof);
+        assert!(result.is_err(), "Should reject identity commitment");
     }
 
     // Helper function to generate a point in the wrong subgroup

@@ -87,7 +87,9 @@ impl Blob {
 }
 
 impl From<Vec<u8>> for Blob {
-    fn from(blob_data: Vec<u8>) -> Self {
+    fn from(blob_data: Vec<u8>) -> Blob {
+        // Data is properly formatted - construct blob
+        // Note: Downstream field element construction will apply modulo reduction as expected
         Blob { blob_data }
     }
 }

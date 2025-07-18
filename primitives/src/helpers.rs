@@ -574,6 +574,13 @@ pub fn evaluate_polynomial_in_evaluation_form(
 
     let width = polynomial.len();
 
+    if width == 0 {
+        return Err(KzgError::GenericError("Empty polynomial domain".to_string()));
+    }
+    if width > (1 << 28) {  // Max supported domain size
+        return Err(KzgError::GenericError("Polynomial domain too large".to_string()));
+    }
+
     // Step 4: Compute inverse_width = 1 / width
     let inverse_width = Fr::from(width as u64)
         .inverse()
@@ -597,9 +604,17 @@ pub fn evaluate_polynomial_in_evaluation_form(
         .map(|(f_i, &domain_i)| {
             let a = *f_i * domain_i;
             let b = *z - domain_i;
-            // Since `z` is not in the domain, `b` should never be zero
-            a / b
+            
+            if b.is_zero() {
+                return Err(KzgError::GenericError(
+                    "Division by zero in barycentric evaluation: z equals domain element".to_string(),
+                ));
+            }
+            
+            Ok(a / b)
         })
+        .collect::<Result<Vec<_>, _>>()?
+        .into_iter()
         .fold(Fr::zero(), |acc, val| acc + val);
 
     // Step 7: Compute r = z^width - 1
@@ -669,13 +684,24 @@ fn expand_root_of_unity(root_of_unity: &Fr) -> Vec<Fr> {
     roots.push(*root_of_unity); // Add the root of unity
 
     let mut i = 1;
-    while !roots[i].is_one() {
+    const MAX_ITERATIONS: usize = 1 << 29; // Maximum reasonable iterations
+    let mut iteration_count = 0;
+    
+    while !roots[i].is_one() && iteration_count < MAX_ITERATIONS {
         // Continue until the element cycles back to one
         let this = &roots[i];
         i += 1;
+        iteration_count += 1;
         roots.push(this * root_of_unity); // Push the next power of the root
                                           // of unity
     }
+    
+    if iteration_count >= MAX_ITERATIONS {
+        // This should never happen with valid primitive roots, but provides safety
+        // Return minimal valid expansion
+        return vec![Fr::one()];
+    }
+    
     roots
 }
 

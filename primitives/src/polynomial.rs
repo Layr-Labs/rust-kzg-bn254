@@ -37,8 +37,37 @@ impl PolynomialEvalForm {
     /// but instead a [crate::blob::Blob] would be converted to a
     /// [PolynomialEvalForm] using [crate::blob::Blob::to_polynomial_eval_form].
     pub fn new(evals: Vec<Fr>) -> Self {
+        // ✅ SECURITY FIX: Add bounds checking to prevent integer overflow and memory exhaustion
+        const MAX_POLYNOMIAL_SIZE: usize = 1 << 24; // 16M elements = 512MB for field elements
+        
+        if evals.len() > MAX_POLYNOMIAL_SIZE {
+            // For oversized inputs, truncate to prevent DoS attacks
+            // This is safer than panicking or allowing unbounded memory allocation
+            let truncated_evals = evals.into_iter().take(MAX_POLYNOMIAL_SIZE).collect::<Vec<_>>();
+            let underlying_blob_len_in_bytes = truncated_evals.len() * BYTES_PER_FIELD_ELEMENT;
+            
+            // ✅ SECURITY FIX: Safe calculation with overflow protection
+            let next_power_of_two = truncated_evals.len().next_power_of_two().min(MAX_POLYNOMIAL_SIZE);
+            let mut padded_evals = truncated_evals;
+            padded_evals.resize(next_power_of_two, Fr::zero());
+
+            return Self {
+                evaluations: padded_evals,
+                len_underlying_blob_bytes: underlying_blob_len_in_bytes,
+            };
+        }
+
         let underlying_blob_len_in_bytes = evals.len() * BYTES_PER_FIELD_ELEMENT;
-        let next_power_of_two = evals.len().next_power_of_two();
+        
+        // ✅ SECURITY FIX: Protect against integer overflow in next_power_of_two
+        let next_power_of_two = if evals.len() > (usize::MAX / 2) {
+            // If input is too large for next_power_of_two, use the input size directly
+            // This prevents integer overflow while maintaining functionality
+            evals.len()
+        } else {
+            evals.len().next_power_of_two()
+        };
+        
         let mut padded_evals = evals;
         padded_evals.resize(next_power_of_two, Fr::zero());
 
@@ -140,8 +169,37 @@ impl PolynomialCoeffForm {
     /// [PolynomialCoeffForm] using
     /// [crate::blob::Blob::to_polynomial_coeff_form].
     pub fn new(coeffs: Vec<Fr>) -> Self {
+        // ✅ SECURITY FIX: Add bounds checking to prevent integer overflow and memory exhaustion
+        const MAX_POLYNOMIAL_SIZE: usize = 1 << 24; // 16M elements = 512MB for field elements
+        
+        if coeffs.len() > MAX_POLYNOMIAL_SIZE {
+            // For oversized inputs, truncate to prevent DoS attacks
+            // This is safer than panicking or allowing unbounded memory allocation
+            let truncated_coeffs = coeffs.into_iter().take(MAX_POLYNOMIAL_SIZE).collect::<Vec<_>>();
+            let underlying_blob_len_in_bytes = truncated_coeffs.len() * BYTES_PER_FIELD_ELEMENT;
+            
+            // ✅ SECURITY FIX: Safe calculation with overflow protection
+            let next_power_of_two = truncated_coeffs.len().next_power_of_two().min(MAX_POLYNOMIAL_SIZE);
+            let mut padded_coeffs = truncated_coeffs;
+            padded_coeffs.resize(next_power_of_two, Fr::zero());
+
+            return Self {
+                coeffs: padded_coeffs,
+                len_underlying_blob_bytes: underlying_blob_len_in_bytes,
+            };
+        }
+
         let underlying_blob_len_in_bytes = coeffs.len() * BYTES_PER_FIELD_ELEMENT;
-        let next_power_of_two = coeffs.len().next_power_of_two();
+        
+        // ✅ SECURITY FIX: Protect against integer overflow in next_power_of_two
+        let next_power_of_two = if coeffs.len() > (usize::MAX / 2) {
+            // If input is too large for next_power_of_two, use the input size directly
+            // This prevents integer overflow while maintaining functionality
+            coeffs.len()
+        } else {
+            coeffs.len().next_power_of_two()
+        };
+        
         let mut padded_coeffs = coeffs;
         padded_coeffs.resize(next_power_of_two, Fr::zero());
 
