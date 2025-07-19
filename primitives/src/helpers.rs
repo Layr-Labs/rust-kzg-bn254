@@ -30,13 +30,17 @@ pub fn blob_to_polynomial(blob: &[u8]) -> Vec<Fr> {
 }
 
 pub fn set_bytes_canonical_manual(data: &[u8]) -> Fr {
+    if data.len() != 32 {
+        return Fr::zero();
+    }
+
     let mut arrays: [u64; 4] = Default::default(); // Initialize an array of four [u8; 8] arrays
 
     for (i, chunk) in data.chunks(8).enumerate() {
         arrays[i] = u64::from_be_bytes(chunk.try_into().expect("Slice with incorrect length"));
     }
     arrays.reverse();
-    Fr::from_bigint(BigInt::new(arrays)).unwrap()
+    Fr::from_bigint(BigInt::new(arrays)).expect("valid field element")
 }
 
 // Functions being used
@@ -239,23 +243,6 @@ pub fn is_zeroed(first_byte: u8, buf: Vec<u8>) -> bool {
     true
 }
 
-pub fn str_vec_to_fr_vec(input: Vec<&str>) -> Result<Vec<Fr>, &str> {
-    let mut output: Vec<Fr> = Vec::<Fr>::with_capacity(input.len());
-
-    for element in &input {
-        if *element == "-1" {
-            let mut test = Fr::one();
-            test.neg_in_place();
-            output.push(test);
-        } else {
-            let fr_data = Fr::from_str(element).expect("could not load string to Fr");
-            output.push(fr_data);
-        }
-    }
-
-    Ok(output)
-}
-
 pub fn lexicographically_largest(z: &Fq) -> bool {
     // This can be determined by checking to see if the element is
     // larger than (p - 1) // 2. If we subtract by ((p - 1) // 2) + 1
@@ -328,7 +315,9 @@ fn get_b_twist_curve_coeff() -> Fq2 {
 
     // this is bTwistCurveCoeff
     let mut twist_curve_coeff = Fq2::new(twist_c0, twist_c1);
-    twist_curve_coeff = *twist_curve_coeff.inverse_in_place().unwrap();
+    twist_curve_coeff = *twist_curve_coeff
+        .inverse_in_place()
+        .expect("inverse is required");
 
     twist_curve_coeff.c0 *= Fq::from(3);
     twist_curve_coeff.c1 *= Fq::from(3);
@@ -336,7 +325,7 @@ fn get_b_twist_curve_coeff() -> Fq2 {
 }
 
 pub fn is_on_curve_g1(g1: &G1Projective) -> bool {
-    let b_curve_coeff: Fq = Fq::from_str("3").unwrap();
+    let b_curve_coeff: Fq = Fq::from_str("3").expect("3 is a valid field element");
 
     let mut left = g1.y;
     left.square_in_place();
@@ -575,10 +564,15 @@ pub fn evaluate_polynomial_in_evaluation_form(
     let width = polynomial.len();
 
     if width == 0 {
-        return Err(KzgError::GenericError("Empty polynomial domain".to_string()));
+        return Err(KzgError::GenericError(
+            "Empty polynomial domain".to_string(),
+        ));
     }
-    if width > (1 << 28) {  // Max supported domain size
-        return Err(KzgError::GenericError("Polynomial domain too large".to_string()));
+    if width > (1 << 28) {
+        // Max supported domain size
+        return Err(KzgError::GenericError(
+            "Polynomial domain too large".to_string(),
+        ));
     }
 
     // Step 4: Compute inverse_width = 1 / width
@@ -604,13 +598,14 @@ pub fn evaluate_polynomial_in_evaluation_form(
         .map(|(f_i, &domain_i)| {
             let a = *f_i * domain_i;
             let b = *z - domain_i;
-            
+
             if b.is_zero() {
                 return Err(KzgError::GenericError(
-                    "Division by zero in barycentric evaluation: z equals domain element".to_string(),
+                    "Division by zero in barycentric evaluation: z equals domain element"
+                        .to_string(),
                 ));
             }
-            
+
             Ok(a / b)
         })
         .collect::<Result<Vec<_>, _>>()?
@@ -643,10 +638,24 @@ pub fn evaluate_polynomial_in_evaluation_form(
 /// - Calculates KZG operational parameters for commitment scheme
 /// ```
 pub fn calculate_roots_of_unity(length_of_data_after_padding: u64) -> Result<Vec<Fr>, KzgError> {
+    if length_of_data_after_padding == 0 {
+        return Err(KzgError::GenericError(
+            "Length of data after padding is 0".to_string(),
+        ));
+    }
+
+    if length_of_data_after_padding.div_ceil(BYTES_PER_FIELD_ELEMENT as u64)
+        > MAINNET_SRS_G1_SIZE as u64
+    {
+        return Err(KzgError::GenericError(
+            "the length of data after padding is not valid with respect to the SRS".to_string(),
+        ));
+    }
+
     // Calculate log2 of the next power of two of the length of data after padding
     let log2_of_evals = log2(
         length_of_data_after_padding
-            .div_ceil(32)
+            .div_ceil(BYTES_PER_FIELD_ELEMENT as u64)
             .next_power_of_two() as f64,
     )
     .to_u8()
@@ -655,13 +664,9 @@ pub fn calculate_roots_of_unity(length_of_data_after_padding: u64) -> Result<Vec
     })?;
 
     // Check if the length of data after padding is valid with respect to the SRS order
-    if length_of_data_after_padding
-        .div_ceil(BYTES_PER_FIELD_ELEMENT as u64)
-        .next_power_of_two()
-        > MAINNET_SRS_G1_SIZE as u64
-    {
+    if log2_of_evals as u64 > MAINNET_SRS_G1_SIZE as u64 {
         return Err(KzgError::SerializationError(
-            "the supplied encoding parameters are not valid with respect to the SRS.".to_string(),
+            "the length of data after padding is not valid with respect to the SRS".to_string(),
         ));
     }
 
@@ -684,24 +689,26 @@ fn expand_root_of_unity(root_of_unity: &Fr) -> Vec<Fr> {
     roots.push(*root_of_unity); // Add the root of unity
 
     let mut i = 1;
-    const MAX_ITERATIONS: usize = 1 << 29; // Maximum reasonable iterations
-    let mut iteration_count = 0;
-    
-    while !roots[i].is_one() && iteration_count < MAX_ITERATIONS {
+
+    // This is the maximum number of iterations to avoid infinite loop
+    // There is only need to support a max of MAINNET_SRS_G1_SIZE worth of data so
+    // the number of iterations is MAINNET_SRS_G1_SIZE + 1 (because the first element is 1)
+    let max_iterations: usize = MAINNET_SRS_G1_SIZE + 1;
+
+    while !roots[i].is_one() && i < max_iterations {
         // Continue until the element cycles back to one
         let this = &roots[i];
         i += 1;
-        iteration_count += 1;
         roots.push(this * root_of_unity); // Push the next power of the root
                                           // of unity
     }
-    
-    if iteration_count >= MAX_ITERATIONS {
+
+    if i >= max_iterations {
         // This should never happen with valid primitive roots, but provides safety
         // Return minimal valid expansion
         return vec![Fr::one()];
     }
-    
+
     roots
 }
 

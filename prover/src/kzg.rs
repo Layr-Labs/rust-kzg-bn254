@@ -252,6 +252,9 @@ impl KZG {
                 numerator = fi * omega_i;
                 denominator = z_fr - omega_i;
                 denominator *= z_fr;
+                if denominator.is_zero() {
+                    return;
+                }
                 temp = numerator.div(denominator);
                 quotient += temp;
             });

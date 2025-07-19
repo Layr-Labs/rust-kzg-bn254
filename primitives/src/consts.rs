@@ -51,6 +51,7 @@ pub const PRIMITIVE_ROOTS_OF_UNITY: [Fr; 29] = [
     MontFp!("19103219067921713944291392827692070036145651957329286315305642004821462161904"),
 ];
 
+// This is the G2 Tau for the EigenDA MAINNET SRS points.
 pub const G2_TAU: G2Affine = G2Affine::new_unchecked(
     Fq2::new(
         MontFp!("19394299006376106554626551996044114846855237028623244664226757033024550999552"),
@@ -62,5 +63,4 @@ pub const G2_TAU: G2Affine = G2Affine::new_unchecked(
     ),
 );
 
-// This is the G2 Tau for the EigenDA MAINNET SRS points.
 pub const MAINNET_SRS_G1_SIZE: usize = 131072;

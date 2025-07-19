@@ -38,7 +38,9 @@ pub fn verify_proof(
 
     // This must match the validation in batch verification for consistency
     if !helpers::is_on_curve_g2(&G2Projective::from(G2_TAU)) {
-        return Err(KzgError::NotOnCurveError("Invalid trusted setup: G2_TAU not on curve".to_string()));
+        return Err(KzgError::NotOnCurveError(
+            "Invalid trusted setup: G2_TAU not on curve".to_string(),
+        ));
     }
 
     // Get τ*G2 from the trusted setup
