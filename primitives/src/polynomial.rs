@@ -3,7 +3,11 @@ use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 use ark_std::Zero;
 
 use crate::consts::MAINNET_SRS_G1_SIZE;
-use crate::{consts::BYTES_PER_FIELD_ELEMENT, errors::{PolynomialError, KzgError}, helpers};
+use crate::{
+    consts::BYTES_PER_FIELD_ELEMENT,
+    errors::{KzgError, PolynomialError},
+    helpers,
+};
 
 extern crate alloc;
 use alloc::string::ToString;
@@ -40,7 +44,7 @@ impl PolynomialEvalForm {
     pub fn new(evals: Vec<Fr>) -> Result<Self, KzgError> {
         if evals.len() > MAINNET_SRS_G1_SIZE {
             return Err(KzgError::GenericError(
-                "Input size exceeds maximum polynomial size".to_string()
+                "Input size exceeds maximum polynomial size".to_string(),
             ));
         }
 
@@ -57,10 +61,13 @@ impl PolynomialEvalForm {
 
     /// Internal constructor that allows setting the blob length directly.
     /// Used for conversions between forms to preserve the original blob size.
-    fn new_with_blob_len(evals: Vec<Fr>, len_underlying_blob_bytes: usize) -> Result<Self, KzgError> {
+    fn new_with_blob_len(
+        evals: Vec<Fr>,
+        len_underlying_blob_bytes: usize,
+    ) -> Result<Self, KzgError> {
         if evals.len() > MAINNET_SRS_G1_SIZE {
             return Err(KzgError::GenericError(
-                "Input size exceeds maximum polynomial size".to_string()
+                "Input size exceeds maximum polynomial size".to_string(),
             ));
         }
 
@@ -169,7 +176,7 @@ impl PolynomialCoeffForm {
     pub fn new(coeffs: Vec<Fr>) -> Result<Self, KzgError> {
         if coeffs.len() > MAINNET_SRS_G1_SIZE {
             return Err(KzgError::GenericError(
-                "Input size exceeds maximum polynomial size".to_string()
+                "Input size exceeds maximum polynomial size".to_string(),
             ));
         }
 
@@ -186,10 +193,13 @@ impl PolynomialCoeffForm {
 
     /// Internal constructor that allows setting the blob length directly.
     /// Used for conversions between forms to preserve the original blob size.
-    fn new_with_blob_len(coeffs: Vec<Fr>, len_underlying_blob_bytes: usize) -> Result<Self, KzgError> {
+    fn new_with_blob_len(
+        coeffs: Vec<Fr>,
+        len_underlying_blob_bytes: usize,
+    ) -> Result<Self, KzgError> {
         if coeffs.len() > MAINNET_SRS_G1_SIZE {
             return Err(KzgError::GenericError(
-                "Input size exceeds maximum polynomial size".to_string()
+                "Input size exceeds maximum polynomial size".to_string(),
             ));
         }
 

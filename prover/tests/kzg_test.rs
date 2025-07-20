@@ -5,7 +5,7 @@ mod tests {
     use lazy_static::lazy_static;
     use rand::Rng;
     use rust_kzg_bn254_primitives::{
-        blob::Blob, consts::MAINNET_SRS_G1_SIZE, errors::KzgError, polynomial::PolynomialCoeffForm
+        blob::Blob, consts::MAINNET_SRS_G1_SIZE, errors::KzgError, polynomial::PolynomialCoeffForm,
     };
     use rust_kzg_bn254_prover::{kzg::KZG, srs::SRS};
 

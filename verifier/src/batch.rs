@@ -60,7 +60,10 @@ pub fn verify_blob_kzg_proof_batch(
     // This length value is needed for computing the challenge
     let blobs_as_field_elements_length: Vec<u64> = blobs
         .iter()
-        .map(|blob| blob.to_polynomial_eval_form().map(|poly| poly.evaluations().len() as u64))
+        .map(|blob| {
+            blob.to_polynomial_eval_form()
+                .map(|poly| poly.evaluations().len() as u64)
+        })
         .collect::<Result<Vec<_>, _>>()?;
 
     // Perform the actual batch verification using the computed values:
