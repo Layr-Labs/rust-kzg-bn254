@@ -29,7 +29,7 @@ mod tests {
         let mut kzg = KZG_INSTANCE.clone();
 
         let input = Blob::from_raw_data(GETTYSBURG_ADDRESS_BYTES);
-        let input_poly = input.to_polynomial_eval_form();
+        let input_poly = input.to_polynomial_eval_form().unwrap();
 
         for index in 0..input_poly.len() - 1 {
             kzg.calculate_and_store_roots_of_unity(input.len().try_into().unwrap())
@@ -88,7 +88,7 @@ mod tests {
             println!("generating blob of length is {}", blob_length);
 
             let input = Blob::from_raw_data(&random_blob);
-            let input_poly = input.to_polynomial_eval_form();
+            let input_poly = input.to_polynomial_eval_form().unwrap();
             kzg.calculate_and_store_roots_of_unity(input.len().try_into().unwrap())
                 .unwrap();
 
@@ -144,7 +144,7 @@ mod tests {
                 .collect();
 
             let input = Blob::from_raw_data(&random_blob);
-            let input_poly = input.to_polynomial_eval_form();
+            let input_poly = input.to_polynomial_eval_form().unwrap();
             kzg.calculate_and_store_roots_of_unity(input.len().try_into().unwrap())
                 .unwrap();
 
@@ -197,7 +197,7 @@ mod tests {
         kzg.calculate_and_store_roots_of_unity(input1.len().try_into().unwrap())
             .unwrap();
 
-        let input_poly1 = input1.to_polynomial_eval_form();
+        let input_poly1 = input1.to_polynomial_eval_form().unwrap();
 
         let commitment1 = kzg
             .commit_eval_form(&input_poly1.clone(), &SRS_INSTANCE)
@@ -215,7 +215,7 @@ mod tests {
         );
         kzg2.calculate_and_store_roots_of_unity(input2.len().try_into().unwrap())
             .unwrap();
-        let input_poly2 = input2.to_polynomial_eval_form();
+        let input_poly2 = input2.to_polynomial_eval_form().unwrap();
 
         let commitment2 = kzg2.commit_eval_form(&input_poly2, &SRS_INSTANCE).unwrap();
 
@@ -244,7 +244,7 @@ mod tests {
 
         // First blob and proof - regular case
         let input1 = Blob::from_raw_data(GETTYSBURG_ADDRESS_BYTES);
-        let input_poly1 = input1.to_polynomial_eval_form();
+        let input_poly1 = input1.to_polynomial_eval_form().unwrap();
         let commitment1 = kzg.commit_eval_form(&input_poly1, &SRS_INSTANCE).unwrap();
         let proof_1 = kzg
             .compute_blob_proof(&input1, &commitment1, &SRS_INSTANCE)
@@ -264,7 +264,7 @@ mod tests {
 
         // Also test mixed case - one valid proof, one at infinity
         let input2 = Blob::from_raw_data(b"second input");
-        let input_poly2 = input2.to_polynomial_eval_form();
+        let input_poly2 = input2.to_polynomial_eval_form().unwrap();
         let commitment2 = kzg.commit_eval_form(&input_poly2, &SRS_INSTANCE).unwrap();
 
         let blobs_mixed = vec![input1, input2];
@@ -284,7 +284,7 @@ mod tests {
 
         // Create valid inputs first
         let input = Blob::from_raw_data(GETTYSBURG_ADDRESS_BYTES);
-        let input_poly = input.to_polynomial_eval_form();
+        let input_poly = input.to_polynomial_eval_form().unwrap();
         let valid_commitment = kzg.commit_eval_form(&input_poly, &SRS_INSTANCE).unwrap();
         let valid_proof = kzg
             .compute_blob_proof(&input, &valid_commitment, &SRS_INSTANCE)

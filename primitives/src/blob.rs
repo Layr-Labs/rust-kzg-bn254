@@ -74,13 +74,13 @@ impl Blob {
     }
 
     /// Convert the blob data to a [PolynomialEvalForm].
-    pub fn to_polynomial_eval_form(&self) -> PolynomialEvalForm {
+    pub fn to_polynomial_eval_form(&self) -> Result<PolynomialEvalForm, KzgError> {
         let fr_vec = helpers::to_fr_array(&self.blob_data);
         PolynomialEvalForm::new(fr_vec)
     }
 
     /// Convert the blob data to a [PolynomialCoeffForm].
-    pub fn to_polynomial_coeff_form(&self) -> PolynomialCoeffForm {
+    pub fn to_polynomial_coeff_form(&self) -> Result<PolynomialCoeffForm, KzgError> {
         let fr_vec = helpers::to_fr_array(&self.blob_data);
         PolynomialCoeffForm::new(fr_vec)
     }

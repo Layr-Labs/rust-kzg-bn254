@@ -489,7 +489,7 @@ pub fn pairings_verify(a1: G1Affine, a2: G2Affine, b1: G1Affine, b2: G2Affine) -
 pub fn compute_challenge(blob: &Blob, commitment: &G1Affine) -> Result<Fr, KzgError> {
     // Convert the blob to a polynomial in evaluation form
     // This is needed to process the blob data for the challenge
-    let blob_poly = blob.to_polynomial_eval_form();
+    let blob_poly = blob.to_polynomial_eval_form()?;
 
     // Calculate total size needed for the challenge input buffer:
     // - Length of domain separator
@@ -731,7 +731,7 @@ pub fn compute_challenges_and_evaluate_polynomial(
     for i in 0..blobs.len() {
         // Step 1: Convert blob to polynomial form
         // This is necessary because we need to evaluate the polynomial
-        let polynomial = blobs[i].to_polynomial_eval_form();
+        let polynomial = blobs[i].to_polynomial_eval_form()?;
 
         // Step 2: Generate Fiat-Shamir challenge
         // This creates a "random" evaluation point based on the blob and commitment

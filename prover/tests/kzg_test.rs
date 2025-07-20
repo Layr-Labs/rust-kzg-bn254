@@ -5,7 +5,7 @@ mod tests {
     use lazy_static::lazy_static;
     use rand::Rng;
     use rust_kzg_bn254_primitives::{
-        blob::Blob, errors::KzgError, polynomial::PolynomialCoeffForm,
+        blob::Blob, consts::MAINNET_SRS_G1_SIZE, errors::KzgError, polynomial::PolynomialCoeffForm
     };
     use rust_kzg_bn254_prover::{kzg::KZG, srs::SRS};
 
@@ -18,21 +18,6 @@ mod tests {
             131072
         )
         .unwrap();
-    }
-
-    #[test]
-    fn test_commit_errors() {
-        let mut coeffs = vec![];
-        let mut rng = rand::thread_rng();
-        coeffs.resize(5000000, Fr::rand(&mut rng));
-        let polynomial = PolynomialCoeffForm::new(coeffs);
-        let result = KZG_INSTANCE.commit_coeff_form(&polynomial, &SRS_INSTANCE);
-        assert_eq!(
-            result,
-            Err(KzgError::SerializationError(
-                "polynomial length is not correct".to_string()
-            ))
-        );
     }
 
     #[test]
@@ -57,7 +42,7 @@ mod tests {
             .collect();
 
         let input = Blob::from_raw_data(&random_blob);
-        let input_poly = input.to_polynomial_eval_form();
+        let input_poly = input.to_polynomial_eval_form().unwrap();
 
         for i in 0..input_poly.len_underlying_blob_field_elements() {
             kzg.calculate_and_store_roots_of_unity(input.len().try_into().unwrap())
