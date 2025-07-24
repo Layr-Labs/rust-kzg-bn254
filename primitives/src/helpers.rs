@@ -489,6 +489,12 @@ pub fn pairings_verify(a1: G1Affine, a2: G2Affine, b1: G1Affine, b2: G2Affine) -
 /// * `Ok(Fr)` - The resulting field element challenge.
 /// * `Err(KzgError)` - If any step fails.
 pub fn compute_challenge(blob: &Blob, commitment: &G1Affine) -> Result<Fr, KzgError> {
+
+    // check commitment is on curve, subgroup and not infinity
+    if !commitment.is_on_curve() || !commitment.is_in_correct_subgroup_assuming_on_curve() || commitment.is_zero() {
+        return Err(KzgError::GenericError("Commitment is not valid".to_string()));
+    }
+
     // Convert the blob to a polynomial in evaluation form
     // This is needed to process the blob data for the challenge
     let blob_poly = blob.to_polynomial_eval_form()?;
