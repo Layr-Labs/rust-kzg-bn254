@@ -13,28 +13,13 @@ pub fn verify_proof(
     value_fr: Fr,
     z_fr: Fr,
 ) -> Result<bool, KzgError> {
-    // Check for identity points (must match batch verification logic)
-    if commitment == G1Affine::identity() {
-        return Err(KzgError::NotOnCurveError(
-            "commitment cannot be point at infinity".to_string(),
-        ));
-    }
+    // Validate commitment point using helper function
+    // This checks: not identity, on curve, correct subgroup, not generator
+    helpers::validate_g1_point(&commitment)?;
 
-    if proof == G1Affine::identity() {
-        return Err(KzgError::NotOnCurveError(
-            "proof cannot be point at infinity".to_string(),
-        ));
-    }
-
-    if !commitment.is_on_curve() || !commitment.is_in_correct_subgroup_assuming_on_curve() {
-        return Err(KzgError::NotOnCurveError(
-            "commitment not on curve".to_string(),
-        ));
-    }
-
-    if !proof.is_on_curve() || !proof.is_in_correct_subgroup_assuming_on_curve() {
-        return Err(KzgError::NotOnCurveError("proof not on curve".to_string()));
-    }
+    // Validate proof point using helper function
+    // This checks: not identity, on curve, correct subgroup, not generator
+    helpers::validate_g1_point(&proof)?;
 
     // This must match the validation in batch verification for consistency
     if !helpers::is_on_curve_g2(&G2Projective::from(G2_TAU)) {
@@ -56,7 +41,6 @@ pub fn verify_proof(
     // If the claim is valid, this equals H(X)(X - z) in the polynomial equation
     let commit_minus_value = (commitment - value_g1).into_affine();
 
-    // ✅ Proper fix - validate intermediate results
     if commit_minus_value == G1Affine::identity() {
         return Err(KzgError::GenericError(
             "Invalid commitment-value relationship".to_string(),
@@ -72,7 +56,6 @@ pub fn verify_proof(
     // τ is the secret from the trusted setup representing the variable X
     let x_minus_z = (g2_tau - z_g2).into_affine();
 
-    // ✅ Proper fix - validate intermediate results
     if x_minus_z == G2Affine::identity() {
         return Err(KzgError::GenericError(
             "Evaluation point equals trusted setup secret".to_string(),
@@ -98,28 +81,11 @@ pub fn verify_blob_kzg_proof(
     commitment: &G1Affine,
     proof: &G1Affine,
 ) -> Result<bool, KzgError> {
-    // Check for identity points (must match individual verification logic)
-    if *commitment == G1Affine::identity() {
-        return Err(KzgError::NotOnCurveError(
-            "commitment cannot be point at infinity".to_string(),
-        ));
-    }
+    // This checks: not identity, on curve, correct subgroup, not generator
+    helpers::validate_g1_point(commitment)?;
 
-    if *proof == G1Affine::identity() {
-        return Err(KzgError::NotOnCurveError(
-            "proof cannot be point at infinity".to_string(),
-        ));
-    }
-
-    if !commitment.is_on_curve() || !commitment.is_in_correct_subgroup_assuming_on_curve() {
-        return Err(KzgError::NotOnCurveError(
-            "commitment not on curve".to_string(),
-        ));
-    }
-
-    if !proof.is_on_curve() || !proof.is_in_correct_subgroup_assuming_on_curve() {
-        return Err(KzgError::NotOnCurveError("proof not on curve".to_string()));
-    }
+    // This checks: not identity, on curve, correct subgroup, not generator
+    helpers::validate_g1_point(proof)?;
 
     // Convert blob to polynomial
     let polynomial = blob.to_polynomial_eval_form()?;

@@ -157,7 +157,7 @@ pub fn to_fr_array(data: &[u8]) -> Vec<Fr> {
     for (i, element) in eles.iter_mut().enumerate().take(num_ele) {
         let start = i * BYTES_PER_FIELD_ELEMENT;
         let end = (i + 1) * BYTES_PER_FIELD_ELEMENT;
-        
+
         if end > data.len() {
             // Handle the last chunk that may be incomplete
             let mut padded = vec![0u8; BYTES_PER_FIELD_ELEMENT];
@@ -489,10 +489,14 @@ pub fn pairings_verify(a1: G1Affine, a2: G2Affine, b1: G1Affine, b2: G2Affine) -
 /// * `Ok(Fr)` - The resulting field element challenge.
 /// * `Err(KzgError)` - If any step fails.
 pub fn compute_challenge(blob: &Blob, commitment: &G1Affine) -> Result<Fr, KzgError> {
-
     // check commitment is on curve, subgroup and not infinity
-    if !commitment.is_on_curve() || !commitment.is_in_correct_subgroup_assuming_on_curve() || commitment.is_zero() {
-        return Err(KzgError::GenericError("Commitment is not valid".to_string()));
+    if !commitment.is_on_curve()
+        || !commitment.is_in_correct_subgroup_assuming_on_curve()
+        || commitment.is_zero()
+    {
+        return Err(KzgError::GenericError(
+            "Commitment is not valid".to_string(),
+        ));
     }
 
     // Convert the blob to a polynomial in evaluation form
@@ -810,6 +814,125 @@ pub fn validate_blob_data_as_canonical_field_elements(data: &[u8]) -> Result<(),
     Ok(())
 }
 
+/// Validates that a G1 point meets all cryptographic requirements.
+///
+/// This function checks the following conditions:
+/// 1. Point is not the identity (point at infinity)
+/// 2. Point is on the BN254 elliptic curve
+/// 3. Point is in the correct subgroup
+/// 4. Point is not the generator point
+///
+/// # Arguments
+/// * `point` - Reference to the G1Affine point to validate
+///
+/// # Returns
+/// * `Ok(())` if the point passes all validation checks
+/// * `Err(KzgError::NotOnCurveError)` with specific error message if validation fails
+///
+/// # Example
+/// ```
+/// use ark_bn254::G1Affine;
+/// use ark_ff::UniformRand;
+/// use ark_ec::AffineRepr;
+/// use rust_kzg_bn254_primitives::helpers::validate_g1_point;
+///
+/// let mut rng = ark_std::test_rng();
+/// let valid_point = G1Affine::rand(&mut rng);
+/// assert!(validate_g1_point(&valid_point).is_ok());
+///
+/// let identity_point = G1Affine::identity();
+/// assert!(validate_g1_point(&identity_point).is_err());
+///
+/// let generator_point = G1Affine::generator();
+/// assert!(validate_g1_point(&generator_point).is_err());
+/// ```
+pub fn validate_g1_point(point: &G1Affine) -> Result<(), KzgError> {
+    if point.is_zero() {
+        return Err(KzgError::NotOnCurveError(
+            "G1 point cannot be point at infinity".to_string(),
+        ));
+    }
+
+    if !point.is_on_curve() {
+        return Err(KzgError::NotOnCurveError(
+            "G1 point not on curve".to_string(),
+        ));
+    }
+
+    if !point.is_in_correct_subgroup_assuming_on_curve() {
+        return Err(KzgError::NotOnCurveError(
+            "G1 point not in correct subgroup".to_string(),
+        ));
+    }
+
+    if *point == G1Affine::generator() {
+        return Err(KzgError::NotOnCurveError(
+            "G1 point cannot be the generator point".to_string(),
+        ));
+    }
+
+    Ok(())
+}
+
+/// Validates that a G2 point meets all cryptographic requirements.
+///
+/// This function checks the following conditions:
+/// 1. Point is not the identity (point at infinity)
+/// 2. Point is on the BN254 elliptic curve (twisted curve for G2)
+/// 3. Point is in the correct subgroup
+/// 4. Point is not the generator point
+///
+/// # Arguments
+/// * `point` - Reference to the G2Affine point to validate
+///
+/// # Returns
+/// * `Ok(())` if the point passes all validation checks
+/// * `Err(KzgError::NotOnCurveError)` with specific error message if validation fails
+///
+/// # Example
+/// ```
+/// use ark_bn254::G2Affine;
+/// use ark_ff::UniformRand;
+/// use ark_ec::AffineRepr;
+/// use rust_kzg_bn254_primitives::helpers::validate_g2_point;
+///
+/// let mut rng = ark_std::test_rng();
+/// let valid_point = G2Affine::rand(&mut rng);
+/// assert!(validate_g2_point(&valid_point).is_ok());
+///
+/// let identity_point = G2Affine::identity();
+/// assert!(validate_g2_point(&identity_point).is_err());
+///
+/// let generator_point = G2Affine::generator();
+/// assert!(validate_g2_point(&generator_point).is_err());
+/// ```
+pub fn validate_g2_point(point: &G2Affine) -> Result<(), KzgError> {
+    if point.is_zero() {
+        return Err(KzgError::NotOnCurveError(
+            "G2 point cannot be point at infinity".to_string(),
+        ));
+    }
+
+    if !point.is_on_curve() {
+        return Err(KzgError::NotOnCurveError(
+            "G2 point not on curve".to_string(),
+        ));
+    }
+
+    if !point.is_in_correct_subgroup_assuming_on_curve() {
+        return Err(KzgError::NotOnCurveError(
+            "G2 point not in correct subgroup".to_string(),
+        ));
+    }
+
+    if *point == G2Affine::generator() {
+        return Err(KzgError::NotOnCurveError(
+            "G2 point cannot be the generator point".to_string(),
+        ));
+    }
+
+    Ok(())
+}
 
 // Internally pads the input data by prepending a 0x00 to each chunk of 31 bytes. This guarantees that
 // the data will be a valid field element for the bn254 curve

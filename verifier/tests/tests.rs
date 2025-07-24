@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use ark_bn254::{Fq, Fr, G1Affine};
+    use ark_bn254::{Fq, G1Affine};
     use ark_ec::{AffineRepr, CurveGroup};
     use ark_ff::UniformRand;
     use lazy_static::lazy_static;
@@ -348,12 +348,14 @@ mod tests {
     #[test]
     fn test_individual_verify_proof_with_identity_points() {
         use ark_bn254::{Fr, G1Affine};
-        use ark_ff::One;
+        use ark_ff::{One, UniformRand};
         use rust_kzg_bn254_verifier::verify::verify_proof;
+
+        let mut rng = ark_std::test_rng();
 
         // Test with identity commitment
         let identity_commitment = G1Affine::identity();
-        let valid_proof = G1Affine::generator();
+        let valid_proof = G1Affine::rand(&mut rng); // Use random valid point instead of generator
         let value = Fr::one();
         let z = Fr::one();
 
@@ -361,7 +363,7 @@ mod tests {
         assert!(result.is_err(), "Should reject identity commitment");
 
         // Test with identity proof
-        let valid_commitment = G1Affine::generator();
+        let valid_commitment = G1Affine::rand(&mut rng); // Use random valid point instead of generator
         let identity_proof = G1Affine::identity();
 
         let result = verify_proof(valid_commitment, identity_proof, value, z);
@@ -374,8 +376,7 @@ mod tests {
 
     #[test]
     fn test_verify_proof_intermediate_point_validation() {
-        use ark_bn254::{Fr, G1Affine, G2Affine};
-        use ark_ff::{One, Zero};
+        use ark_bn254::{Fr, G1Affine};
         use rust_kzg_bn254_verifier::verify::verify_proof;
 
         // Test Case 1: commit_minus_value becomes identity
@@ -434,14 +435,16 @@ mod tests {
     #[test]
     fn test_verify_proof_zero_commitment_edge_case() {
         use ark_bn254::{Fr, G1Affine};
-        use ark_ff::Zero;
+        use ark_ff::{UniformRand, Zero};
         use rust_kzg_bn254_verifier::verify::verify_proof;
+
+        let mut rng = ark_std::test_rng();
 
         // Edge case: commitment is identity, value is zero
         // This would make commit_minus_value = identity - zero*G1 = identity - identity = identity
         let zero_commitment = G1Affine::identity();
         let zero_value = Fr::zero();
-        let valid_proof = G1Affine::generator();
+        let valid_proof = G1Affine::rand(&mut rng); // Use random valid point instead of generator
         let z_fr = Fr::from(1u64);
 
         let result = verify_proof(zero_commitment, valid_proof, zero_value, z_fr);
@@ -467,7 +470,7 @@ mod tests {
     #[test]
     fn test_verify_proof_edge_cases_with_valid_inputs() {
         use ark_bn254::{Fr, G1Affine};
-        use ark_ff::{One, UniformRand};
+        use ark_ff::UniformRand;
         use rand::thread_rng;
         use rust_kzg_bn254_verifier::verify::verify_proof;
 
@@ -477,7 +480,6 @@ mod tests {
         for _ in 0..10 {
             let commitment = (G1Affine::generator() * Fr::rand(&mut rng)).into_affine();
             let proof = (G1Affine::generator() * Fr::rand(&mut rng)).into_affine();
-            let value_fr = Fr::rand(&mut rng);
             let z_fr = Fr::rand(&mut rng);
 
             // Make sure value_fr doesn't accidentally equal the commitment scalar
@@ -503,8 +505,8 @@ mod tests {
 
     #[test]
     fn test_verify_blob_kzg_proof_intermediate_validation_coverage() {
-        use ark_bn254::{Fr, G1Affine};
-        use ark_ff::One;
+        use ark_bn254::G1Affine;
+        use ark_ff::UniformRand;
         use rust_kzg_bn254_primitives::blob::Blob;
         use rust_kzg_bn254_verifier::verify::verify_blob_kzg_proof;
 
@@ -515,8 +517,9 @@ mod tests {
         // Create a scenario that might trigger intermediate validation
         // We can't easily craft the exact edge case since it depends on polynomial evaluation
         // But we can test that the function properly handles edge cases
-        let commitment = G1Affine::generator();
-        let proof = G1Affine::generator();
+        let mut rng = ark_std::test_rng();
+        let commitment = G1Affine::rand(&mut rng); // Use random valid point instead of generator
+        let proof = G1Affine::rand(&mut rng); // Use random valid point instead of generator
 
         let result = verify_blob_kzg_proof(&blob, &commitment, &proof);
 

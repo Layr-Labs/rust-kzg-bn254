@@ -4,18 +4,328 @@ use std::{
 };
 
 use ark_bn254::{Fq, Fq2, Fr, G1Affine, G1Projective, G2Affine, G2Projective};
-use ark_ff::{PrimeField, UniformRand};
+use ark_ec::AffineRepr;
+use ark_ff::{Field, PrimeField, UniformRand};
 use ark_std::{str::FromStr, One};
 use rust_kzg_bn254_primitives::{
-    consts::{BYTES_PER_FIELD_ELEMENT, PRIMITIVE_ROOTS_OF_UNITY, SIZE_OF_G1_AFFINE_COMPRESSED},
+    consts::{
+        BYTES_PER_FIELD_ELEMENT, MAINNET_SRS_G1_SIZE, PRIMITIVE_ROOTS_OF_UNITY,
+        SIZE_OF_G1_AFFINE_COMPRESSED,
+    },
+    errors::KzgError,
     helpers::{
-        blob_to_polynomial, get_num_element, is_on_curve_g1, is_on_curve_g2, is_zeroed,
-        pad_payload, remove_internal_padding, set_bytes_canonical, set_bytes_canonical_manual,
-        to_byte_array, to_fr_array,
+        blob_to_polynomial, calculate_roots_of_unity, get_num_element, is_on_curve_g1,
+        is_on_curve_g2, is_zeroed, pad_payload, remove_internal_padding, set_bytes_canonical,
+        set_bytes_canonical_manual, to_byte_array, to_fr_array, validate_g1_point,
+        validate_g2_point,
     },
 };
 
 const GETTYSBURG_ADDRESS_BYTES: &[u8] = "Fourscore and seven years ago our fathers brought forth, on this continent, a new nation, conceived in liberty, and dedicated to the proposition that all men are created equal. Now we are engaged in a great civil war, testing whether that nation, or any nation so conceived, and so dedicated, can long endure. We are met on a great battle-field of that war. We have come to dedicate a portion of that field, as a final resting-place for those who here gave their lives, that that nation might live. It is altogether fitting and proper that we should do this. But, in a larger sense, we cannot dedicate, we cannot consecrate—we cannot hallow—this ground. The brave men, living and dead, who struggled here, have consecrated it far above our poor power to add or detract. The world will little note, nor long remember what we say here, but it can never forget what they did here. It is for us the living, rather, to be dedicated here to the unfinished work which they who fought here have thus far so nobly advanced. It is rather for us to be here dedicated to the great task remaining before us—that from these honored dead we take increased devotion to that cause for which they here gave the last full measure of devotion—that we here highly resolve that these dead shall not have died in vain—that this nation, under God, shall have a new birth of freedom, and that government of the people, by the people, for the people, shall not perish from the earth.".as_bytes();
+
+#[test]
+fn test_calculate_roots_of_unity_error_zero_length() {
+    // Test error case: zero length input
+    let result = calculate_roots_of_unity(0);
+    assert!(result.is_err(), "Zero length should return error");
+
+    match result.unwrap_err() {
+        KzgError::GenericError(msg) => {
+            assert_eq!(
+                msg, "Length of data after padding is 0",
+                "Should return correct error message"
+            );
+        },
+        _ => panic!("Should return GenericError for zero length"),
+    }
+}
+
+#[test]
+fn test_calculate_roots_of_unity_error_oversized_input() {
+    // Test error case: input too large for SRS
+    // MAINNET_SRS_G1_SIZE is 131072, so we need more than that in field elements
+    let oversized_length = (MAINNET_SRS_G1_SIZE as u64 + 1) * BYTES_PER_FIELD_ELEMENT as u64;
+
+    let result = calculate_roots_of_unity(oversized_length);
+    assert!(result.is_err(), "Oversized input should return error");
+
+    match result.unwrap_err() {
+        KzgError::GenericError(msg) => {
+            assert_eq!(
+                msg, "the length of data after padding is not valid with respect to the SRS",
+                "Should return correct error message for oversized input"
+            );
+        },
+        _ => panic!("Should return GenericError for oversized input"),
+    }
+}
+
+#[test]
+fn test_calculate_roots_of_unity_basic_functionality() {
+    // Test basic functionality with small valid inputs
+
+    // Test with 32 bytes (1 field element) - should give 1 root
+    let result_32 = calculate_roots_of_unity(32);
+    assert!(result_32.is_ok(), "32 bytes should succeed");
+    let roots_32 = result_32.unwrap();
+    assert_eq!(roots_32.len(), 1, "32 bytes should give 1 root");
+    assert_eq!(
+        roots_32[0],
+        Fr::one(),
+        "First root should be identity element"
+    );
+
+    // Test with 64 bytes (2 field elements) - should give 2 roots
+    let result_64 = calculate_roots_of_unity(64);
+    assert!(result_64.is_ok(), "64 bytes should succeed");
+    let roots_64 = result_64.unwrap();
+    assert_eq!(roots_64.len(), 2, "64 bytes should give 2 roots");
+
+    // Test with 96 bytes (3 field elements, next power of 2 is 4) - should give 4 roots
+    let result_96 = calculate_roots_of_unity(96);
+    assert!(result_96.is_ok(), "96 bytes should succeed");
+    let roots_96 = result_96.unwrap();
+    assert_eq!(roots_96.len(), 4, "96 bytes should give 4 roots");
+    assert_eq!(
+        roots_96[0],
+        Fr::one(),
+        "First root should be identity element"
+    );
+}
+
+#[test]
+fn test_calculate_roots_of_unity_mathematical_properties() {
+    // Test mathematical properties of roots of unity
+
+    // Test with input that gives us 4 roots
+    let length = 3 * BYTES_PER_FIELD_ELEMENT as u64; // 3 field elements -> next power of 2 is 4
+    let result = calculate_roots_of_unity(length);
+    assert!(result.is_ok(), "Should succeed for valid input");
+
+    let roots = result.unwrap();
+    assert_eq!(roots.len(), 4, "Should have 4 roots");
+
+    // First root should be 1 (identity)
+    assert_eq!(roots[0], Fr::one(), "First root should be identity");
+
+    // Test that these are actually 4th roots of unity
+    // For 4th roots of unity, each root^4 should equal 1
+    for (i, root) in roots.iter().enumerate() {
+        let fourth_power = root.pow([4u64]);
+        assert_eq!(
+            fourth_power,
+            Fr::one(),
+            "Root {} raised to the 4th power should equal 1",
+            i
+        );
+    }
+
+    // Test with larger case - 8 roots
+    let length_8 = 5 * BYTES_PER_FIELD_ELEMENT as u64; // 5 field elements -> next power of 2 is 8
+    let result_8 = calculate_roots_of_unity(length_8);
+    assert!(result_8.is_ok(), "Should succeed for 8-root case");
+
+    let roots_8 = result_8.unwrap();
+    assert_eq!(roots_8.len(), 8, "Should have 8 roots");
+
+    // For 8th roots of unity, each root^8 should equal 1
+    for (i, root) in roots_8.iter().enumerate() {
+        let eighth_power = root.pow([8u64]);
+        assert_eq!(
+            eighth_power,
+            Fr::one(),
+            "Root {} raised to the 8th power should equal 1",
+            i
+        );
+    }
+}
+
+#[test]
+fn test_calculate_roots_of_unity_powers_of_two() {
+    // Test with various powers of 2 to ensure correct behavior
+
+    let test_cases = [
+        (BYTES_PER_FIELD_ELEMENT as u64, 1), // 1 field element -> 1 root
+        (2 * BYTES_PER_FIELD_ELEMENT as u64, 2), // 2 field elements -> 2 roots
+        (4 * BYTES_PER_FIELD_ELEMENT as u64, 4), // 4 field elements -> 4 roots
+        (8 * BYTES_PER_FIELD_ELEMENT as u64, 8), // 8 field elements -> 8 roots
+        (16 * BYTES_PER_FIELD_ELEMENT as u64, 16), // 16 field elements -> 16 roots
+        (32 * BYTES_PER_FIELD_ELEMENT as u64, 32), // 32 field elements -> 32 roots
+    ];
+
+    for (input_length, expected_root_count) in test_cases.iter() {
+        let result = calculate_roots_of_unity(*input_length);
+        assert!(
+            result.is_ok(),
+            "Should succeed for input length {}",
+            input_length
+        );
+
+        let roots = result.unwrap();
+        assert_eq!(
+            roots.len(),
+            *expected_root_count,
+            "Input length {} should give {} roots",
+            input_length,
+            expected_root_count
+        );
+
+        // First root should always be 1
+        assert_eq!(
+            roots[0],
+            Fr::one(),
+            "First root should be identity for length {}",
+            input_length
+        );
+
+        // All roots should be distinct
+        for i in 0..roots.len() {
+            for j in i + 1..roots.len() {
+                assert_ne!(
+                    roots[i], roots[j],
+                    "Roots {} and {} should be distinct for length {}",
+                    i, j, input_length
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn test_calculate_roots_of_unity_boundary_conditions() {
+    // Test boundary conditions near the size limits
+
+    // Test with 1 byte (smallest possible non-zero input)
+    let result_1 = calculate_roots_of_unity(1);
+    assert!(result_1.is_ok(), "1 byte should succeed");
+    let roots_1 = result_1.unwrap();
+    assert_eq!(roots_1.len(), 1, "1 byte should give 1 root");
+
+    // Test with maximum valid size (just under the limit)
+    let max_valid_length = MAINNET_SRS_G1_SIZE as u64 * BYTES_PER_FIELD_ELEMENT as u64;
+    let result_max = calculate_roots_of_unity(max_valid_length);
+    // This might succeed or fail depending on the exact calculation, but shouldn't panic
+    match result_max {
+        Ok(roots) => {
+            assert!(!roots.is_empty(), "Should have at least one root");
+            assert_eq!(roots[0], Fr::one(), "First root should be identity");
+        },
+        Err(_) => {
+            // It's also acceptable if this fails due to size constraints
+        },
+    }
+
+    // Test edge case: exactly at field element boundary
+    let field_element_boundary = BYTES_PER_FIELD_ELEMENT as u64;
+    let result_boundary = calculate_roots_of_unity(field_element_boundary);
+    assert!(
+        result_boundary.is_ok(),
+        "Field element boundary should succeed"
+    );
+}
+
+#[test]
+fn test_calculate_roots_of_unity_consistency() {
+    // Test consistency - same input should always give same output
+
+    let test_length = 100; // Arbitrary test length
+
+    let result1 = calculate_roots_of_unity(test_length);
+    let result2 = calculate_roots_of_unity(test_length);
+    let result3 = calculate_roots_of_unity(test_length);
+
+    assert!(
+        result1.is_ok() && result2.is_ok() && result3.is_ok(),
+        "All calls should succeed"
+    );
+
+    let roots1 = result1.unwrap();
+    let roots2 = result2.unwrap();
+    let roots3 = result3.unwrap();
+
+    assert_eq!(roots1, roots2, "Results should be consistent");
+    assert_eq!(roots2, roots3, "Results should be consistent");
+}
+
+#[test]
+fn test_calculate_roots_of_unity_large_valid_inputs() {
+    // Test with larger valid inputs to ensure no performance issues
+
+    let large_test_cases = [
+        1000,    // 1KB
+        10000,   // 10KB
+        100000,  // 100KB
+        1000000, // 1MB
+    ];
+
+    for &test_length in large_test_cases.iter() {
+        let result = calculate_roots_of_unity(test_length);
+        assert!(result.is_ok(), "Large input {} should succeed", test_length);
+
+        let roots = result.unwrap();
+        assert!(
+            !roots.is_empty(),
+            "Should have at least one root for input {}",
+            test_length
+        );
+        assert_eq!(
+            roots[0],
+            Fr::one(),
+            "First root should be identity for input {}",
+            test_length
+        );
+
+        // Verify the roots are actual nth roots of unity
+        let n = roots.len(); // Number of roots returned
+        for (i, root) in roots.iter().enumerate() {
+            let nth_power = root.pow([n as u64]);
+            assert_eq!(
+                nth_power,
+                Fr::one(),
+                "Root {} should be an {}-th root of unity for input {}",
+                i,
+                n,
+                test_length
+            );
+        }
+    }
+}
+
+#[test]
+fn test_calculate_roots_of_unity_specific_error_conditions() {
+    // Test specific error conditions that might be edge cases
+
+    // Test near the overflow boundary for log2 calculation
+    // This is trying to find cases where the log2 conversion might fail
+    let very_large_but_valid = (MAINNET_SRS_G1_SIZE as u64) * BYTES_PER_FIELD_ELEMENT as u64;
+    let result = calculate_roots_of_unity(very_large_but_valid);
+
+    // This should either succeed or fail gracefully with a proper error
+    match result {
+        Ok(roots) => {
+            assert!(!roots.is_empty(), "Should have roots if successful");
+        },
+        Err(KzgError::GenericError(msg)) => {
+            // Should be a valid error message
+            assert!(
+                msg.contains("SRS") || msg.contains("convert") || msg.contains("size"),
+                "Error message should be meaningful: {}",
+                msg
+            );
+        },
+        Err(KzgError::SerializationError(msg)) => {
+            // Should be a valid error message
+            assert!(
+                msg.contains("SRS"),
+                "Error message should mention SRS: {}",
+                msg
+            );
+        },
+        Err(other) => {
+            panic!("Unexpected error type: {:?}", other);
+        },
+    }
+}
 
 #[test]
 fn test_g1_is_on_curve() {
@@ -169,53 +479,90 @@ fn test_convert_by_padding_empty_byte() {
 #[test]
 fn test_remove_internal_padding_invalid_length_error() {
     use rust_kzg_bn254_primitives::errors::KzgError;
-    
+
     // Test cases where input length is not a multiple of BYTES_PER_FIELD_ELEMENT (32)
-    
+
     // Test with 1 byte - should fail
     let invalid_data_1 = vec![0u8; 1];
     let result1 = remove_internal_padding(&invalid_data_1);
     assert!(result1.is_err(), "1 byte should fail - not multiple of 32");
     assert!(matches!(result1.unwrap_err(), KzgError::InvalidInputLength));
-    
+
     // Test with 31 bytes - should fail
     let invalid_data_31 = vec![0u8; 31];
     let result31 = remove_internal_padding(&invalid_data_31);
-    assert!(result31.is_err(), "31 bytes should fail - not multiple of 32");
-    assert!(matches!(result31.unwrap_err(), KzgError::InvalidInputLength));
-    
+    assert!(
+        result31.is_err(),
+        "31 bytes should fail - not multiple of 32"
+    );
+    assert!(matches!(
+        result31.unwrap_err(),
+        KzgError::InvalidInputLength
+    ));
+
     // Test with 33 bytes - should fail
     let invalid_data_33 = vec![0u8; 33];
     let result33 = remove_internal_padding(&invalid_data_33);
-    assert!(result33.is_err(), "33 bytes should fail - not multiple of 32");
-    assert!(matches!(result33.unwrap_err(), KzgError::InvalidInputLength));
-    
+    assert!(
+        result33.is_err(),
+        "33 bytes should fail - not multiple of 32"
+    );
+    assert!(matches!(
+        result33.unwrap_err(),
+        KzgError::InvalidInputLength
+    ));
+
     // Test with 63 bytes - should fail
     let invalid_data_63 = vec![0u8; 63];
     let result63 = remove_internal_padding(&invalid_data_63);
-    assert!(result63.is_err(), "63 bytes should fail - not multiple of 32");
-    assert!(matches!(result63.unwrap_err(), KzgError::InvalidInputLength));
-    
+    assert!(
+        result63.is_err(),
+        "63 bytes should fail - not multiple of 32"
+    );
+    assert!(matches!(
+        result63.unwrap_err(),
+        KzgError::InvalidInputLength
+    ));
+
     // Test with 65 bytes - should fail
     let invalid_data_65 = vec![0u8; 65];
     let result65 = remove_internal_padding(&invalid_data_65);
-    assert!(result65.is_err(), "65 bytes should fail - not multiple of 32");
-    assert!(matches!(result65.unwrap_err(), KzgError::InvalidInputLength));
-    
+    assert!(
+        result65.is_err(),
+        "65 bytes should fail - not multiple of 32"
+    );
+    assert!(matches!(
+        result65.unwrap_err(),
+        KzgError::InvalidInputLength
+    ));
+
     // Verify that valid lengths (multiples of 32) still work
     let valid_data_32 = vec![0u8; 32];
     let result_valid_32 = remove_internal_padding(&valid_data_32);
-    assert!(result_valid_32.is_ok(), "32 bytes should succeed - multiple of 32");
-    
-    let valid_data_64 = vec![0u8; 64]; 
+    assert!(
+        result_valid_32.is_ok(),
+        "32 bytes should succeed - multiple of 32"
+    );
+
+    let valid_data_64 = vec![0u8; 64];
     let result_valid_64 = remove_internal_padding(&valid_data_64);
-    assert!(result_valid_64.is_ok(), "64 bytes should succeed - multiple of 32");
-    
+    assert!(
+        result_valid_64.is_ok(),
+        "64 bytes should succeed - multiple of 32"
+    );
+
     // Test with empty data (0 bytes) - should succeed as 0 is a multiple of 32
     let empty_data = vec![];
     let result_empty = remove_internal_padding(&empty_data);
-    assert!(result_empty.is_ok(), "0 bytes should succeed - 0 is multiple of 32");
-    assert_eq!(result_empty.unwrap().len(), 0, "empty input should produce empty output");
+    assert!(
+        result_empty.is_ok(),
+        "0 bytes should succeed - 0 is multiple of 32"
+    );
+    assert_eq!(
+        result_empty.unwrap().len(),
+        0,
+        "empty input should produce empty output"
+    );
 }
 
 #[test]
@@ -322,5 +669,278 @@ fn test_primitive_roots_from_bigint_to_fr() {
     for i in 0..PRIMITIVE_ROOTS_OF_UNITY.len() {
         let root_of_unity_at_index = PRIMITIVE_ROOTS_OF_UNITY[i];
         assert_eq!(root_of_unity_at_index, fr_s[i]);
+    }
+}
+
+#[test]
+fn test_validate_g1_point_valid_point() {
+    // Test with valid random G1 points
+    let mut rng = ark_std::test_rng();
+
+    for _ in 0..10 {
+        let valid_point = G1Affine::rand(&mut rng);
+        let result = validate_g1_point(&valid_point);
+        assert!(
+            result.is_ok(),
+            "Valid random G1 point should pass validation"
+        );
+    }
+}
+
+#[test]
+fn test_validate_g1_point_identity_point() {
+    // Test with identity point (point at infinity)
+    let identity_point = G1Affine::identity();
+    let result = validate_g1_point(&identity_point);
+
+    assert!(result.is_err(), "Identity point should fail validation");
+    match result.unwrap_err() {
+        KzgError::NotOnCurveError(msg) => {
+            assert_eq!(
+                msg, "G1 point cannot be point at infinity",
+                "Should have correct error message"
+            );
+        },
+        _ => panic!("Should return NotOnCurveError for identity point"),
+    }
+}
+
+#[test]
+fn test_validate_g1_point_invalid_curve_point() {
+    // Test with a point that's not on the curve
+    use ark_bn254::Fq;
+    use ark_ff::One;
+
+    // Create an invalid point using coordinates that don't satisfy the curve equation y² = x³ + 3
+    let invalid_x = Fq::one(); // x = 1
+    let invalid_y = Fq::one(); // y = 1 (but 1² ≠ 1³ + 3, so not on curve)
+    let invalid_point = G1Affine::new_unchecked(invalid_x, invalid_y);
+
+    // Verify our test point is actually invalid
+    assert!(
+        !invalid_point.is_on_curve(),
+        "Test point should not be on curve"
+    );
+
+    let result = validate_g1_point(&invalid_point);
+    assert!(
+        result.is_err(),
+        "Invalid curve point should fail validation"
+    );
+
+    match result.unwrap_err() {
+        KzgError::NotOnCurveError(msg) => {
+            assert_eq!(
+                msg, "G1 point not on curve",
+                "Should have correct error message"
+            );
+        },
+        _ => panic!("Should return NotOnCurveError for invalid curve point"),
+    }
+}
+
+#[test]
+fn test_validate_g1_point_generator() {
+    // Test with the generator point (should be rejected)
+    let generator = G1Affine::generator();
+    let result = validate_g1_point(&generator);
+    assert!(result.is_err(), "Generator point should be rejected");
+
+    match result.unwrap_err() {
+        KzgError::NotOnCurveError(msg) => {
+            assert_eq!(
+                msg, "G1 point cannot be the generator point",
+                "Should have correct error message"
+            );
+        },
+        _ => panic!("Should return NotOnCurveError for generator point"),
+    }
+}
+
+#[test]
+fn test_validate_g2_point_valid_point() {
+    // Test with valid random G2 points
+    let mut rng = ark_std::test_rng();
+
+    for _ in 0..10 {
+        let valid_point = G2Affine::rand(&mut rng);
+        let result = validate_g2_point(&valid_point);
+        assert!(
+            result.is_ok(),
+            "Valid random G2 point should pass validation"
+        );
+    }
+}
+
+#[test]
+fn test_validate_g2_point_identity_point() {
+    // Test with identity point (point at infinity)
+    let identity_point = G2Affine::identity();
+    let result = validate_g2_point(&identity_point);
+
+    assert!(result.is_err(), "Identity point should fail validation");
+    match result.unwrap_err() {
+        KzgError::NotOnCurveError(msg) => {
+            assert_eq!(
+                msg, "G2 point cannot be point at infinity",
+                "Should have correct error message"
+            );
+        },
+        _ => panic!("Should return NotOnCurveError for identity point"),
+    }
+}
+
+#[test]
+fn test_validate_g2_point_invalid_curve_point() {
+    // Test with a point that's not on the twisted curve
+    use ark_bn254::Fq2;
+    use ark_ff::One;
+
+    // Create an invalid G2 point using coordinates that don't satisfy the twisted curve equation
+    let invalid_x = Fq2::one(); // x = (1, 0)
+    let invalid_y = Fq2::one(); // y = (1, 0) (invalid for twisted curve)
+    let invalid_point = G2Affine::new_unchecked(invalid_x, invalid_y);
+
+    // Verify our test point is actually invalid
+    assert!(
+        !invalid_point.is_on_curve(),
+        "Test point should not be on curve"
+    );
+
+    let result = validate_g2_point(&invalid_point);
+    assert!(
+        result.is_err(),
+        "Invalid curve point should fail validation"
+    );
+
+    match result.unwrap_err() {
+        KzgError::NotOnCurveError(msg) => {
+            assert_eq!(
+                msg, "G2 point not on curve",
+                "Should have correct error message"
+            );
+        },
+        _ => panic!("Should return NotOnCurveError for invalid curve point"),
+    }
+}
+
+#[test]
+fn test_validate_g2_point_generator() {
+    // Test with the generator point (should be rejected)
+    let generator = G2Affine::generator();
+    let result = validate_g2_point(&generator);
+    assert!(result.is_err(), "Generator point should be rejected");
+
+    match result.unwrap_err() {
+        KzgError::NotOnCurveError(msg) => {
+            assert_eq!(
+                msg, "G2 point cannot be the generator point",
+                "Should have correct error message"
+            );
+        },
+        _ => panic!("Should return NotOnCurveError for generator point"),
+    }
+}
+
+#[test]
+fn test_validate_point_functions_consistency() {
+    // Test that the validation functions are consistent with manual checks
+    let mut rng = ark_std::test_rng();
+
+    // Test G1 consistency
+    for _ in 0..5 {
+        let g1_point = G1Affine::rand(&mut rng);
+        let manual_check = !g1_point.is_zero()
+            && g1_point.is_on_curve()
+            && g1_point.is_in_correct_subgroup_assuming_on_curve()
+            && g1_point != G1Affine::generator();
+        let function_check = validate_g1_point(&g1_point).is_ok();
+
+        assert_eq!(
+            manual_check, function_check,
+            "Manual validation should match function validation for G1"
+        );
+    }
+
+    // Test G2 consistency
+    for _ in 0..5 {
+        let g2_point = G2Affine::rand(&mut rng);
+        let manual_check = !g2_point.is_zero()
+            && g2_point.is_on_curve()
+            && g2_point.is_in_correct_subgroup_assuming_on_curve()
+            && g2_point != G2Affine::generator();
+        let function_check = validate_g2_point(&g2_point).is_ok();
+
+        assert_eq!(
+            manual_check, function_check,
+            "Manual validation should match function validation for G2"
+        );
+    }
+}
+
+#[test]
+fn test_validate_point_functions_generator_rejection() {
+    // Test that both validation functions properly reject their respective generators
+
+    // Test G1 generator rejection
+    let g1_generator = G1Affine::generator();
+
+    // Verify the generator meets other validation criteria
+    assert!(
+        !g1_generator.is_zero(),
+        "G1 generator should not be identity"
+    );
+    assert!(
+        g1_generator.is_on_curve(),
+        "G1 generator should be on curve"
+    );
+    assert!(
+        g1_generator.is_in_correct_subgroup_assuming_on_curve(),
+        "G1 generator should be in correct subgroup"
+    );
+
+    // But should be rejected by our validation function
+    let g1_result = validate_g1_point(&g1_generator);
+    assert!(g1_result.is_err(), "G1 generator should be rejected");
+
+    match g1_result.unwrap_err() {
+        KzgError::NotOnCurveError(msg) => {
+            assert_eq!(
+                msg, "G1 point cannot be the generator point",
+                "Should have correct G1 generator error message"
+            );
+        },
+        _ => panic!("Should return NotOnCurveError for G1 generator"),
+    }
+
+    // Test G2 generator rejection
+    let g2_generator = G2Affine::generator();
+
+    // Verify the generator meets other validation criteria
+    assert!(
+        !g2_generator.is_zero(),
+        "G2 generator should not be identity"
+    );
+    assert!(
+        g2_generator.is_on_curve(),
+        "G2 generator should be on curve"
+    );
+    assert!(
+        g2_generator.is_in_correct_subgroup_assuming_on_curve(),
+        "G2 generator should be in correct subgroup"
+    );
+
+    // But should be rejected by our validation function
+    let g2_result = validate_g2_point(&g2_generator);
+    assert!(g2_result.is_err(), "G2 generator should be rejected");
+
+    match g2_result.unwrap_err() {
+        KzgError::NotOnCurveError(msg) => {
+            assert_eq!(
+                msg, "G2 point cannot be the generator point",
+                "Should have correct G2 generator error message"
+            );
+        },
+        _ => panic!("Should return NotOnCurveError for G2 generator"),
     }
 }

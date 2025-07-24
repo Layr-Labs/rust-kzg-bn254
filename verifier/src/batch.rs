@@ -26,27 +26,14 @@ pub fn verify_blob_kzg_proof_batch(
         ));
     }
 
-    // Validate that all commitments are valid points on the G1 curve
-    // Using parallel iterator (par_iter) for better performance on large batches
-    // This prevents invalid curve attacks
-    if commitments.iter().any(|commitment| {
-        commitment == &G1Affine::identity()
-            || !commitment.is_on_curve()
-            || !commitment.is_in_correct_subgroup_assuming_on_curve()
-    }) {
-        return Err(KzgError::NotOnCurveError(
-            "commitment not on curve".to_string(),
-        ));
+    // This checks: not identity, on curve, correct subgroup, not generator
+    for commitment in commitments.iter() {
+        helpers::validate_g1_point(commitment)?;
     }
 
-    // Validate that all proofs are valid points on the G1 curve
-    // Using parallel iterator for efficiency
-    if proofs.iter().any(|proof| {
-        proof == &G1Affine::identity()
-            || !proof.is_on_curve()
-            || !proof.is_in_correct_subgroup_assuming_on_curve()
-    }) {
-        return Err(KzgError::NotOnCurveError("proof not on curve".to_string()));
+    // This checks: not identity, on curve, correct subgroup, not generator
+    for proof in proofs.iter() {
+        helpers::validate_g1_point(proof)?;
     }
 
     // Compute evaluation challenges and evaluate polynomials at those points
@@ -210,9 +197,14 @@ fn verify_kzg_proof_batch(
         ));
     }
 
-    // Note: Curve and identity point validation removed - caller (verify_blob_kzg_proof_batch)
-    // already performs complete validation including identity checks and curve validation.
-    // This eliminates redundant validation overhead while maintaining security.
+    // The below calls check for: not identity, on curve, correct subgroup, not generator
+    for commitment in commitments.iter() {
+        helpers::validate_g1_point(commitment)?;
+    }
+
+    for proof in proofs.iter() {
+        helpers::validate_g1_point(proof)?;
+    }
 
     // Verify that the trusted setup point τ*G2 is on the G2 curve
     // This validates the trusted setup, not user input, so it remains here

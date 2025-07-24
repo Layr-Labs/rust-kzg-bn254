@@ -1,13 +1,12 @@
 #[cfg(test)]
 mod tests {
     use ark_bn254::{Fr, G1Affine};
-    use ark_ff::UniformRand;
-    use ark_serialize::CanonicalSerialize;
     use rust_kzg_bn254_primitives::{
         blob::Blob,
         consts::{BYTES_PER_FIELD_ELEMENT, MAINNET_SRS_G1_SIZE},
         errors::KzgError,
-        polynomial::{PolynomialCoeffForm, PolynomialEvalForm}, traits::{PointReadError, ReadPointFromBytes},
+        polynomial::{PolynomialCoeffForm, PolynomialEvalForm},
+        traits::{PointReadError, ReadPointFromBytes},
     };
     const GETTYSBURG_ADDRESS_BYTES: &[u8] = "Fourscore and seven years ago our fathers brought forth, on this continent, a new nation, conceived in liberty, and dedicated to the proposition that all men are created equal. Now we are engaged in a great civil war, testing whether that nation, or any nation so conceived, and so dedicated, can long endure. We are met on a great battle-field of that war. We have come to dedicate a portion of that field, as a final resting-place for those who here gave their lives, that that nation might live. It is altogether fitting and proper that we should do this. But, in a larger sense, we cannot dedicate, we cannot consecrate—we cannot hallow—this ground. The brave men, living and dead, who struggled here, have consecrated it far above our poor power to add or detract. The world will little note, nor long remember what we say here, but it can never forget what they did here. It is for us the living, rather, to be dedicated here to the unfinished work which they who fought here have thus far so nobly advanced. It is rather for us to be here dedicated to the great task remaining before us—that from these honored dead we take increased devotion to that cause for which they here gave the last full measure of devotion—that we here highly resolve that these dead shall not have died in vain—that this nation, under God, shall have a new birth of freedom, and that government of the people, by the people, for the people, shall not perish from the earth.".as_bytes();
 
@@ -458,21 +457,30 @@ mod tests {
     #[test]
     fn test_point_deserialization_methods() {
         // This test verifies that both deserialization methods work correctly with their respective formats
-        
+
         use ark_ff::UniformRand;
         use ark_serialize::CanonicalSerialize;
-        
+
         let mut rng = ark_std::test_rng();
         let original_point = G1Affine::rand(&mut rng);
-        
+
         // Test 1: Native compressed format deserialization
         let mut native_compressed = Vec::new();
-        original_point.serialize_compressed(&mut native_compressed).unwrap();
-        
+        original_point
+            .serialize_compressed(&mut native_compressed)
+            .unwrap();
+
         let native_result = G1Affine::read_point_from_bytes_native_compressed(&native_compressed);
-        assert!(native_result.is_ok(), "Native format should work with native method");
-        assert_eq!(native_result.unwrap(), original_point, "Native deserialization should match original");
-        
+        assert!(
+            native_result.is_ok(),
+            "Native format should work with native method"
+        );
+        assert_eq!(
+            native_result.unwrap(),
+            original_point,
+            "Native deserialization should match original"
+        );
+
         // Test 2: Verify that BE reader typically fails on native format data
         // This demonstrates the format incompatibility between native (LE) and BE formats
         let be_result = G1Affine::read_point_from_bytes_be(&native_compressed);
@@ -482,19 +490,28 @@ mod tests {
             Ok(point) => {
                 // In rare cases it might succeed by coincidence, but the point will likely be different
                 // and we should verify it's at least a valid curve point
-                assert!(point.is_on_curve(), "If BE reader succeeds, point should be on curve");
+                assert!(
+                    point.is_on_curve(),
+                    "If BE reader succeeds, point should be on curve"
+                );
                 // BE reader unexpectedly succeeded (this can happen occasionally)
-            }
+            },
             Err(_) => {
                 // This is the expected case - BE reader fails on LE data
                 // BE reader correctly failed on native LE format data
-            }
+            },
         }
-        
+
         // Test 3: Verify native method fails on clearly invalid data
         let invalid_data = vec![0xFF; 32]; // Invalid compressed point data
         let invalid_result = G1Affine::read_point_from_bytes_native_compressed(&invalid_data);
-        assert!(invalid_result.is_err(), "Invalid data should fail deserialization");
-        assert!(matches!(invalid_result.unwrap_err(), PointReadError::DeserializationError));
+        assert!(
+            invalid_result.is_err(),
+            "Invalid data should fail deserialization"
+        );
+        assert!(matches!(
+            invalid_result.unwrap_err(),
+            PointReadError::DeserializationError
+        ));
     }
 }
