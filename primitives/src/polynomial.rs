@@ -64,21 +64,18 @@ impl PolynomialEvalForm {
     fn new_with_blob_len(
         evals: Vec<Fr>,
         len_underlying_blob_bytes: usize,
-    ) -> Result<Self, KzgError> {
-        if evals.len() > MAINNET_SRS_G1_SIZE {
-            return Err(KzgError::GenericError(
-                "Input size exceeds maximum polynomial size".to_string(),
-            ));
-        }
-
+    ) -> Self {
+        // Size validation is not needed here since this is only called during form conversion
+        // from already-validated polynomials. FFT/IFFT operations preserve polynomial length.
+        
         let next_power_of_two = evals.len().next_power_of_two();
         let mut padded_evals = evals;
         padded_evals.resize(next_power_of_two, Fr::zero());
 
-        Ok(Self {
+        Self {
             evaluations: padded_evals,
             len_underlying_blob_bytes,
-        })
+        }
     }
 
     pub fn evaluations(&self) -> &[Fr] {
@@ -142,8 +139,7 @@ impl PolynomialEvalForm {
                 "Failed to construct domain for IFFT".to_string(),
             ))?
             .ifft(&self.evaluations);
-        PolynomialCoeffForm::new_with_blob_len(coeffs, self.len_underlying_blob_bytes)
-            .map_err(|e| PolynomialError::GenericError(e.to_string()))
+        Ok(PolynomialCoeffForm::new_with_blob_len(coeffs, self.len_underlying_blob_bytes))
     }
 }
 
@@ -196,21 +192,18 @@ impl PolynomialCoeffForm {
     fn new_with_blob_len(
         coeffs: Vec<Fr>,
         len_underlying_blob_bytes: usize,
-    ) -> Result<Self, KzgError> {
-        if coeffs.len() > MAINNET_SRS_G1_SIZE {
-            return Err(KzgError::GenericError(
-                "Input size exceeds maximum polynomial size".to_string(),
-            ));
-        }
+    ) -> Self {
+        // Size validation is not needed here since this is only called during form conversion
+        // from already-validated polynomials. FFT/IFFT operations preserve polynomial length.
 
         let next_power_of_two = coeffs.len().next_power_of_two();
         let mut padded_coeffs = coeffs;
         padded_coeffs.resize(next_power_of_two, Fr::zero());
 
-        Ok(Self {
+        Self {
             coeffs: padded_coeffs,
             len_underlying_blob_bytes,
-        })
+        }
     }
 
     pub fn coeffs(&self) -> &[Fr] {
@@ -257,7 +250,6 @@ impl PolynomialCoeffForm {
                 "Failed to construct domain for FFT".to_string(),
             ))?
             .fft(&self.coeffs);
-        PolynomialEvalForm::new_with_blob_len(evals, self.len_underlying_blob_bytes)
-            .map_err(|e| PolynomialError::GenericError(e.to_string()))
+        Ok(PolynomialEvalForm::new_with_blob_len(evals, self.len_underlying_blob_bytes))
     }
 }
