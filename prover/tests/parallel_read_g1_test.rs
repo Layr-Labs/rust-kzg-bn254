@@ -5,8 +5,6 @@ mod tests {
     use rust_kzg_bn254_primitives::errors::KzgError;
     use rust_kzg_bn254_prover::srs::SRS;
 
-
-
     #[test]
     fn test_parallel_read_g1_points_native_basic_functionality() {
         // Test basic functionality with a small number of points
@@ -22,7 +20,12 @@ mod tests {
         // Verify that we got valid G1 points
         for (i, &loaded_point) in loaded_points.iter().enumerate() {
             // Just verify the point is valid (on curve, etc.)
-            assert_ne!(loaded_point, G1Affine::identity(), "Point {} should not be identity", i);
+            assert_ne!(
+                loaded_point,
+                G1Affine::identity(),
+                "Point {} should not be identity",
+                i
+            );
         }
     }
 
@@ -120,20 +123,25 @@ mod tests {
         // Verify we got valid points (order preservation can be tested by reading twice)
         for (i, &loaded_point) in loaded_points.iter().enumerate() {
             assert_ne!(
-                loaded_point, G1Affine::identity(),
+                loaded_point,
+                G1Affine::identity(),
                 "Point {} should not be identity",
                 i
             );
         }
-        
+
         // Test order preservation by reading the same file again
         let result2 = SRS::parallel_read_g1_points_native(test_file.to_string(), 20, true);
         assert!(result2.is_ok(), "Second read should also succeed");
         let loaded_points2 = result2.unwrap();
-        
+
         // Order should be consistent across reads
         for (i, (&point1, &point2)) in loaded_points.iter().zip(loaded_points2.iter()).enumerate() {
-            assert_eq!(point1, point2, "Point {} should be consistent across reads", i);
+            assert_eq!(
+                point1, point2,
+                "Point {} should be consistent across reads",
+                i
+            );
         }
     }
 
