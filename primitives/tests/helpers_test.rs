@@ -167,6 +167,58 @@ fn test_convert_by_padding_empty_byte() {
 }
 
 #[test]
+fn test_remove_internal_padding_invalid_length_error() {
+    use rust_kzg_bn254_primitives::errors::KzgError;
+    
+    // Test cases where input length is not a multiple of BYTES_PER_FIELD_ELEMENT (32)
+    
+    // Test with 1 byte - should fail
+    let invalid_data_1 = vec![0u8; 1];
+    let result1 = remove_internal_padding(&invalid_data_1);
+    assert!(result1.is_err(), "1 byte should fail - not multiple of 32");
+    assert!(matches!(result1.unwrap_err(), KzgError::InvalidInputLength));
+    
+    // Test with 31 bytes - should fail
+    let invalid_data_31 = vec![0u8; 31];
+    let result31 = remove_internal_padding(&invalid_data_31);
+    assert!(result31.is_err(), "31 bytes should fail - not multiple of 32");
+    assert!(matches!(result31.unwrap_err(), KzgError::InvalidInputLength));
+    
+    // Test with 33 bytes - should fail
+    let invalid_data_33 = vec![0u8; 33];
+    let result33 = remove_internal_padding(&invalid_data_33);
+    assert!(result33.is_err(), "33 bytes should fail - not multiple of 32");
+    assert!(matches!(result33.unwrap_err(), KzgError::InvalidInputLength));
+    
+    // Test with 63 bytes - should fail
+    let invalid_data_63 = vec![0u8; 63];
+    let result63 = remove_internal_padding(&invalid_data_63);
+    assert!(result63.is_err(), "63 bytes should fail - not multiple of 32");
+    assert!(matches!(result63.unwrap_err(), KzgError::InvalidInputLength));
+    
+    // Test with 65 bytes - should fail
+    let invalid_data_65 = vec![0u8; 65];
+    let result65 = remove_internal_padding(&invalid_data_65);
+    assert!(result65.is_err(), "65 bytes should fail - not multiple of 32");
+    assert!(matches!(result65.unwrap_err(), KzgError::InvalidInputLength));
+    
+    // Verify that valid lengths (multiples of 32) still work
+    let valid_data_32 = vec![0u8; 32];
+    let result_valid_32 = remove_internal_padding(&valid_data_32);
+    assert!(result_valid_32.is_ok(), "32 bytes should succeed - multiple of 32");
+    
+    let valid_data_64 = vec![0u8; 64]; 
+    let result_valid_64 = remove_internal_padding(&valid_data_64);
+    assert!(result_valid_64.is_ok(), "64 bytes should succeed - multiple of 32");
+    
+    // Test with empty data (0 bytes) - should succeed as 0 is a multiple of 32
+    let empty_data = vec![];
+    let result_empty = remove_internal_padding(&empty_data);
+    assert!(result_empty.is_ok(), "0 bytes should succeed - 0 is multiple of 32");
+    assert_eq!(result_empty.unwrap().len(), 0, "empty input should produce empty output");
+}
+
+#[test]
 fn test_is_zeroed_all_zeroes() {
     // Case where the first byte and the buffer are all zeroes
     let first_byte = 0;
