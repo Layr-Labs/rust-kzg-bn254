@@ -157,7 +157,9 @@ pub fn to_fr_array(data: &[u8]) -> Vec<Fr> {
     for (i, element) in eles.iter_mut().enumerate().take(num_ele) {
         let start = i * BYTES_PER_FIELD_ELEMENT;
         let end = (i + 1) * BYTES_PER_FIELD_ELEMENT;
+        
         if end > data.len() {
+            // Handle the last chunk that may be incomplete
             let mut padded = vec![0u8; BYTES_PER_FIELD_ELEMENT];
             padded[..data.len() - start].copy_from_slice(&data[start..]);
             *element = set_bytes_canonical(&padded);
@@ -291,7 +293,7 @@ pub fn read_g1_point_from_bytes_be(g1_bytes_be: &[u8]) -> Result<G1Affine, &str>
     x_bytes[0] &= !m_mask;
     let x = Fq::from_be_bytes_mod_order(&x_bytes);
     let y_squared = x * x * x + Fq::from(3);
-    let mut y_sqrt = y_squared.sqrt().ok_or("no item1").unwrap();
+    let mut y_sqrt = y_squared.sqrt().ok_or("point not on curve")?;
 
     if lexicographically_largest(&y_sqrt) {
         if m_data == m_compressed_smallest {
@@ -893,12 +895,6 @@ pub fn remove_internal_padding(padded_data: &[u8]) -> Result<Vec<u8>, KzgError> 
     for chunk in padded_data.chunks_exact(BYTES_PER_FIELD_ELEMENT) {
         output_data.extend_from_slice(&chunk[1..]);
     }
-
-    // Since we validated alignment above, there should be no remainder
-    debug_assert!(padded_data
-        .chunks_exact(BYTES_PER_FIELD_ELEMENT)
-        .remainder()
-        .is_empty());
 
     Ok(output_data)
 }
