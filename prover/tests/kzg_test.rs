@@ -84,7 +84,7 @@ mod tests {
             .unwrap();
 
         // These should be equivalent since they represent the same polynomial
-        assert_eq!(commitment_coeff, commitment_eval, 
+        assert_eq!(commitment_coeff, commitment_eval,
             "Commitment from coefficient form should equal commitment from evaluation form for the SAME polynomial");
     }
 
@@ -121,9 +121,9 @@ mod tests {
 
             // Check that expanded_roots_of_unity is now populated
             let roots_after = kzg.get_roots_of_unities();
-            assert!(!roots_after.is_empty(), 
+            assert!(!roots_after.is_empty(),
                 "expanded_roots_of_unity should not be empty after calling calculate_and_store_roots_of_unity with blob length {}", blob_length);
-            assert!(roots_after.len() > 0, 
+            assert!(roots_after.len() > 0,
                 "Roots of unity vector should have non-zero length after calculation for blob length {}", blob_length);
         }
     }
