@@ -61,13 +61,10 @@ impl PolynomialEvalForm {
 
     /// Internal constructor that allows setting the blob length directly.
     /// Used for conversions between forms to preserve the original blob size.
-    fn new_with_blob_len(
-        evals: Vec<Fr>,
-        len_underlying_blob_bytes: usize,
-    ) -> Self {
+    fn new_with_blob_len(evals: Vec<Fr>, len_underlying_blob_bytes: usize) -> Self {
         // Size validation is not needed here since this is only called during form conversion
         // from already-validated polynomials. FFT/IFFT operations preserve polynomial length.
-        
+
         let next_power_of_two = evals.len().next_power_of_two();
         let mut padded_evals = evals;
         padded_evals.resize(next_power_of_two, Fr::zero());
@@ -139,7 +136,10 @@ impl PolynomialEvalForm {
                 "Failed to construct domain for IFFT".to_string(),
             ))?
             .ifft(&self.evaluations);
-        Ok(PolynomialCoeffForm::new_with_blob_len(coeffs, self.len_underlying_blob_bytes))
+        Ok(PolynomialCoeffForm::new_with_blob_len(
+            coeffs,
+            self.len_underlying_blob_bytes,
+        ))
     }
 }
 
@@ -189,10 +189,7 @@ impl PolynomialCoeffForm {
 
     /// Internal constructor that allows setting the blob length directly.
     /// Used for conversions between forms to preserve the original blob size.
-    fn new_with_blob_len(
-        coeffs: Vec<Fr>,
-        len_underlying_blob_bytes: usize,
-    ) -> Self {
+    fn new_with_blob_len(coeffs: Vec<Fr>, len_underlying_blob_bytes: usize) -> Self {
         // Size validation is not needed here since this is only called during form conversion
         // from already-validated polynomials. FFT/IFFT operations preserve polynomial length.
 
@@ -250,6 +247,9 @@ impl PolynomialCoeffForm {
                 "Failed to construct domain for FFT".to_string(),
             ))?
             .fft(&self.coeffs);
-        Ok(PolynomialEvalForm::new_with_blob_len(evals, self.len_underlying_blob_bytes))
+        Ok(PolynomialEvalForm::new_with_blob_len(
+            evals,
+            self.len_underlying_blob_bytes,
+        ))
     }
 }
