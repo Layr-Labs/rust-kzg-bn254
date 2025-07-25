@@ -6,18 +6,19 @@ use std::{
 use ark_bn254::{Fq, Fq2, Fr, G1Affine, G1Projective, G2Affine, G2Projective};
 use ark_ec::AffineRepr;
 use ark_ff::{Field, PrimeField, UniformRand};
-use ark_std::{str::FromStr, One};
+use ark_std::{str::FromStr, One, Zero};
 use rust_kzg_bn254_primitives::{
+    blob::Blob,
     consts::{
         BYTES_PER_FIELD_ELEMENT, MAINNET_SRS_G1_SIZE, PRIMITIVE_ROOTS_OF_UNITY,
         SIZE_OF_G1_AFFINE_COMPRESSED,
     },
     errors::KzgError,
     helpers::{
-        blob_to_polynomial, calculate_roots_of_unity, get_num_element, is_on_curve_g1,
-        is_on_curve_g2, is_zeroed, pad_payload, remove_internal_padding, set_bytes_canonical,
-        set_bytes_canonical_manual, to_byte_array, to_fr_array, validate_g1_point,
-        validate_g2_point,
+        blob_to_polynomial, calculate_roots_of_unity, compute_challenge, get_num_element,
+        is_on_curve_g1, is_on_curve_g2, is_zeroed, pad_payload, remove_internal_padding,
+        set_bytes_canonical, set_bytes_canonical_manual, to_byte_array, to_fr_array,
+        validate_g1_point, validate_g2_point,
     },
 };
 
@@ -943,4 +944,127 @@ fn test_validate_point_functions_generator_rejection() {
         },
         _ => panic!("Should return NotOnCurveError for G2 generator"),
     }
+}
+
+#[test]
+fn test_compute_challenge_comprehensive() {
+    // Comprehensive test for compute_challenge function covering all validation scenarios
+
+    let mut rng = ark_std::test_rng();
+    let test_data = b"comprehensive test data for compute challenge validation";
+    let blob = Blob::from_raw_data(test_data);
+
+    // Test 1: Valid G1 points should work correctly
+    let valid_commitment = G1Affine::rand(&mut rng);
+    let result = compute_challenge(&blob, &valid_commitment);
+
+    assert!(
+        result.is_ok(),
+        "compute_challenge should succeed with valid commitment"
+    );
+
+    // Verify we get a valid field element that's not zero for this input
+    let challenge = result.unwrap();
+    assert_ne!(
+        challenge,
+        Fr::zero(),
+        "Challenge should not be zero for this input"
+    );
+
+    // Test 2: Identity point (point at infinity) should be rejected
+    let identity_commitment = G1Affine::identity();
+    let result = compute_challenge(&blob, &identity_commitment);
+
+    assert!(
+        result.is_err(),
+        "compute_challenge should reject identity point"
+    );
+    match result.unwrap_err() {
+        KzgError::NotOnCurveError(msg) => {
+            assert_eq!(
+                msg, "G1 point cannot be point at infinity",
+                "Should reject identity point with proper error message"
+            );
+        },
+        _ => panic!("Should return NotOnCurveError for identity point"),
+    }
+
+    // Test 3: Generator point should be rejected
+    let generator_commitment = G1Affine::generator();
+    let result = compute_challenge(&blob, &generator_commitment);
+
+    assert!(
+        result.is_err(),
+        "compute_challenge should reject generator point"
+    );
+    match result.unwrap_err() {
+        KzgError::NotOnCurveError(msg) => {
+            assert_eq!(
+                msg, "G1 point cannot be the generator point",
+                "Should reject generator point with proper error message"
+            );
+        },
+        _ => panic!("Should return NotOnCurveError for generator point"),
+    }
+
+    // Test 4: Points not on the curve should be rejected
+    let invalid_x = Fq::one(); // x = 1
+    let invalid_y = Fq::one(); // y = 1 (but 1² ≠ 1³ + 3, so not on curve)
+    let invalid_commitment = G1Affine::new_unchecked(invalid_x, invalid_y);
+
+    assert!(
+        !invalid_commitment.is_on_curve(),
+        "Test point should not be on curve"
+    );
+
+    let result = compute_challenge(&blob, &invalid_commitment);
+    assert!(
+        result.is_err(),
+        "compute_challenge should reject invalid curve point"
+    );
+    match result.unwrap_err() {
+        KzgError::NotOnCurveError(msg) => {
+            assert_eq!(
+                msg, "G1 point not on curve",
+                "Should reject invalid curve point with proper error message"
+            );
+        },
+        _ => panic!("Should return NotOnCurveError for invalid curve point"),
+    }
+
+    // Test 5: Deterministic behavior - same inputs should produce same outputs
+    let commitment = G1Affine::rand(&mut rng);
+    let challenge1 = compute_challenge(&blob, &commitment).unwrap();
+    let challenge2 = compute_challenge(&blob, &commitment).unwrap();
+    let challenge3 = compute_challenge(&blob, &commitment).unwrap();
+
+    assert_eq!(
+        challenge1, challenge2,
+        "compute_challenge should be deterministic"
+    );
+    assert_eq!(
+        challenge2, challenge3,
+        "compute_challenge should be deterministic"
+    );
+
+    // Test 6: Different inputs should produce different outputs
+    let blob1 = Blob::from_raw_data(b"first test blob data");
+    let blob2 = Blob::from_raw_data(b"second test blob data");
+    let commitment1 = G1Affine::rand(&mut rng);
+    let commitment2 = G1Affine::rand(&mut rng);
+
+    // Different blobs with same commitment should produce different challenges
+    let challenge1_1 = compute_challenge(&blob1, &commitment1).unwrap();
+    let challenge2_1 = compute_challenge(&blob2, &commitment1).unwrap();
+    assert_ne!(
+        challenge1_1, challenge2_1,
+        "Different blobs should produce different challenges"
+    );
+
+    // Same blob with different commitments should produce different challenges
+    let challenge1_2 = compute_challenge(&blob1, &commitment2).unwrap();
+    assert_ne!(
+        challenge1_1, challenge1_2,
+        "Different commitments should produce different challenges"
+    );
 }
