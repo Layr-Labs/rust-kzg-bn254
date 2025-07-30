@@ -786,10 +786,10 @@ pub fn pad_payload(input_data: &[u8]) -> Vec<u8> {
 
     let mut padded_output = vec![0u8; output_length];
 
-    for chunk_idx in 0..chunk_count {
-        let input_start = chunk_idx * bytes_per_chunk;
+    for element in 0..chunk_count {
+        let input_start = element * bytes_per_chunk;
         let input_end = core::cmp::min(input_start + bytes_per_chunk, input_data.len());
-        let output_start = chunk_idx * BYTES_PER_FIELD_ELEMENT + 1;
+        let output_start = element * BYTES_PER_FIELD_ELEMENT + 1;
 
         padded_output[output_start..output_start + (input_end - input_start)]
             .copy_from_slice(&input_data[input_start..input_end]);
