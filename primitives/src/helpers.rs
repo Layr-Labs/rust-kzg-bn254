@@ -769,42 +769,6 @@ pub fn validate_blob_data_as_canonical_field_elements(data: &[u8]) -> Result<(),
     Ok(())
 }
 
-/// Calculates the length that a byte array would have after adding internal byte padding.
-/// The specific implementation below is set to be encoding version 0, and in the future,
-/// we might use a more sophisticated encoding formats.
-///
-/// This function computes the output size for the `pad_payload` function by determining
-/// how many 32-byte chunks are needed to store the input data with internal padding.
-///
-/// # Arguments
-/// * `input_len` - Length of the input byte array
-///
-/// # Returns
-/// * `usize` - Length after padding (always a multiple of BYTES_PER_FIELD_ELEMENT)
-///
-/// # Details
-/// - Each 31 bytes of input becomes 32 bytes of output (with a 0x00 prefix)
-/// - The result is always aligned to BYTES_PER_FIELD_ELEMENT (32 bytes)
-/// - Partial chunks are rounded up to full 32-byte chunks
-///
-/// # Example
-/// ```
-/// use rust_kzg_bn254_primitives::helpers::get_padded_data_length;
-///
-/// // 31 bytes -> 32 bytes (1 chunk)
-/// assert_eq!(get_padded_data_length(31), 32);
-///
-/// // 32 bytes -> 64 bytes (2 chunks, since 32 bytes = 31 + 1)
-/// assert_eq!(get_padded_data_length(32), 64);
-///
-/// // 62 bytes -> 64 bytes (2 chunks)
-/// assert_eq!(get_padded_data_length(62), 64);
-/// ```
-pub fn get_padded_data_length(input_len: usize) -> usize {
-    let bytes_per_chunk = BYTES_PER_FIELD_ELEMENT - 1; // 31 bytes
-    input_len.div_ceil(bytes_per_chunk) * BYTES_PER_FIELD_ELEMENT
-}
-
 // Internally pads the input data by prepending a 0x00 to each chunk of 31 bytes. This guarantees that
 // the data will be a valid field element for the bn254 curve
 //
