@@ -136,7 +136,7 @@ fn test_set_canonical_bytes() {
 
 #[test]
 fn test_pad_payload() {
-    let mut padded_data = pad_payload("hi".as_bytes());
+    let padded_data = pad_payload("hi".as_bytes());
     assert_eq!(
         padded_data,
         vec![
@@ -146,7 +146,7 @@ fn test_pad_payload() {
         "testing adding padding"
     );
 
-    let mut unpadded_data = remove_internal_padding(&padded_data).unwrap();
+    let unpadded_data = remove_internal_padding(&padded_data).unwrap();
     assert_eq!(
         unpadded_data,
         vec![
@@ -156,12 +156,41 @@ fn test_pad_payload() {
         "testing removing padding"
     );
 
-    padded_data = pad_payload(GETTYSBURG_ADDRESS_BYTES);
-    unpadded_data = remove_internal_padding(&padded_data).unwrap();
-    assert_eq!(
-        unpadded_data.len(), 1488
+    let padded_data_larger_size = pad_payload(
+        "zxcvbnm,.//asdfgghjkl;'][poiuytrewq`1234567890zxcvbnm,.//1234567890".as_bytes(),
     );
-    assert_eq!(GETTYSBURG_ADDRESS_BYTES.len() <= unpadded_data.len(), true);
+    assert_eq!(
+        padded_data_larger_size,
+        vec![
+            0, 122, 120, 99, 118, 98, 110, 109, 44, 46, 47, 47, 97, 115, 100, 102, 103, 103, 104,
+            106, 107, 108, 59, 39, 93, 91, 112, 111, 105, 117, 121, 116, 0, 114, 101, 119, 113, 96,
+            49, 50, 51, 52, 53, 54, 55, 56, 57, 48, 122, 120, 99, 118, 98, 110, 109, 44, 46, 47,
+            47, 49, 50, 51, 52, 53, 0, 54, 55, 56, 57, 48, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+        ],
+        "testing adding padding"
+    );
+
+    let unpadded_data_larger_size = remove_internal_padding(&padded_data_larger_size).unwrap();
+    assert_eq!(
+        unpadded_data_larger_size,
+        vec![
+            122, 120, 99, 118, 98, 110, 109, 44, 46, 47, 47, 97, 115, 100, 102, 103, 103, 104, 106,
+            107, 108, 59, 39, 93, 91, 112, 111, 105, 117, 121, 116, 114, 101, 119, 113, 96, 49, 50,
+            51, 52, 53, 54, 55, 56, 57, 48, 122, 120, 99, 118, 98, 110, 109, 44, 46, 47, 47, 49,
+            50, 51, 52, 53, 54, 55, 56, 57, 48, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0
+        ],
+        "testing removing padding"
+    );
+
+    let padded_data_gettysburg = pad_payload(GETTYSBURG_ADDRESS_BYTES);
+    let unpadded_data_gettysburg = remove_internal_padding(&padded_data_gettysburg).unwrap();
+    assert_eq!(unpadded_data_gettysburg.len(), 1488);
+    assert_eq!(
+        GETTYSBURG_ADDRESS_BYTES.len() <= unpadded_data_gettysburg.len(),
+        true
+    );
 }
 
 #[test]
