@@ -39,44 +39,6 @@ pub fn set_bytes_canonical_manual(data: &[u8]) -> Fr {
     Fr::from_bigint(BigInt::new(arrays)).unwrap()
 }
 
-// Functions being used
-
-/// Copies the referenced bytes array argument into a Vec, inserting an empty
-/// byte at the front of every 31 bytes. The empty byte is padded at the low
-/// address, because we use big endian to interpret a field element.
-/// This ensures every 32 bytes is within the valid range of a field element for
-/// the bn254 curve. If the input data is not a multiple of 31 bytes, the
-/// remainder is added to the output by inserting a 0 and the remainder. The
-/// output is thus not necessarily a multiple of 32.
-/// Note: this function is not used in the codebase, but is kept for reference and is replaced by pad_payload
-pub fn convert_by_padding_empty_byte(data: &[u8]) -> Vec<u8> {
-    let data_size = data.len();
-    let parse_size = BYTES_PER_FIELD_ELEMENT - 1;
-    let put_size = BYTES_PER_FIELD_ELEMENT;
-
-    let data_len = data_size.div_ceil(parse_size);
-    let mut valid_data = vec![0u8; data_len * put_size];
-    let mut valid_end = valid_data.len();
-
-    for i in 0..data_len {
-        let start = i * parse_size;
-        let mut end = (i + 1) * parse_size;
-        if end > data_size {
-            end = data_size;
-            valid_end = end - start + 1 + i * put_size;
-        }
-
-        // Set the first byte of each chunk to 0
-        valid_data[i * BYTES_PER_FIELD_ELEMENT] = 0x00;
-        // Copy data from original to new vector, adjusting for the initial zero byte
-        valid_data[i * BYTES_PER_FIELD_ELEMENT + 1..i * BYTES_PER_FIELD_ELEMENT + 1 + end - start]
-            .copy_from_slice(&data[start..end]);
-    }
-
-    valid_data.truncate(valid_end);
-    valid_data
-}
-
 /// Removes the first byte from each 32-byte chunk in a byte slice (including the last potentially incomplete one).
 ///
 /// This function is the reverse of `convert_by_padding_empty_byte`. It takes a byte slice that it assumed contains
