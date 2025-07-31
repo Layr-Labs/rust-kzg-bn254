@@ -39,67 +39,6 @@ pub fn set_bytes_canonical_manual(data: &[u8]) -> Fr {
     Fr::from_bigint(BigInt::new(arrays)).unwrap()
 }
 
-/// Removes the first byte from each 32-byte chunk in a byte slice (including the last potentially incomplete one).
-///
-/// This function is the reverse of `convert_by_padding_empty_byte`. It takes a byte slice that it assumed contains
-/// field elements, where each complete field element is 32 bytes and begins with an empty padding byte
-/// that needs to be removed. The final element may be smaller than 32 bytes, but should also be 0-byte prefixed.
-///
-/// # Arguments
-/// * `data` - 0-byte prefixed big-endian encoded 32-byte chunks representing bn254 field elements. The final element may be shorter.
-///
-/// # Returns
-/// A new `Vec<u8>` with the first byte of each field element removed. For complete elements,
-/// this removes one byte per 32 bytes. For the final partial element (if any), it still
-/// removes the first byte.
-///
-/// # Safety
-/// This function is marked "unchecked" because it assumes without verification that:
-/// * The input contains bn254-encoded field elements are exactly 32 bytes
-/// * The first byte of each field element is safe to remove
-///
-/// # Example
-/// ```text
-/// [0, 1, 2, 3, ..., 31, 0, 1, 2, 3] -> [1, 2, 3, ..., 31, 1, 2, 3]
-/// ```
-///
-/// ```
-/// # use rust_kzg_bn254_primitives::helpers::remove_empty_byte_from_padded_bytes_unchecked;
-/// let mut input = vec![1u8; 70]; // Two complete 32-byte element plus 6 bytes
-/// input[0] = 0; input[32] = 0;
-///
-/// let output = remove_empty_byte_from_padded_bytes_unchecked(&input);
-///
-/// assert_eq!(output, vec![1u8; 67]); // Two complete 31-byte element plus 5 bytes
-/// ```
-///
-/// # Implementation Detail: this function is equivalent to this simple iterator chain:
-/// ```ignore
-/// data.chunks(BYTES_PER_FIELD_ELEMENT).flat_map(|chunk| &chunk[1..]).copied().collect()
-/// ```
-/// However, it is ~30x faster than the above because of the pre-allocation + SIMD instructions optimization.
-pub fn remove_empty_byte_from_padded_bytes_unchecked(data: &[u8]) -> Vec<u8> {
-    // We pre-allocate the exact size of the output vector by calculating the number
-    // of zero bytes that will be removed from the input.
-    let empty_bytes_to_remove = data.len().div_ceil(BYTES_PER_FIELD_ELEMENT);
-    let mut output = Vec::with_capacity(data.len() - empty_bytes_to_remove);
-
-    // We first process all the complete 32-byte chunks (representing bn254 encoded field elements).
-    // We remove the first byte of each chunk, assuming (but unchecked) that it is a zero byte.
-    // Note: we could use a single iterator loop, but separating like this allows the compiler to generate
-    // simd instructions for this main loop, which is much faster (see https://en.wikipedia.org/wiki/Automatic_vectorization).
-    for chunk in data.chunks_exact(BYTES_PER_FIELD_ELEMENT) {
-        output.extend_from_slice(&chunk[1..]);
-    }
-    // We handle the last chunk separately, still assuming (but unchecked) that
-    // it represents a zero prefixed partial field element.
-    let remainder = data.chunks_exact(BYTES_PER_FIELD_ELEMENT).remainder();
-    if !remainder.is_empty() {
-        output.extend_from_slice(&remainder[1..]);
-    }
-    output
-}
-
 pub fn set_bytes_canonical(data: &[u8]) -> Fr {
     Fr::from_be_bytes_mod_order(data)
 }
