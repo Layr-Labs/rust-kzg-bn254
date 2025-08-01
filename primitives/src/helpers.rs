@@ -39,104 +39,6 @@ pub fn set_bytes_canonical_manual(data: &[u8]) -> Fr {
     Fr::from_bigint(BigInt::new(arrays)).unwrap()
 }
 
-// Functions being used
-
-/// Copies the referenced bytes array argument into a Vec, inserting an empty
-/// byte at the front of every 31 bytes. The empty byte is padded at the low
-/// address, because we use big endian to interpret a field element.
-/// This ensures every 32 bytes is within the valid range of a field element for
-/// the bn254 curve. If the input data is not a multiple of 31 bytes, the
-/// remainder is added to the output by inserting a 0 and the remainder. The
-/// output is thus not necessarily a multiple of 32.
-pub fn convert_by_padding_empty_byte(data: &[u8]) -> Vec<u8> {
-    let data_size = data.len();
-    let parse_size = BYTES_PER_FIELD_ELEMENT - 1;
-    let put_size = BYTES_PER_FIELD_ELEMENT;
-
-    let data_len = data_size.div_ceil(parse_size);
-    let mut valid_data = vec![0u8; data_len * put_size];
-    let mut valid_end = valid_data.len();
-
-    for i in 0..data_len {
-        let start = i * parse_size;
-        let mut end = (i + 1) * parse_size;
-        if end > data_size {
-            end = data_size;
-            valid_end = end - start + 1 + i * put_size;
-        }
-
-        // Set the first byte of each chunk to 0
-        valid_data[i * BYTES_PER_FIELD_ELEMENT] = 0x00;
-        // Copy data from original to new vector, adjusting for the initial zero byte
-        valid_data[i * BYTES_PER_FIELD_ELEMENT + 1..i * BYTES_PER_FIELD_ELEMENT + 1 + end - start]
-            .copy_from_slice(&data[start..end]);
-    }
-
-    valid_data.truncate(valid_end);
-    valid_data
-}
-
-/// Removes the first byte from each 32-byte chunk in a byte slice (including the last potentially incomplete one).
-///
-/// This function is the reverse of `convert_by_padding_empty_byte`. It takes a byte slice that it assumed contains
-/// field elements, where each complete field element is 32 bytes and begins with an empty padding byte
-/// that needs to be removed. The final element may be smaller than 32 bytes, but should also be 0-byte prefixed.
-///
-/// # Arguments
-/// * `data` - 0-byte prefixed big-endian encoded 32-byte chunks representing bn254 field elements. The final element may be shorter.
-///
-/// # Returns
-/// A new `Vec<u8>` with the first byte of each field element removed. For complete elements,
-/// this removes one byte per 32 bytes. For the final partial element (if any), it still
-/// removes the first byte.
-///
-/// # Safety
-/// This function is marked "unchecked" because it assumes without verification that:
-/// * The input contains bn254-encoded field elements are exactly 32 bytes
-/// * The first byte of each field element is safe to remove
-///
-/// # Example
-/// ```text
-/// [0, 1, 2, 3, ..., 31, 0, 1, 2, 3] -> [1, 2, 3, ..., 31, 1, 2, 3]
-/// ```
-///
-/// ```
-/// # use rust_kzg_bn254_primitives::helpers::remove_empty_byte_from_padded_bytes_unchecked;
-/// let mut input = vec![1u8; 70]; // Two complete 32-byte element plus 6 bytes
-/// input[0] = 0; input[32] = 0;
-///
-/// let output = remove_empty_byte_from_padded_bytes_unchecked(&input);
-///
-/// assert_eq!(output, vec![1u8; 67]); // Two complete 31-byte element plus 5 bytes
-/// ```
-///
-/// # Implementation Detail: this function is equivalent to this simple iterator chain:
-/// ```ignore
-/// data.chunks(BYTES_PER_FIELD_ELEMENT).flat_map(|chunk| &chunk[1..]).copied().collect()
-/// ```
-/// However, it is ~30x faster than the above because of the pre-allocation + SIMD instructions optimization.
-pub fn remove_empty_byte_from_padded_bytes_unchecked(data: &[u8]) -> Vec<u8> {
-    // We pre-allocate the exact size of the output vector by calculating the number
-    // of zero bytes that will be removed from the input.
-    let empty_bytes_to_remove = data.len().div_ceil(BYTES_PER_FIELD_ELEMENT);
-    let mut output = Vec::with_capacity(data.len() - empty_bytes_to_remove);
-
-    // We first process all the complete 32-byte chunks (representing bn254 encoded field elements).
-    // We remove the first byte of each chunk, assuming (but unchecked) that it is a zero byte.
-    // Note: we could use a single iterator loop, but separating like this allows the compiler to generate
-    // simd instructions for this main loop, which is much faster (see https://en.wikipedia.org/wiki/Automatic_vectorization).
-    for chunk in data.chunks_exact(BYTES_PER_FIELD_ELEMENT) {
-        output.extend_from_slice(&chunk[1..]);
-    }
-    // We handle the last chunk separately, still assuming (but unchecked) that
-    // it represents a zero prefixed partial field element.
-    let remainder = data.chunks_exact(BYTES_PER_FIELD_ELEMENT).remainder();
-    if !remainder.is_empty() {
-        output.extend_from_slice(&remainder[1..]);
-    }
-    output
-}
-
 pub fn set_bytes_canonical(data: &[u8]) -> Fr {
     Fr::from_be_bytes_mod_order(data)
 }
@@ -766,4 +668,73 @@ pub fn validate_blob_data_as_canonical_field_elements(data: &[u8]) -> Result<(),
             })?;
     }
     Ok(())
+}
+
+// Internally pads the input data by prepending a 0x00 to each chunk of 31 bytes. This guarantees that
+// the data will be a valid field element for the bn254 curve
+//
+// # Additionally, this function will add necessary padding to align the output to 32 bytes
+//
+// NOTE: this method is a reimplementation of convert_by_padding_empty_byte, with one meaningful difference: the alignment
+// of the output to BYTES_PER_FIELD_ELEMENT. This alignment actually makes the padding logic simpler, and the
+// code that uses this function needs an aligned output anyway.
+//
+// Ref: https://github.com/Layr-Labs/eigenda/blob/master/encoding/utils/codec/codec.go#L90
+pub fn pad_payload(input_data: &[u8]) -> Vec<u8> {
+    let bytes_per_chunk = BYTES_PER_FIELD_ELEMENT - 1; // 31 bytes
+    let chunk_count = input_data.len().div_ceil(bytes_per_chunk);
+    let output_length = chunk_count * BYTES_PER_FIELD_ELEMENT;
+
+    let mut padded_output = vec![0u8; output_length];
+
+    for element in 0..chunk_count {
+        let input_start = element * bytes_per_chunk;
+        let input_end = core::cmp::min(input_start + bytes_per_chunk, input_data.len());
+        let output_start = element * BYTES_PER_FIELD_ELEMENT + 1;
+
+        padded_output[output_start..output_start + (input_end - input_start)]
+            .copy_from_slice(&input_data[input_start..input_end]);
+    }
+
+    padded_output
+}
+
+/// Removes internal padding from data that was processed by `pad_payload`.
+///
+/// This is the inverse of `pad_payload` - removes the 0x00 prefix from each 32-byte chunk.
+/// Uses the same optimization pattern as `remove_empty_byte_from_padded_bytes_unchecked`.
+///
+/// # Example
+/// ```
+/// use rust_kzg_bn254_primitives::helpers::{pad_payload, remove_internal_padding};
+///
+/// let original = b"hello world";
+/// let padded = pad_payload(original);
+/// let recovered = remove_internal_padding(&padded).unwrap();
+/// assert_eq!(original, &recovered[..original.len()]);
+/// ```
+pub fn remove_internal_padding(padded_data: &[u8]) -> Result<Vec<u8>, KzgError> {
+    if padded_data.len() % BYTES_PER_FIELD_ELEMENT != 0 {
+        return Err(KzgError::InvalidInputLength);
+    }
+
+    let bytes_per_chunk = BYTES_PER_FIELD_ELEMENT - 1;
+    let chunk_count = padded_data.len() / BYTES_PER_FIELD_ELEMENT;
+    let output_length = chunk_count * bytes_per_chunk;
+
+    // Use capacity-only allocation to avoid zero-initialization waste
+    let mut output_data = Vec::with_capacity(output_length);
+
+    // Use chunks_exact for SIMD optimization (same pattern as remove_empty_byte_from_padded_bytes_unchecked)
+    for chunk in padded_data.chunks_exact(BYTES_PER_FIELD_ELEMENT) {
+        output_data.extend_from_slice(&chunk[1..]);
+    }
+
+    // Since we validated alignment above, there should be no remainder
+    debug_assert!(padded_data
+        .chunks_exact(BYTES_PER_FIELD_ELEMENT)
+        .remainder()
+        .is_empty());
+
+    Ok(output_data)
 }
