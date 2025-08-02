@@ -287,7 +287,7 @@ mod tests {
         // This should not fail since a proof point at infinity is valid
         let result = verify_blob_kzg_proof_batch(&blobs, &commitments, &proofs);
 
-        assert!(!result.is_err());
+        assert!(result.is_ok());
 
         // Also test mixed case - one valid proof, one at infinity
         let input2 = Blob::from_raw_data(b"second input");
@@ -300,7 +300,7 @@ mod tests {
 
         let result_mixed =
             verify_blob_kzg_proof_batch(&blobs_mixed, &commitments_mixed, &proofs_mixed);
-        assert!(!result_mixed.is_err());
+        assert!(result_mixed.is_ok());
     }
 
     #[test]
