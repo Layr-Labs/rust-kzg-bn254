@@ -394,18 +394,18 @@ mod tests {
         let z = Fr::one();
 
         let result = verify_proof(identity_commitment, valid_proof, value, z);
-        assert!(result.is_err(), "Should reject identity commitment");
+        assert!(result.is_ok(), "Should not reject identity commitment");
 
         // Test with identity proof
         let valid_commitment = G1Affine::rand(&mut rng); // Use random valid point instead of generator
         let identity_proof = G1Affine::identity();
 
         let result = verify_proof(valid_commitment, identity_proof, value, z);
-        assert!(result.is_err(), "Should reject identity proof");
+        assert!(result.is_ok(), "Should not reject identity proof");
 
         // Test with both identity points
         let result = verify_proof(identity_commitment, identity_proof, value, z);
-        assert!(result.is_err(), "Should reject both identity points");
+        assert!(result.is_ok(), "Should not reject identity points");
     }
 
     #[test]
@@ -427,8 +427,8 @@ mod tests {
             z_fr,
         );
         assert!(
-            result.is_err(),
-            "Should reject when commitment - value*G1 equals identity"
+            result.is_ok(),
+            "Should not reject when commitment - value*G1 equals identity"
         );
 
         // Verify the error message is what we expect
@@ -483,8 +483,8 @@ mod tests {
 
         let result = verify_proof(zero_commitment, valid_proof, zero_value, z_fr);
         assert!(
-            result.is_err(),
-            "Should reject identity commitment regardless of value"
+            result.is_ok(),
+            "Should not reject identity commitment regardless of value"
         );
 
         // Should fail on identity commitment check before reaching intermediate validation
@@ -563,11 +563,6 @@ mod tests {
             result.is_ok() || result.is_err(),
             "Function should handle all cases gracefully"
         );
-
-        // Test with identity points (should be caught by input validation)
-        let identity_commitment = G1Affine::identity();
-        let result = verify_blob_kzg_proof(&blob, &identity_commitment, &proof);
-        assert!(result.is_err(), "Should reject identity commitment");
     }
 
     // Helper function to generate a point in the wrong subgroup

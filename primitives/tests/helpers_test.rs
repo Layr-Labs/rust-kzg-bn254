@@ -631,17 +631,7 @@ fn test_validate_g1_point_identity_point() {
     // Test with identity point (point at infinity)
     let identity_point = G1Affine::identity();
     let result = validate_g1_point(&identity_point);
-
-    assert!(result.is_err(), "Identity point should fail validation");
-    match result.unwrap_err() {
-        KzgError::NotOnCurveError(msg) => {
-            assert_eq!(
-                msg, "G1 point cannot be point at infinity",
-                "Should have correct error message"
-            );
-        },
-        _ => panic!("Should return NotOnCurveError for identity point"),
-    }
+    assert!(result.is_ok(), "Identity point should pass validation");
 }
 
 #[test]
@@ -717,16 +707,7 @@ fn test_validate_g2_point_identity_point() {
     let identity_point = G2Affine::identity();
     let result = validate_g2_point(&identity_point);
 
-    assert!(result.is_err(), "Identity point should fail validation");
-    match result.unwrap_err() {
-        KzgError::NotOnCurveError(msg) => {
-            assert_eq!(
-                msg, "G2 point cannot be point at infinity",
-                "Should have correct error message"
-            );
-        },
-        _ => panic!("Should return NotOnCurveError for identity point"),
-    }
+    assert!(result.is_ok(), "Identity point should pass validation");
 }
 
 #[test]
@@ -914,18 +895,9 @@ fn test_compute_challenge_comprehensive() {
     let result = compute_challenge(&blob, &identity_commitment);
 
     assert!(
-        result.is_err(),
-        "compute_challenge should reject identity point"
+        result.is_ok(),
+        "compute_challenge should not reject identity point"
     );
-    match result.unwrap_err() {
-        KzgError::NotOnCurveError(msg) => {
-            assert_eq!(
-                msg, "G1 point cannot be point at infinity",
-                "Should reject identity point with proper error message"
-            );
-        },
-        _ => panic!("Should return NotOnCurveError for identity point"),
-    }
 
     // Test 3: Generator point should be rejected
     let generator_commitment = G1Affine::generator();

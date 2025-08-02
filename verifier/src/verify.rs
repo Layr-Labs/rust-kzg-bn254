@@ -41,12 +41,6 @@ pub fn verify_proof(
     // If the claim is valid, this equals H(X)(X - z) in the polynomial equation
     let commit_minus_value = (commitment - value_g1).into_affine();
 
-    if commit_minus_value == G1Affine::identity() {
-        return Err(KzgError::GenericError(
-            "Invalid commitment-value relationship".to_string(),
-        ));
-    }
-
     // Compute [z]*G2
     // This encrypts the evaluation point as a point in G2
     let z_g2 = (G2Affine::generator() * z_fr).into_affine();
