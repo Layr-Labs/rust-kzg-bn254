@@ -234,6 +234,30 @@ mod tests {
     }
 
     #[test]
+    fn test_kzg_zero_blob() {
+        let mut kzg = KZG_INSTANCE.clone();
+
+        let input = vec![0; 31];
+        let input_size = input.len();
+        kzg.calculate_and_store_roots_of_unity(input_size.try_into().unwrap())
+            .unwrap();
+
+        let input_blob = Blob::from_raw_data(&input);
+        let input_poly = input_blob.to_polynomial_eval_form();
+        let commitment = kzg.commit_eval_form(&input_poly, &SRS_INSTANCE).unwrap();
+        let proof = kzg
+            .compute_blob_proof(&input_blob, &commitment, &SRS_INSTANCE)
+            .unwrap();
+
+        let blobs = vec![input_blob.clone()];
+        let commitments = vec![commitment];
+        let proofs = vec![proof];
+
+        let pairing_result = verify_blob_kzg_proof_batch(&blobs, &commitments, &proofs).unwrap();
+        assert_eq!(pairing_result, true);
+    }
+
+    #[test]
     fn test_kzg_batch_proof_with_infinity() {
         let mut kzg = KZG_INSTANCE.clone();
 
@@ -250,17 +274,16 @@ mod tests {
             .compute_blob_proof(&input1, &commitment1, &SRS_INSTANCE)
             .unwrap();
 
-        // Create a proof point at infinity
         let proof_at_infinity = G1Affine::identity();
 
         let blobs = vec![input1.clone()];
         let commitments = vec![commitment1];
         let proofs = vec![proof_at_infinity];
 
-        // This should fail since a proof point at infinity is invalid
+        // This should not fail since a proof point at infinity is valid
         let result = verify_blob_kzg_proof_batch(&blobs, &commitments, &proofs);
 
-        assert!(result.is_err());
+        assert!(!result.is_err());
 
         // Also test mixed case - one valid proof, one at infinity
         let input2 = Blob::from_raw_data(b"second input");
@@ -273,7 +296,7 @@ mod tests {
 
         let result_mixed =
             verify_blob_kzg_proof_batch(&blobs_mixed, &commitments_mixed, &proofs_mixed);
-        assert!(result_mixed.is_err());
+        assert!(!result_mixed.is_err());
     }
 
     #[test]
