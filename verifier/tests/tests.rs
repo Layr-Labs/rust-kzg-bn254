@@ -9,7 +9,10 @@ mod tests {
     use ark_std::{str::FromStr, One};
     use rust_kzg_bn254_primitives::blob::Blob;
     use rust_kzg_bn254_prover::{kzg::KZG, srs::SRS};
-    use rust_kzg_bn254_verifier::{batch::verify_blob_kzg_proof_batch, verify::{verify_blob_kzg_proof, verify_proof}};
+    use rust_kzg_bn254_verifier::{
+        batch::verify_blob_kzg_proof_batch,
+        verify::{verify_blob_kzg_proof, verify_proof},
+    };
 
     // Define a static variable for setup
     lazy_static! {
@@ -257,8 +260,10 @@ mod tests {
         let commitments = vec![commitment];
         let proofs = vec![proof];
 
-        let pairing_result_of_batch_verify = verify_blob_kzg_proof_batch(&blobs, &commitments, &proofs).unwrap();
-        let pairing_result_of_single_verify = verify_blob_kzg_proof(&blobs[0], &commitments[0], &proofs[0]).unwrap();
+        let pairing_result_of_batch_verify =
+            verify_blob_kzg_proof_batch(&blobs, &commitments, &proofs).unwrap();
+        let pairing_result_of_single_verify =
+            verify_blob_kzg_proof(&blobs[0], &commitments[0], &proofs[0]).unwrap();
         assert_eq!(pairing_result_of_batch_verify, true);
         assert_eq!(pairing_result_of_single_verify, true);
     }
