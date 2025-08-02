@@ -26,12 +26,13 @@ pub fn verify_blob_kzg_proof_batch(
         ));
     }
 
-    // This checks: not identity, on curve, correct subgroup, not generator
+
+    // This checks: on curve, correct subgroup, not generator
     for commitment in commitments.iter() {
         helpers::validate_g1_point(commitment)?;
     }
 
-    // This checks: not identity, on curve, correct subgroup, not generator
+    // This checks: on curve, correct subgroup, not generator
     for proof in proofs.iter() {
         helpers::validate_g1_point(proof)?;
     }

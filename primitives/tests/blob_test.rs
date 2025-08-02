@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests {
     use rand::Rng;
+    use rayon::prelude::*;
     use rust_kzg_bn254_primitives::{
         blob::Blob,
         helpers::{self, pad_payload},
@@ -77,13 +78,22 @@ mod tests {
 
         blob = Blob::from_raw_data(GETTYSBURG_ADDRESS_BYTES);
 
-        assert_eq!(
-            GETTYSBURG_ADDRESS_BYTES.len() > (blob.to_raw_data().unwrap().len() - 32),
-            true
-        );
-        assert_eq!(
-            GETTYSBURG_ADDRESS_BYTES.len() <= blob.to_raw_data().unwrap().len(),
-            true
-        );
+        assert_eq!(blob.to_raw_data().unwrap().len(), 1488);
+
+        // parallel processing for faster testing of large blobs
+        (0..1000).into_par_iter().for_each(|_| {
+            // each thread gets its own RNG to avoid contention
+            let mut thread_rng = rand::thread_rng();
+
+            // random blob (about 16MB)
+            let random_blob: Vec<u8> = (0..16252928).map(|_| thread_rng.gen::<u8>()).collect();
+            let blob = Blob::from_raw_data(&random_blob);
+
+            assert_eq!(
+                random_blob.len() > (blob.to_raw_data().unwrap().len() - 32),
+                true
+            );
+            assert_eq!(random_blob.len() <= blob.to_raw_data().unwrap().len(), true);
+        });
     }
 }
