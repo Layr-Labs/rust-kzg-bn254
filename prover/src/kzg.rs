@@ -173,14 +173,14 @@ impl KZG {
             }
         }
 
-        let quotient_poly_eval_form = PolynomialEvalForm::new(quotient_poly);
+        let quotient_poly_eval_form = PolynomialEvalForm::new(quotient_poly)?;
         self.commit_eval_form(&quotient_poly_eval_form, srs)
     }
 
     /// commit to a [Blob], by transforming it into a [PolynomialEvalForm] and
     /// then calling [Kzg::commit_eval_form].
     pub fn commit_blob(&self, blob: &Blob, srs: &SRS) -> Result<G1Affine, KzgError> {
-        let polynomial = blob.to_polynomial_eval_form();
+        let polynomial = blob.to_polynomial_eval_form()?;
         self.commit_eval_form(&polynomial, srs)
     }
 
@@ -252,6 +252,9 @@ impl KZG {
                 numerator = fi * omega_i;
                 denominator = z_fr - omega_i;
                 denominator *= z_fr;
+                if denominator.is_zero() {
+                    return;
+                }
                 temp = numerator.div(denominator);
                 quotient += temp;
             });
@@ -291,17 +294,12 @@ impl KZG {
         commitment: &G1Affine,
         srs: &SRS,
     ) -> Result<G1Affine, KzgError> {
-        // Validate that the commitment is a valid point on the G1 curve
-        // This prevents potential invalid curve attacks
-        if !commitment.is_on_curve() || !commitment.is_in_correct_subgroup_assuming_on_curve() {
-            return Err(KzgError::NotOnCurveError(
-                "commitment not on curve".to_string(),
-            ));
-        }
+        // This checks: not identity point, on curve, and in correct subgroup
+        helpers::validate_g1_point(commitment)?;
 
         // Convert the blob to a polynomial in evaluation form
         // This is necessary because KZG proofs work with polynomials
-        let blob_poly = blob.to_polynomial_eval_form();
+        let blob_poly = blob.to_polynomial_eval_form()?;
 
         // Compute the evaluation challenge using Fiat-Shamir heuristic
         // This challenge determines the point at which we evaluate the polynomial
