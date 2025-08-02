@@ -237,12 +237,16 @@ mod tests {
     fn test_kzg_zero_blob() {
         let mut kzg = KZG_INSTANCE.clone();
 
-        let input = vec![0; 31];
+        let input = vec![0; 62];
         let input_size = input.len();
         kzg.calculate_and_store_roots_of_unity(input_size.try_into().unwrap())
             .unwrap();
 
         let input_blob = Blob::from_raw_data(&input);
+
+        // making sure that the blob is all zeros.
+        assert_eq!(input_blob.data(), &[0; 64]);
+
         let input_poly = input_blob.to_polynomial_eval_form();
         let commitment = kzg.commit_eval_form(&input_poly, &SRS_INSTANCE).unwrap();
         let proof = kzg
