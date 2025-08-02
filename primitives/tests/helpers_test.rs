@@ -495,7 +495,6 @@ fn test_pad_payload() {
         "testing removing padding"
     );
 
-
     let padded_data_gettysburg = pad_payload(GETTYSBURG_ADDRESS_BYTES);
     let unpadded_data_gettysburg = remove_internal_padding(&padded_data_gettysburg).unwrap();
     assert_eq!(unpadded_data_gettysburg.len(), 1488);

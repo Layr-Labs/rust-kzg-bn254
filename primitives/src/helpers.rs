@@ -741,12 +741,6 @@ pub fn validate_blob_data_as_canonical_field_elements(data: &[u8]) -> Result<(),
 /// assert!(validate_g1_point(&generator_point).is_err());
 /// ```
 pub fn validate_g1_point(point: &G1Affine) -> Result<(), KzgError> {
-    if point.is_zero() {
-        return Err(KzgError::NotOnCurveError(
-            "G1 point cannot be point at infinity".to_string(),
-        ));
-    }
-
     if !point.is_on_curve() {
         return Err(KzgError::NotOnCurveError(
             "G1 point not on curve".to_string(),
@@ -801,12 +795,6 @@ pub fn validate_g1_point(point: &G1Affine) -> Result<(), KzgError> {
 /// assert!(validate_g2_point(&generator_point).is_err());
 /// ```
 pub fn validate_g2_point(point: &G2Affine) -> Result<(), KzgError> {
-    if point.is_zero() {
-        return Err(KzgError::NotOnCurveError(
-            "G2 point cannot be point at infinity".to_string(),
-        ));
-    }
-
     if !point.is_on_curve() {
         return Err(KzgError::NotOnCurveError(
             "G2 point not on curve".to_string(),
@@ -827,7 +815,6 @@ pub fn validate_g2_point(point: &G2Affine) -> Result<(), KzgError> {
 
     Ok(())
 }
-
 
 // Internally pads the input data by prepending a 0x00 to each chunk of 31 bytes. This guarantees that
 // the data will be a valid field element for the bn254 curve

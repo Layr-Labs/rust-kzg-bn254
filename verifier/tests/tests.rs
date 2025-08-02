@@ -250,7 +250,7 @@ mod tests {
         // making sure that the blob is all zeros.
         assert_eq!(input_blob.data(), &[0; 64]);
 
-        let input_poly = input_blob.to_polynomial_eval_form();
+        let input_poly = input_blob.to_polynomial_eval_form().unwrap();
         let commitment = kzg.commit_eval_form(&input_poly, &SRS_INSTANCE).unwrap();
         let proof = kzg
             .compute_blob_proof(&input_blob, &commitment, &SRS_INSTANCE)

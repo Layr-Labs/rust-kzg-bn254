@@ -26,7 +26,6 @@ pub fn verify_blob_kzg_proof_batch(
         ));
     }
 
-
     // This checks: on curve, correct subgroup, not generator
     for commitment in commitments.iter() {
         helpers::validate_g1_point(commitment)?;
