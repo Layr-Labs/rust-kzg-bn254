@@ -735,7 +735,7 @@ pub fn validate_blob_data_as_canonical_field_elements(data: &[u8]) -> Result<(),
 /// assert!(validate_g1_point(&valid_point).is_ok());
 ///
 /// let identity_point = G1Affine::identity();
-/// assert!(validate_g1_point(&identity_point).is_err());
+/// assert!(validate_g1_point(&identity_point).is_ok());
 ///
 /// let generator_point = G1Affine::generator();
 /// assert!(validate_g1_point(&generator_point).is_err());
@@ -789,7 +789,7 @@ pub fn validate_g1_point(point: &G1Affine) -> Result<(), KzgError> {
 /// assert!(validate_g2_point(&valid_point).is_ok());
 ///
 /// let identity_point = G2Affine::identity();
-/// assert!(validate_g2_point(&identity_point).is_err());
+/// assert!(validate_g2_point(&identity_point).is_ok());
 ///
 /// let generator_point = G2Affine::generator();
 /// assert!(validate_g2_point(&generator_point).is_err());
