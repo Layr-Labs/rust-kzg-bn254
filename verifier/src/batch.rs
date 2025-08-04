@@ -30,9 +30,7 @@ pub fn verify_blob_kzg_proof_batch(
     // Using parallel iterator (par_iter) for better performance on large batches
     // This prevents invalid curve attacks
     if commitments.iter().any(|commitment| {
-        commitment == &G1Affine::identity()
-            || !commitment.is_on_curve()
-            || !commitment.is_in_correct_subgroup_assuming_on_curve()
+        !commitment.is_on_curve() || !commitment.is_in_correct_subgroup_assuming_on_curve()
     }) {
         return Err(KzgError::NotOnCurveError(
             "commitment not on curve".to_string(),
@@ -41,11 +39,10 @@ pub fn verify_blob_kzg_proof_batch(
 
     // Validate that all proofs are valid points on the G1 curve
     // Using parallel iterator for efficiency
-    if proofs.iter().any(|proof| {
-        proof == &G1Affine::identity()
-            || !proof.is_on_curve()
-            || !proof.is_in_correct_subgroup_assuming_on_curve()
-    }) {
+    if proofs
+        .iter()
+        .any(|proof| !proof.is_on_curve() || !proof.is_in_correct_subgroup_assuming_on_curve())
+    {
         return Err(KzgError::NotOnCurveError("proof not on curve".to_string()));
     }
 
