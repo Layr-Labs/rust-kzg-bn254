@@ -25,14 +25,18 @@ jobs:
     steps:
     - uses: step-security/harden-runner@446798f8213ac2e75931c1b0769676d927801858 # v2.10.3
       with:
-        disable-sudo: true
+        disable-sudo: false
         egress-policy: block
         allowed-endpoints: >
+          archive.ubuntu.com:80
           auth.docker.io:443
           github.com:443
           index.crates.io:443
+          objects.githubusercontent.com:443
+          packages.microsoft.com:443
           production.cloudflare.docker.com:443
           registry-1.docker.io:443
+          security.ubuntu.com:80
           static.crates.io:443
           static.rust-lang.org:443
           
@@ -43,8 +47,16 @@ jobs:
       
     - name: Install security tools
       run: |
-        cargo install cargo-audit --version 0.21.1
-        cargo install cargo-deny
+        # Install pre-compiled binaries compatible with Rust 1.78
+        # cargo-audit
+        curl -L https://github.com/RustSec/rustsec/releases/download/cargo-audit/v0.18.3/cargo-audit-x86_64-unknown-linux-musl-v0.18.3.tgz | tar xz
+        find . -name "cargo-audit" -type f -exec sudo cp {} /usr/local/bin/ \;
+        # cargo-deny  
+        curl -L https://github.com/EmbarkStudios/cargo-deny/releases/download/0.14.24/cargo-deny-0.14.24-x86_64-unknown-linux-musl.tar.gz | tar xz
+        find . -name "cargo-deny" -type f -exec sudo cp {} /usr/local/bin/ \;
+        # Verify installations
+        cargo-audit --version
+        cargo-deny --version
         
     - name: Run security audit
       run: cargo audit
