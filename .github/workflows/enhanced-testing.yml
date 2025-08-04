@@ -39,11 +39,11 @@ jobs:
     - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
     
     - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@1.81
+      uses: dtolnay/rust-toolchain@1.78
       
     - name: Install security tools
       run: |
-        cargo install cargo-audit
+        cargo install cargo-audit --version 0.21.1
         cargo install cargo-deny
         
     - name: Run security audit
