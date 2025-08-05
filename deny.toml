@@ -7,8 +7,6 @@ allow = [
     "Apache-2.0", 
     "Apache-2.0 WITH LLVM-exception",
     "BSD-2-Clause",
-    "BSD-3-Clause", 
-    "ISC",
     "Unicode-3.0",
 ]
 
@@ -16,9 +14,7 @@ allow = [
 confidence-threshold = 0.8
 
 # Allow specific licenses on a per-crate basis
-exceptions = [
-    { allow = ["Unicode-DFS-2016"], name = "unicode-ident" },
-]
+# exceptions = []
 
 [licenses.private]
 # Ignore workspace crates that aren't published
