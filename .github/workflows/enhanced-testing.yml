@@ -47,13 +47,9 @@ jobs:
       
     - name: Install security tools
       run: |
-        # Install pre-compiled binaries compatible with Rust 1.78
-        # cargo-audit
-        curl -L https://github.com/RustSec/rustsec/releases/download/cargo-audit/v0.18.3/cargo-audit-x86_64-unknown-linux-musl-v0.18.3.tgz | tar xz
-        find . -name "cargo-audit" -type f -exec sudo cp {} /usr/local/bin/ \;
-        # cargo-deny  
-        curl -L https://github.com/EmbarkStudios/cargo-deny/releases/download/0.14.24/cargo-deny-0.14.24-x86_64-unknown-linux-musl.tar.gz | tar xz
-        find . -name "cargo-deny" -type f -exec sudo cp {} /usr/local/bin/ \;
+        # Install security tools using cargo install with locked dependencies
+        cargo install cargo-audit --version 0.18.3 --locked
+        cargo install cargo-deny --version 0.14.24 --locked
         # Verify installations
         cargo-audit --version
         cargo-deny --version
