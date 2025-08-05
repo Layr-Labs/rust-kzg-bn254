@@ -1,4 +1,4 @@
-name: Enhanced Testing & Security
+name: Cargo Audit Scan
 
 on:
   push:
