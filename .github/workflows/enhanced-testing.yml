@@ -48,7 +48,7 @@ jobs:
     - name: Install security tools
       run: |
         # Install security tools using cargo install with locked dependencies
-        cargo install cargo-audit --version 0.18.3 --locked
+        cargo install cargo-audit --version 0.21.1 --locked
         cargo install cargo-deny --version 0.14.24 --locked
         # Verify installations
         cargo-audit --version
