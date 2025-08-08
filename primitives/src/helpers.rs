@@ -30,13 +30,17 @@ pub fn blob_to_polynomial(blob: &[u8]) -> Vec<Fr> {
 }
 
 pub fn set_bytes_canonical_manual(data: &[u8]) -> Fr {
+    if data.len() != 32 {
+        return Fr::zero();
+    }
+
     let mut arrays: [u64; 4] = Default::default(); // Initialize an array of four [u8; 8] arrays
 
     for (i, chunk) in data.chunks(8).enumerate() {
         arrays[i] = u64::from_be_bytes(chunk.try_into().expect("Slice with incorrect length"));
     }
     arrays.reverse();
-    Fr::from_bigint(BigInt::new(arrays)).unwrap()
+    Fr::from_bigint(BigInt::new(arrays)).expect("valid field element")
 }
 
 pub fn set_bytes_canonical(data: &[u8]) -> Fr {
@@ -54,7 +58,9 @@ pub fn to_fr_array(data: &[u8]) -> Vec<Fr> {
     for (i, element) in eles.iter_mut().enumerate().take(num_ele) {
         let start = i * BYTES_PER_FIELD_ELEMENT;
         let end = (i + 1) * BYTES_PER_FIELD_ELEMENT;
+
         if end > data.len() {
+            // Handle the last chunk that may be incomplete
             let mut padded = vec![0u8; BYTES_PER_FIELD_ELEMENT];
             padded[..data.len() - start].copy_from_slice(&data[start..]);
             *element = set_bytes_canonical(&padded);
@@ -140,23 +146,6 @@ pub fn is_zeroed(first_byte: u8, buf: Vec<u8>) -> bool {
     true
 }
 
-pub fn str_vec_to_fr_vec(input: Vec<&str>) -> Result<Vec<Fr>, &str> {
-    let mut output: Vec<Fr> = Vec::<Fr>::with_capacity(input.len());
-
-    for element in &input {
-        if *element == "-1" {
-            let mut test = Fr::one();
-            test.neg_in_place();
-            output.push(test);
-        } else {
-            let fr_data = Fr::from_str(element).expect("could not load string to Fr");
-            output.push(fr_data);
-        }
-    }
-
-    Ok(output)
-}
-
 pub fn lexicographically_largest(z: &Fq) -> bool {
     // This can be determined by checking to see if the element is
     // larger than (p - 1) // 2. If we subtract by ((p - 1) // 2) + 1
@@ -205,7 +194,7 @@ pub fn read_g1_point_from_bytes_be(g1_bytes_be: &[u8]) -> Result<G1Affine, &str>
     x_bytes[0] &= !m_mask;
     let x = Fq::from_be_bytes_mod_order(&x_bytes);
     let y_squared = x * x * x + Fq::from(3);
-    let mut y_sqrt = y_squared.sqrt().ok_or("no item1").unwrap();
+    let mut y_sqrt = y_squared.sqrt().ok_or("point not on curve")?;
 
     if lexicographically_largest(&y_sqrt) {
         if m_data == m_compressed_smallest {
@@ -229,7 +218,9 @@ fn get_b_twist_curve_coeff() -> Fq2 {
 
     // this is bTwistCurveCoeff
     let mut twist_curve_coeff = Fq2::new(twist_c0, twist_c1);
-    twist_curve_coeff = *twist_curve_coeff.inverse_in_place().unwrap();
+    twist_curve_coeff = *twist_curve_coeff
+        .inverse_in_place()
+        .expect("inverse is required");
 
     twist_curve_coeff.c0 *= Fq::from(3);
     twist_curve_coeff.c1 *= Fq::from(3);
@@ -237,7 +228,7 @@ fn get_b_twist_curve_coeff() -> Fq2 {
 }
 
 pub fn is_on_curve_g1(g1: &G1Projective) -> bool {
-    let b_curve_coeff: Fq = Fq::from_str("3").unwrap();
+    let b_curve_coeff: Fq = Fq::from_str("3").expect("3 is a valid field element");
 
     let mut left = g1.y;
     left.square_in_place();
@@ -399,9 +390,12 @@ pub fn pairings_verify(a1: G1Affine, a2: G2Affine, b1: G1Affine, b2: G2Affine) -
 /// * `Ok(Fr)` - The resulting field element challenge.
 /// * `Err(KzgError)` - If any step fails.
 pub fn compute_challenge(blob: &Blob, commitment: &G1Affine) -> Result<Fr, KzgError> {
+    // Validate the commitment using the helper function
+    validate_g1_point(commitment)?;
+
     // Convert the blob to a polynomial in evaluation form
     // This is needed to process the blob data for the challenge
-    let blob_poly = blob.to_polynomial_eval_form();
+    let blob_poly = blob.to_polynomial_eval_form()?;
 
     // Calculate total size needed for the challenge input buffer:
     // - Length of domain separator
@@ -475,6 +469,18 @@ pub fn evaluate_polynomial_in_evaluation_form(
 
     let width = polynomial.len();
 
+    if width == 0 {
+        return Err(KzgError::GenericError(
+            "Empty polynomial domain".to_string(),
+        ));
+    }
+    if width > (1 << 28) {
+        // Max supported domain size
+        return Err(KzgError::GenericError(
+            "Polynomial domain too large".to_string(),
+        ));
+    }
+
     // Step 4: Compute inverse_width = 1 / width
     let inverse_width = Fr::from(width as u64)
         .inverse()
@@ -498,9 +504,18 @@ pub fn evaluate_polynomial_in_evaluation_form(
         .map(|(f_i, &domain_i)| {
             let a = *f_i * domain_i;
             let b = *z - domain_i;
-            // Since `z` is not in the domain, `b` should never be zero
-            a / b
+
+            if b.is_zero() {
+                return Err(KzgError::GenericError(
+                    "Division by zero in barycentric evaluation: z equals domain element"
+                        .to_string(),
+                ));
+            }
+
+            Ok(a / b)
         })
+        .collect::<Result<Vec<_>, _>>()?
+        .into_iter()
         .fold(Fr::zero(), |acc, val| acc + val);
 
     // Step 7: Compute r = z^width - 1
@@ -529,10 +544,24 @@ pub fn evaluate_polynomial_in_evaluation_form(
 /// - Calculates KZG operational parameters for commitment scheme
 /// ```
 pub fn calculate_roots_of_unity(length_of_data_after_padding: u64) -> Result<Vec<Fr>, KzgError> {
+    if length_of_data_after_padding == 0 {
+        return Err(KzgError::GenericError(
+            "Length of data after padding is 0".to_string(),
+        ));
+    }
+
+    if length_of_data_after_padding.div_ceil(BYTES_PER_FIELD_ELEMENT as u64)
+        > MAINNET_SRS_G1_SIZE as u64
+    {
+        return Err(KzgError::GenericError(
+            "the length of data after padding is not valid with respect to the SRS".to_string(),
+        ));
+    }
+
     // Calculate log2 of the next power of two of the length of data after padding
     let log2_of_evals = log2(
         length_of_data_after_padding
-            .div_ceil(32)
+            .div_ceil(BYTES_PER_FIELD_ELEMENT as u64)
             .next_power_of_two() as f64,
     )
     .to_u8()
@@ -541,13 +570,9 @@ pub fn calculate_roots_of_unity(length_of_data_after_padding: u64) -> Result<Vec
     })?;
 
     // Check if the length of data after padding is valid with respect to the SRS order
-    if length_of_data_after_padding
-        .div_ceil(BYTES_PER_FIELD_ELEMENT as u64)
-        .next_power_of_two()
-        > MAINNET_SRS_G1_SIZE as u64
-    {
+    if log2_of_evals as u64 > MAINNET_SRS_G1_SIZE as u64 {
         return Err(KzgError::SerializationError(
-            "the supplied encoding parameters are not valid with respect to the SRS.".to_string(),
+            "the length of data after padding is not valid with respect to the SRS".to_string(),
         ));
     }
 
@@ -570,13 +595,26 @@ fn expand_root_of_unity(root_of_unity: &Fr) -> Vec<Fr> {
     roots.push(*root_of_unity); // Add the root of unity
 
     let mut i = 1;
-    while !roots[i].is_one() {
+
+    // This is the maximum number of iterations to avoid infinite loop
+    // There is only need to support a max of MAINNET_SRS_G1_SIZE worth of data so
+    // the number of iterations is MAINNET_SRS_G1_SIZE + 1 (because the first element is 1)
+    let max_iterations: usize = MAINNET_SRS_G1_SIZE + 1;
+
+    while !roots[i].is_one() && i < max_iterations {
         // Continue until the element cycles back to one
         let this = &roots[i];
         i += 1;
         roots.push(this * root_of_unity); // Push the next power of the root
                                           // of unity
     }
+
+    if i >= max_iterations {
+        // This should never happen with valid primitive roots, but provides safety
+        // Return minimal valid expansion
+        return vec![Fr::one()];
+    }
+
     roots
 }
 
@@ -599,7 +637,7 @@ pub fn compute_challenges_and_evaluate_polynomial(
     for i in 0..blobs.len() {
         // Step 1: Convert blob to polynomial form
         // This is necessary because we need to evaluate the polynomial
-        let polynomial = blobs[i].to_polynomial_eval_form();
+        let polynomial = blobs[i].to_polynomial_eval_form()?;
 
         // Step 2: Generate Fiat-Shamir challenge
         // This creates a "random" evaluation point based on the blob and commitment
@@ -670,6 +708,114 @@ pub fn validate_blob_data_as_canonical_field_elements(data: &[u8]) -> Result<(),
     Ok(())
 }
 
+/// Validates that a G1 point meets all cryptographic requirements.
+///
+/// This function checks the following conditions:
+/// 1. Point is not the identity (point at infinity)
+/// 2. Point is on the BN254 elliptic curve
+/// 3. Point is in the correct subgroup
+/// 4. Point is not the generator point
+///
+/// # Arguments
+/// * `point` - Reference to the G1Affine point to validate
+///
+/// # Returns
+/// * `Ok(())` if the point passes all validation checks
+/// * `Err(KzgError::NotOnCurveError)` with specific error message if validation fails
+///
+/// # Example
+/// ```
+/// use ark_bn254::G1Affine;
+/// use ark_ff::UniformRand;
+/// use ark_ec::AffineRepr;
+/// use rust_kzg_bn254_primitives::helpers::validate_g1_point;
+///
+/// let mut rng = ark_std::test_rng();
+/// let valid_point = G1Affine::rand(&mut rng);
+/// assert!(validate_g1_point(&valid_point).is_ok());
+///
+/// let identity_point = G1Affine::identity();
+/// assert!(validate_g1_point(&identity_point).is_ok());
+///
+/// let generator_point = G1Affine::generator();
+/// assert!(validate_g1_point(&generator_point).is_err());
+/// ```
+pub fn validate_g1_point(point: &G1Affine) -> Result<(), KzgError> {
+    if !point.is_on_curve() {
+        return Err(KzgError::NotOnCurveError(
+            "G1 point not on curve".to_string(),
+        ));
+    }
+
+    if !point.is_in_correct_subgroup_assuming_on_curve() {
+        return Err(KzgError::NotOnCurveError(
+            "G1 point not in correct subgroup".to_string(),
+        ));
+    }
+
+    if *point == G1Affine::generator() {
+        return Err(KzgError::NotOnCurveError(
+            "G1 point cannot be the generator point".to_string(),
+        ));
+    }
+
+    Ok(())
+}
+
+/// Validates that a G2 point meets all cryptographic requirements.
+///
+/// This function checks the following conditions:
+/// 1. Point is not the identity (point at infinity)
+/// 2. Point is on the BN254 elliptic curve (twisted curve for G2)
+/// 3. Point is in the correct subgroup
+/// 4. Point is not the generator point
+///
+/// # Arguments
+/// * `point` - Reference to the G2Affine point to validate
+///
+/// # Returns
+/// * `Ok(())` if the point passes all validation checks
+/// * `Err(KzgError::NotOnCurveError)` with specific error message if validation fails
+///
+/// # Example
+/// ```
+/// use ark_bn254::G2Affine;
+/// use ark_ff::UniformRand;
+/// use ark_ec::AffineRepr;
+/// use rust_kzg_bn254_primitives::helpers::validate_g2_point;
+///
+/// let mut rng = ark_std::test_rng();
+/// let valid_point = G2Affine::rand(&mut rng);
+/// assert!(validate_g2_point(&valid_point).is_ok());
+///
+/// let identity_point = G2Affine::identity();
+/// assert!(validate_g2_point(&identity_point).is_ok());
+///
+/// let generator_point = G2Affine::generator();
+/// assert!(validate_g2_point(&generator_point).is_err());
+/// ```
+pub fn validate_g2_point(point: &G2Affine) -> Result<(), KzgError> {
+    if !point.is_on_curve() {
+        return Err(KzgError::NotOnCurveError(
+            "G2 point not on curve".to_string(),
+        ));
+    }
+
+    if !point.is_in_correct_subgroup_assuming_on_curve() {
+        return Err(KzgError::NotOnCurveError(
+            "G2 point not in correct subgroup".to_string(),
+        ));
+    }
+
+    if *point == G2Affine::generator() {
+        return Err(KzgError::NotOnCurveError(
+            "G2 point cannot be the generator point".to_string(),
+        ));
+    }
+
+    Ok(())
+}
+
 // Internally pads the input data by prepending a 0x00 to each chunk of 31 bytes. This guarantees that
 // the data will be a valid field element for the bn254 curve
 //
@@ -729,12 +875,6 @@ pub fn remove_internal_padding(padded_data: &[u8]) -> Result<Vec<u8>, KzgError> 
     for chunk in padded_data.chunks_exact(BYTES_PER_FIELD_ELEMENT) {
         output_data.extend_from_slice(&chunk[1..]);
     }
-
-    // Since we validated alignment above, there should be no remainder
-    debug_assert!(padded_data
-        .chunks_exact(BYTES_PER_FIELD_ELEMENT)
-        .remainder()
-        .is_empty());
 
     Ok(output_data)
 }

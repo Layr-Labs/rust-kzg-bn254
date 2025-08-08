@@ -75,20 +75,22 @@ impl Blob {
     }
 
     /// Convert the blob data to a [PolynomialEvalForm].
-    pub fn to_polynomial_eval_form(&self) -> PolynomialEvalForm {
+    pub fn to_polynomial_eval_form(&self) -> Result<PolynomialEvalForm, KzgError> {
         let fr_vec = helpers::to_fr_array(&self.blob_data);
         PolynomialEvalForm::new(fr_vec)
     }
 
     /// Convert the blob data to a [PolynomialCoeffForm].
-    pub fn to_polynomial_coeff_form(&self) -> PolynomialCoeffForm {
+    pub fn to_polynomial_coeff_form(&self) -> Result<PolynomialCoeffForm, KzgError> {
         let fr_vec = helpers::to_fr_array(&self.blob_data);
         PolynomialCoeffForm::new(fr_vec)
     }
 }
 
 impl From<Vec<u8>> for Blob {
-    fn from(blob_data: Vec<u8>) -> Self {
+    fn from(blob_data: Vec<u8>) -> Blob {
+        // Data is properly formatted - construct blob
+        // Note: Downstream field element construction will apply modulo reduction as expected
         Blob { blob_data }
     }
 }

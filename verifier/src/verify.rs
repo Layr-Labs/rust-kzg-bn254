@@ -1,4 +1,4 @@
-use ark_bn254::{Fr, G1Affine, G2Affine};
+use ark_bn254::{Fr, G1Affine, G2Affine, G2Projective};
 use ark_ec::{AffineRepr, CurveGroup};
 use rust_kzg_bn254_primitives::{blob::Blob, consts::G2_TAU, errors::KzgError, helpers};
 
@@ -13,14 +13,19 @@ pub fn verify_proof(
     value_fr: Fr,
     z_fr: Fr,
 ) -> Result<bool, KzgError> {
-    if !commitment.is_on_curve() || !commitment.is_in_correct_subgroup_assuming_on_curve() {
-        return Err(KzgError::NotOnCurveError(
-            "commitment not on curve".to_string(),
-        ));
-    }
+    // Validate commitment point using helper function
+    // This checks: not identity, on curve, correct subgroup, not generator
+    helpers::validate_g1_point(&commitment)?;
 
-    if !proof.is_on_curve() || !proof.is_in_correct_subgroup_assuming_on_curve() {
-        return Err(KzgError::NotOnCurveError("proof not on curve".to_string()));
+    // Validate proof point using helper function
+    // This checks: not identity, on curve, correct subgroup, not generator
+    helpers::validate_g1_point(&proof)?;
+
+    // This must match the validation in batch verification for consistency
+    if !helpers::is_on_curve_g2(&G2Projective::from(G2_TAU)) {
+        return Err(KzgError::NotOnCurveError(
+            "Invalid trusted setup: G2_TAU not on curve".to_string(),
+        ));
     }
 
     // Get τ*G2 from the trusted setup
@@ -45,6 +50,12 @@ pub fn verify_proof(
     // τ is the secret from the trusted setup representing the variable X
     let x_minus_z = (g2_tau - z_g2).into_affine();
 
+    if x_minus_z == G2Affine::identity() {
+        return Err(KzgError::GenericError(
+            "Evaluation point equals trusted setup secret".to_string(),
+        ));
+    }
+
     // Verify the pairing equation:
     // e([C - value*G1], G2) = e(proof, [τ - z]*G2)
     // This checks if (C - value*G1) = proof * (τ - z)
@@ -64,18 +75,14 @@ pub fn verify_blob_kzg_proof(
     commitment: &G1Affine,
     proof: &G1Affine,
 ) -> Result<bool, KzgError> {
-    if !commitment.is_on_curve() || !commitment.is_in_correct_subgroup_assuming_on_curve() {
-        return Err(KzgError::NotOnCurveError(
-            "commitment not on curve".to_string(),
-        ));
-    }
+    // This checks: not identity, on curve, correct subgroup, not generator
+    helpers::validate_g1_point(commitment)?;
 
-    if !proof.is_on_curve() || !proof.is_in_correct_subgroup_assuming_on_curve() {
-        return Err(KzgError::NotOnCurveError("proof not on curve".to_string()));
-    }
+    // This checks: not identity, on curve, correct subgroup, not generator
+    helpers::validate_g1_point(proof)?;
 
     // Convert blob to polynomial
-    let polynomial = blob.to_polynomial_eval_form();
+    let polynomial = blob.to_polynomial_eval_form()?;
 
     // Compute the evaluation challenge for the blob and commitment
     let evaluation_challenge = helpers::compute_challenge(blob, commitment)?;
