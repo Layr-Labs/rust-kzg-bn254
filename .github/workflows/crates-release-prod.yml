@@ -21,3 +21,4 @@ jobs:
 
       - name: Publish Crate
         run: cargo publish -p ${{ inputs.crate_name }} --token ${{ secrets.CRATES_IO_TOKEN }}
+

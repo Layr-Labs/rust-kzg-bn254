@@ -1,0 +1,62 @@
+name: Cargo Audit Scan
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "*" ]
+  schedule:
+    # Run dependency updates weekly on Sundays at 2 AM UTC
+    - cron: '0 2 * * 0'
+
+env:
+  CARGO_TERM_COLOR: always
+
+permissions:
+  contents: read
+
+jobs:
+        
+  cargo-audit-scan:
+    name: Cargo Audit Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+    - uses: step-security/harden-runner@446798f8213ac2e75931c1b0769676d927801858 # v2.10.3
+      with:
+        disable-sudo: false
+        egress-policy: block
+        allowed-endpoints: >
+          archive.ubuntu.com:80
+          auth.docker.io:443
+          github.com:443
+          index.crates.io:443
+          objects.githubusercontent.com:443
+          packages.microsoft.com:443
+          production.cloudflare.docker.com:443
+          registry-1.docker.io:443
+          security.ubuntu.com:80
+          static.crates.io:443
+          static.rust-lang.org:443
+          
+    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+    
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@1.78
+      
+    - name: Install security tools
+      run: |
+        # Install security tools using cargo install with locked dependencies
+        cargo install cargo-audit --version 0.21.1 --locked
+        cargo install cargo-deny --version 0.14.24 --locked
+        # Verify installations
+        cargo-audit --version
+        cargo-deny --version
+        
+    - name: Run security audit
+      run: cargo audit
+      
+    - name: Run cargo deny
+      run: cargo deny check
+

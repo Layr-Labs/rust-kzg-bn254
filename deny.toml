@@ -1,0 +1,41 @@
+# Configuration for cargo-deny to allow common open source licenses
+
+[licenses]
+# List of explicitly allowed licenses
+allow = [
+    "MIT",
+    "Apache-2.0", 
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "Unicode-3.0",
+]
+
+# Confidence threshold for detecting a license from a license text
+confidence-threshold = 0.8
+
+# Allow specific licenses on a per-crate basis
+# exceptions = []
+
+[licenses.private]
+# Ignore workspace crates that aren't published
+ignore = true
+
+[bans]
+# Allow multiple versions of the same crate with warning
+multiple-versions = "warn"
+
+[advisories]
+# Security vulnerability handling
+vulnerability = "deny"       # Fail on security vulnerabilities
+unmaintained = "warn"        # Warn on unmaintained crates but don't fail
+yanked = "deny"             # Warn on yanked crates
+notice = "warn"             # Warn on security notices
+
+# Ignore specific advisories (use sparingly and with justification)
+ignore = [
+    "RUSTSEC-2024-0436", # paste crate unmaintained but widely used in ecosystem
+]
+
+[sources]
+# Allow standard crates.io registry
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
