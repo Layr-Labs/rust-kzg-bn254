@@ -45,6 +45,11 @@ jobs:
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@1.78
       
+    - name: Update dependencies for compatibility
+      run: |
+        cargo update rayon-core --precise 1.12.1
+        cargo update half --precise 2.4.1
+      
     - name: Install security tools
       run: |
         # Install security tools using cargo install with locked dependencies
