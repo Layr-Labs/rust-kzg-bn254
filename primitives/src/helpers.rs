@@ -469,18 +469,6 @@ pub fn evaluate_polynomial_in_evaluation_form(
 
     let width = polynomial.len();
 
-    if width == 0 {
-        return Err(KzgError::GenericError(
-            "Empty polynomial domain".to_string(),
-        ));
-    }
-    if width > (1 << 28) {
-        // Max supported domain size
-        return Err(KzgError::GenericError(
-            "Polynomial domain too large".to_string(),
-        ));
-    }
-
     // Step 4: Compute inverse_width = 1 / width
     let inverse_width = Fr::from(width as u64)
         .inverse()
