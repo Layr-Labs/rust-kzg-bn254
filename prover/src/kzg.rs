@@ -294,7 +294,7 @@ impl KZG {
         commitment: &G1Affine,
         srs: &SRS,
     ) -> Result<G1Affine, KzgError> {
-        // This checks: not identity point, on curve, and in correct subgroup
+        // This checks: not identity point, on curve, and in correct subgroup, is not generator point
         helpers::validate_g1_point(commitment)?;
 
         // Convert the blob to a polynomial in evaluation form
