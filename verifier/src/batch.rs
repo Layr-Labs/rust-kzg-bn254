@@ -110,7 +110,7 @@ fn compute_r_powers(
     let n_bytes: [u8; 8] = usize_to_be_bytes(n);
     data_to_be_hashed[32..40].copy_from_slice(&n_bytes);
 
-    let target_slice = &mut data_to_be_hashed[40..24 + (n * 8)];
+    let target_slice = &mut data_to_be_hashed[40..40 + (n * 8)];
     for (chunk, &length) in target_slice
         .chunks_mut(8)
         .zip(blobs_as_field_elements_length)
