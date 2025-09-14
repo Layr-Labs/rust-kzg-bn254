@@ -726,7 +726,7 @@ pub fn validate_blob_data_as_canonical_field_elements(data: &[u8]) -> Result<(),
 /// assert!(validate_g1_point(&identity_point).is_ok());
 ///
 /// let generator_point = G1Affine::generator();
-/// assert!(validate_g1_point(&generator_point).is_err());
+/// assert!(validate_g1_point(&generator_point).is_ok());
 /// ```
 pub fn validate_g1_point(point: &G1Affine) -> Result<(), KzgError> {
     if !point.is_on_curve() {
@@ -738,12 +738,6 @@ pub fn validate_g1_point(point: &G1Affine) -> Result<(), KzgError> {
     if !point.is_in_correct_subgroup_assuming_on_curve() {
         return Err(KzgError::NotOnCurveError(
             "G1 point not in correct subgroup".to_string(),
-        ));
-    }
-
-    if *point == G1Affine::generator() {
-        return Err(KzgError::NotOnCurveError(
-            "G1 point cannot be the generator point".to_string(),
         ));
     }
 

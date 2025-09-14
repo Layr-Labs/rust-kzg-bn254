@@ -673,17 +673,7 @@ fn test_validate_g1_point_generator() {
     // Test with the generator point (should be rejected)
     let generator = G1Affine::generator();
     let result = validate_g1_point(&generator);
-    assert!(result.is_err(), "Generator point should be rejected");
-
-    match result.unwrap_err() {
-        KzgError::NotOnCurveError(msg) => {
-            assert_eq!(
-                msg, "G1 point cannot be the generator point",
-                "Should have correct error message"
-            );
-        },
-        _ => panic!("Should return NotOnCurveError for generator point"),
-    }
+    assert!(result.is_ok(), "Generator point should not be rejected");
 }
 
 #[test]
@@ -821,17 +811,7 @@ fn test_validate_point_functions_generator_rejection() {
 
     // But should be rejected by our validation function
     let g1_result = validate_g1_point(&g1_generator);
-    assert!(g1_result.is_err(), "G1 generator should be rejected");
-
-    match g1_result.unwrap_err() {
-        KzgError::NotOnCurveError(msg) => {
-            assert_eq!(
-                msg, "G1 point cannot be the generator point",
-                "Should have correct G1 generator error message"
-            );
-        },
-        _ => panic!("Should return NotOnCurveError for G1 generator"),
-    }
+    assert!(g1_result.is_ok(), "G1 generator should not be rejected");
 
     // Test G2 generator rejection
     let g2_generator = G2Affine::generator();
@@ -904,18 +884,9 @@ fn test_compute_challenge_comprehensive() {
     let result = compute_challenge(&blob, &generator_commitment);
 
     assert!(
-        result.is_err(),
-        "compute_challenge should reject generator point"
+        result.is_ok(),
+        "compute_challenge should not reject generator point"
     );
-    match result.unwrap_err() {
-        KzgError::NotOnCurveError(msg) => {
-            assert_eq!(
-                msg, "G1 point cannot be the generator point",
-                "Should reject generator point with proper error message"
-            );
-        },
-        _ => panic!("Should return NotOnCurveError for generator point"),
-    }
 
     // Test 4: Points not on the curve should be rejected
     let invalid_x = Fq::one(); // x = 1
