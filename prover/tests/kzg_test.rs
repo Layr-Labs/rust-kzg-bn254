@@ -123,7 +123,7 @@ mod tests {
             let roots_after = kzg.get_roots_of_unities();
             assert!(!roots_after.is_empty(),
                 "expanded_roots_of_unity should not be empty after calling calculate_and_store_roots_of_unity with blob length {}", blob_length);
-            assert!(roots_after.len() > 0,
+            assert!(!roots_after.is_empty(),
                 "Roots of unity vector should have non-zero length after calculation for blob length {}", blob_length);
         }
     }

@@ -96,7 +96,7 @@ mod tests {
         // Test error condition for PolynomialCoeffForm
         let poly_coeff_large =
             PolynomialCoeffForm::new(vec![Fr::from(1u8); MAINNET_SRS_G1_SIZE + 1]);
-        assert_eq!(poly_coeff_large.is_err(), true);
+        assert!(poly_coeff_large.is_err());
         assert_eq!(
             poly_coeff_large.err().unwrap().to_string(),
             KzgError::GenericError("Input size exceeds maximum polynomial size".to_string())
@@ -105,7 +105,7 @@ mod tests {
 
         // Test error condition for PolynomialEvalForm
         let poly_eval_large = PolynomialEvalForm::new(vec![Fr::from(1u8); MAINNET_SRS_G1_SIZE + 1]);
-        assert_eq!(poly_eval_large.is_err(), true);
+        assert!(poly_eval_large.is_err());
         assert_eq!(
             poly_eval_large.err().unwrap().to_string(),
             KzgError::GenericError("Input size exceeds maximum polynomial size".to_string())

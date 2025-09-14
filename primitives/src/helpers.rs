@@ -612,7 +612,7 @@ pub fn compute_challenges_and_evaluate_polynomial(
     commitments: &[G1Affine],
 ) -> Result<(Vec<Fr>, Vec<Fr>), KzgError> {
     // Check if the blobs and commitments have the same length
-    if blobs.len() != commitments.len() && blobs.len() != 0 {
+    if blobs.len() != commitments.len() && !blobs.is_empty() {
         return Err(KzgError::GenericError(
             "length's of the input are not the same or is empty".to_string(),
         ));
