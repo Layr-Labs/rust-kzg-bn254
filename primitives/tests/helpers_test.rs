@@ -15,10 +15,7 @@ use rust_kzg_bn254_primitives::{
     },
     errors::KzgError,
     helpers::{
-        blob_to_polynomial, calculate_roots_of_unity, compute_challenge, get_num_element,
-        is_on_curve_g1, is_on_curve_g2, is_zeroed, pad_payload, remove_internal_padding,
-        set_bytes_canonical, set_bytes_canonical_manual, to_byte_array, to_fr_array,
-        validate_g1_point, validate_g2_point,
+        blob_to_polynomial, calculate_roots_of_unity, compute_challenge, compute_challenges_and_evaluate_polynomial, get_num_element, is_on_curve_g1, is_on_curve_g2, is_zeroed, pad_payload, remove_internal_padding, set_bytes_canonical, set_bytes_canonical_manual, to_byte_array, to_fr_array, validate_g1_point, validate_g2_point
     },
 };
 
@@ -948,4 +945,82 @@ fn test_compute_challenge_comprehensive() {
         challenge1_1, challenge1_2,
         "Different commitments should produce different challenges"
     );
+}
+
+#[test]
+fn test_compute_challenges_and_evaluate_polynomial() {
+    
+    let mut rng = ark_std::test_rng();
+    
+    // Test case 1: Valid inputs with matching lengths
+    let blob1 = Blob::from_raw_data(b"test blob 1");
+    let blob2 = Blob::from_raw_data(b"test blob 2 with more data");
+    let commitment1 = G1Affine::rand(&mut rng);
+    let commitment2 = G1Affine::rand(&mut rng);
+    
+    let blobs = vec![blob1.clone(), blob2.clone()];
+    let commitments = vec![commitment1, commitment2];
+    
+    let result = compute_challenges_and_evaluate_polynomial(&blobs, &commitments);
+    assert!(result.is_ok(), "Should succeed with matching lengths");
+    
+    let (challenges, ys) = result.unwrap();
+    assert_eq!(challenges.len(), 2, "Should return 2 challenges");
+    assert_eq!(ys.len(), 2, "Should return 2 y values");
+    
+    // Verify challenges are different for different blob/commitment pairs
+    assert_ne!(challenges[0], challenges[1], "Challenges should be different for different blobs");
+    
+    // Test case 2: Empty inputs should succeed
+    let empty_blobs: Vec<Blob> = vec![];
+    let empty_commitments: Vec<G1Affine> = vec![];
+    
+    let result = compute_challenges_and_evaluate_polynomial(&empty_blobs, &empty_commitments);
+    assert!(result.is_ok(), "Should succeed with empty inputs");
+    
+    let (challenges, ys) = result.unwrap();
+    assert_eq!(challenges.len(), 0, "Should return empty challenges");
+    assert_eq!(ys.len(), 0, "Should return empty ys");
+    
+    // Test case 3: Mismatched lengths - more blobs than commitments
+    let blobs = vec![blob1.clone(), blob2.clone()];
+    let commitments = vec![commitment1];
+    
+    let result = compute_challenges_and_evaluate_polynomial(&blobs, &commitments);
+    assert!(result.is_err(), "Should fail with mismatched lengths");
+    
+    match result {
+        Err(KzgError::GenericError(msg)) => {
+            assert!(
+                msg.contains("length's of the input are not the same"),
+                "Error message should mention length mismatch"
+            );
+        }
+        _ => panic!("Expected GenericError for length mismatch"),
+    }
+    
+    // Test case 4: Mismatched lengths - more commitments than blobs
+    let blobs = vec![blob1];
+    let commitments = vec![commitment1, commitment2];
+    
+    let result = compute_challenges_and_evaluate_polynomial(&blobs, &commitments);
+    assert!(result.is_err(), "Should fail with mismatched lengths");
+    
+    // Test case 5: Single blob and commitment
+    let blobs = vec![blob2];
+    let commitments = vec![commitment2];
+    
+    let result = compute_challenges_and_evaluate_polynomial(&blobs, &commitments);
+    assert!(result.is_ok(), "Should succeed with single blob/commitment");
+    
+    let (challenges, ys) = result.unwrap();
+    assert_eq!(challenges.len(), 1, "Should return 1 challenge");
+    assert_eq!(ys.len(), 1, "Should return 1 y value");
+    
+    // Test case 6: Verify deterministic behavior
+    let result1 = compute_challenges_and_evaluate_polynomial(&blobs, &commitments).unwrap();
+    let result2 = compute_challenges_and_evaluate_polynomial(&blobs, &commitments).unwrap();
+    
+    assert_eq!(result1.0, result2.0, "Challenges should be deterministic");
+    assert_eq!(result1.1, result2.1, "Y values should be deterministic");
 }
