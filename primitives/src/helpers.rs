@@ -611,7 +611,6 @@ pub fn compute_challenges_and_evaluate_polynomial(
     blobs: &[Blob],
     commitments: &[G1Affine],
 ) -> Result<(Vec<Fr>, Vec<Fr>), KzgError> {
-
     // Check if the blobs and commitments have the same length
     if blobs.len() != commitments.len() && blobs.len() != 0 {
         return Err(KzgError::GenericError(
