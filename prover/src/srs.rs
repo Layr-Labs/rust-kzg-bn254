@@ -2,9 +2,9 @@ use ark_bn254::G1Affine;
 use crossbeam_channel::{bounded, Receiver};
 use rust_kzg_bn254_primitives::errors::KzgError;
 use rust_kzg_bn254_primitives::traits::ReadPointFromBytes;
+use std::borrow::Cow;
 use std::fs::File;
 use std::io::{self, BufReader, Read};
-use std::borrow::Cow;
 
 /// Represents the Structured Reference String (SRS) used in KZG commitments.
 #[derive(Debug, PartialEq)]
