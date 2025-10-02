@@ -21,7 +21,7 @@ ark-poly = { workspace = true, features = ["parallel"] }
 num-traits.workspace = true
 
 # We keep these here instead of in Cargo.toml because (I think?) they require std
-rayon = "1.10"
+rayon = "1.10.0"
 crossbeam-channel = "0.5"
 num_cpus = "1.16.0"
 
