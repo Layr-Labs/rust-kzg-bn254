@@ -24,7 +24,7 @@ serde = { workspace = true, features = ["derive", "alloc"] }
 
 [dev-dependencies]
 rand = "0.8.5"
-rayon = "1.8"
+rayon = "1.10.0"
 
 [[test]]
 name = "blob"
