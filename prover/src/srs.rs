@@ -2,21 +2,25 @@ use ark_bn254::G1Affine;
 use crossbeam_channel::{bounded, Receiver};
 use rust_kzg_bn254_primitives::errors::KzgError;
 use rust_kzg_bn254_primitives::traits::ReadPointFromBytes;
+use std::borrow::Cow;
 use std::fs::File;
 use std::io::{self, BufReader, Read};
 
 /// Represents the Structured Reference String (SRS) used in KZG commitments.
-#[derive(Debug, PartialEq, Clone)]
-pub struct SRS {
+#[derive(Debug, PartialEq)]
+pub struct SRS<'a> {
     // SRS points are stored in monomial form, ready to be used for commitments with polynomials
     // in coefficient form. To commit against a polynomial in evaluation form, we need to transform
     // the SRS points to lagrange form using IFFT.
-    pub g1: Vec<G1Affine>,
+    //
+    // Uses Cow (Clone on Write) to enable zero-copy borrowing when the SRS is constructed from
+    // existing data, while still allowing owned data when needed.
+    pub g1: Cow<'a, [G1Affine]>,
     /// The order of the SRS.
     pub order: u32,
 }
 
-impl SRS {
+impl SRS<'_> {
     /// Initializes the SRS by loading G1 points from a file.
     ///
     /// # Arguments
@@ -39,7 +43,7 @@ impl SRS {
             Self::parallel_read_g1_points(path_to_g1_points.to_owned(), points_to_load, false)?;
 
         Ok(Self {
-            g1: g1_points,
+            g1: g1_points.into(),
             order,
         })
     }
