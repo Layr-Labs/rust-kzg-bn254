@@ -17,7 +17,7 @@ mod tests {
     // Define a static variable for setup
     lazy_static! {
         static ref KZG_INSTANCE: KZG = KZG::new();
-        static ref SRS_INSTANCE: SRS = SRS::new(
+        static ref SRS_INSTANCE: SRS<'static> = SRS::new(
             "../prover/tests/test-files/mainnet-data/g1.131072.point",
             268435456,
             131072
