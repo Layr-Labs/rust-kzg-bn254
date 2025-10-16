@@ -34,9 +34,7 @@ jobs:
     - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
     # Update dependencies for compatibility with Rust 1.78
     - name: Update dependencies for compatibility
-      run: |
-        cargo update rayon-core --precise 1.12.1
-        cargo update half --precise 2.4.1
+      run: cargo update half --precise 2.4.1
     - name: Build
       run: cargo build --verbose
     - name: Fmt check
