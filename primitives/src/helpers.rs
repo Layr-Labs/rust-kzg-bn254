@@ -40,7 +40,8 @@ pub fn set_bytes_canonical_manual(data: &[u8]) -> Result<Fr, KzgError> {
         arrays[i] = u64::from_be_bytes(chunk.try_into().expect("Slice with incorrect length"));
     }
     arrays.reverse();
-    Fr::from_bigint(BigInt::new(arrays)).ok_or_else(|| KzgError::GenericError("valid field element".to_string()))
+    Fr::from_bigint(BigInt::new(arrays))
+        .ok_or_else(|| KzgError::GenericError("valid field element".to_string()))
 }
 
 pub fn set_bytes_canonical(data: &[u8]) -> Fr {
@@ -172,7 +173,9 @@ pub fn lexicographically_largest(z: &Fq) -> bool {
 
 pub fn read_g1_point_from_bytes_be(g1_bytes_be: &[u8]) -> Result<G1Affine, KzgError> {
     if g1_bytes_be.len() != SIZE_OF_G1_AFFINE_COMPRESSED {
-        return Err(KzgError::SerializationError("not enough bytes for g1 point".to_string()));
+        return Err(KzgError::SerializationError(
+            "not enough bytes for g1 point".to_string(),
+        ));
     }
 
     let m_mask: u8 = 0b11 << 6;
@@ -184,7 +187,9 @@ pub fn read_g1_point_from_bytes_be(g1_bytes_be: &[u8]) -> Result<G1Affine, KzgEr
 
     if m_data == m_compressed_infinity {
         if !is_zeroed(g1_bytes_be[0] & !m_mask, g1_bytes_be[1..32].to_vec()) {
-            return Err(KzgError::SerializationError("point at infinity not coded properly for g1".to_string()));
+            return Err(KzgError::SerializationError(
+                "point at infinity not coded properly for g1".to_string(),
+            ));
         }
         return Ok(G1Affine::zero());
     }
@@ -194,9 +199,9 @@ pub fn read_g1_point_from_bytes_be(g1_bytes_be: &[u8]) -> Result<G1Affine, KzgEr
     x_bytes[0] &= !m_mask;
     let x = Fq::from_be_bytes_mod_order(&x_bytes);
     let y_squared = x * x * x + Fq::from(3);
-    let mut y_sqrt = y_squared.sqrt().ok_or_else(|| {
-        KzgError::NotOnCurveError("point not on curve".to_string())
-    })?;
+    let mut y_sqrt = y_squared
+        .sqrt()
+        .ok_or_else(|| KzgError::NotOnCurveError("point not on curve".to_string()))?;
 
     if lexicographically_largest(&y_sqrt) {
         if m_data == m_compressed_smallest {
@@ -209,7 +214,9 @@ pub fn read_g1_point_from_bytes_be(g1_bytes_be: &[u8]) -> Result<G1Affine, KzgEr
     if !point.is_in_correct_subgroup_assuming_on_curve()
         && is_on_curve_g1(&G1Projective::from(point))
     {
-        return Err(KzgError::NotOnCurveError("point couldn't be created".to_string()));
+        return Err(KzgError::NotOnCurveError(
+            "point couldn't be created".to_string(),
+        ));
     }
     Ok(point)
 }

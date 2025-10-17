@@ -443,7 +443,11 @@ fn test_set_canonical_bytes() {
         25, 26, 27, 28, 29, 30, 31,
     ];
     let fr_element = set_bytes_canonical_manual(&data);
-    assert_eq!(fr_element.unwrap(), set_bytes_canonical(&data), "needs to be equal");
+    assert_eq!(
+        fr_element.unwrap(),
+        set_bytes_canonical(&data),
+        "needs to be equal"
+    );
 }
 
 #[test]
