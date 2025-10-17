@@ -742,6 +742,12 @@ pub fn validate_g1_point(point: &G1Affine) -> Result<(), KzgError> {
         ));
     }
 
+    if point == &G1Affine::identity() {
+        return Err(KzgError::NotOnCurveError(
+            "G1 point is point at infinity".to_string(),
+        ));
+    }
+
     if !point.is_in_correct_subgroup_assuming_on_curve() {
         return Err(KzgError::NotOnCurveError(
             "G1 point not in correct subgroup".to_string(),
@@ -787,6 +793,12 @@ pub fn validate_g2_point(point: &G2Affine) -> Result<(), KzgError> {
     if !point.is_on_curve() {
         return Err(KzgError::NotOnCurveError(
             "G2 point not on curve".to_string(),
+        ));
+    }
+
+    if point == &G2Affine::identity() {
+        return Err(KzgError::NotOnCurveError(
+            "G2 point is point at infinity".to_string(),
         ));
     }
 

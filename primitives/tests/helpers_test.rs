@@ -633,7 +633,7 @@ fn test_validate_g1_point_identity_point() {
     // Test with identity point (point at infinity)
     let identity_point = G1Affine::identity();
     let result = validate_g1_point(&identity_point);
-    assert!(result.is_ok(), "Identity point should pass validation");
+    assert!(result.is_err(), "Identity point should not pass validation");
 }
 
 #[test]
@@ -699,7 +699,7 @@ fn test_validate_g2_point_identity_point() {
     let identity_point = G2Affine::identity();
     let result = validate_g2_point(&identity_point);
 
-    assert!(result.is_ok(), "Identity point should pass validation");
+    assert!(result.is_err(), "Identity point should not pass validation");
 }
 
 #[test]
@@ -877,8 +877,8 @@ fn test_compute_challenge_comprehensive() {
     let result = compute_challenge(&blob, &identity_commitment);
 
     assert!(
-        result.is_ok(),
-        "compute_challenge should not reject identity point"
+        result.is_err(),
+        "compute_challenge should reject identity point"
     );
 
     // Test 3: Generator point should be rejected
