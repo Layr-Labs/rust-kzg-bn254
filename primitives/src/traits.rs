@@ -28,7 +28,7 @@ pub trait ReadPointFromBytes: AffineRepr {
 impl ReadPointFromBytes for G1Affine {
     fn read_point_from_bytes_be(bytes: &[u8]) -> Result<G1Affine> {
         crate::helpers::read_g1_point_from_bytes_be(bytes)
-            .map_err(|e| PointReadError::InvalidData(format!("{:?}", e)))
+            .map_err(|e| PointReadError::InvalidData(format!("{}", e)))
     }
 
     fn read_point_from_bytes_native_compressed(bytes: &[u8]) -> Result<G1Affine> {
