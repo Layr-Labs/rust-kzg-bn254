@@ -29,9 +29,9 @@ pub fn blob_to_polynomial(blob: &[u8]) -> Vec<Fr> {
     to_fr_array(blob)
 }
 
-pub fn set_bytes_canonical_manual(data: &[u8]) -> Fr {
+pub fn set_bytes_canonical_manual(data: &[u8]) -> Result<Fr, KzgError> {
     if data.len() != 32 {
-        return Fr::zero();
+        return Err(KzgError::GenericError("data length must be 32".to_string()));
     }
 
     let mut arrays: [u64; 4] = Default::default(); // Initialize an array of four [u8; 8] arrays
@@ -40,7 +40,7 @@ pub fn set_bytes_canonical_manual(data: &[u8]) -> Fr {
         arrays[i] = u64::from_be_bytes(chunk.try_into().expect("Slice with incorrect length"));
     }
     arrays.reverse();
-    Fr::from_bigint(BigInt::new(arrays)).expect("valid field element")
+    Fr::from_bigint(BigInt::new(arrays)).ok_or_else(|| KzgError::GenericError("valid field element".to_string()))
 }
 
 pub fn set_bytes_canonical(data: &[u8]) -> Fr {
@@ -170,9 +170,9 @@ pub fn lexicographically_largest(z: &Fq) -> bool {
     borrow == 0
 }
 
-pub fn read_g1_point_from_bytes_be(g1_bytes_be: &[u8]) -> Result<G1Affine, &str> {
+pub fn read_g1_point_from_bytes_be(g1_bytes_be: &[u8]) -> Result<G1Affine, KzgError> {
     if g1_bytes_be.len() != SIZE_OF_G1_AFFINE_COMPRESSED {
-        return Err("not enough bytes for g1 point");
+        return Err(KzgError::SerializationError("not enough bytes for g1 point".to_string()));
     }
 
     let m_mask: u8 = 0b11 << 6;
@@ -184,7 +184,7 @@ pub fn read_g1_point_from_bytes_be(g1_bytes_be: &[u8]) -> Result<G1Affine, &str>
 
     if m_data == m_compressed_infinity {
         if !is_zeroed(g1_bytes_be[0] & !m_mask, g1_bytes_be[1..32].to_vec()) {
-            return Err("point at infinity not coded properly for g1");
+            return Err(KzgError::SerializationError("point at infinity not coded properly for g1".to_string()));
         }
         return Ok(G1Affine::zero());
     }
@@ -194,7 +194,9 @@ pub fn read_g1_point_from_bytes_be(g1_bytes_be: &[u8]) -> Result<G1Affine, &str>
     x_bytes[0] &= !m_mask;
     let x = Fq::from_be_bytes_mod_order(&x_bytes);
     let y_squared = x * x * x + Fq::from(3);
-    let mut y_sqrt = y_squared.sqrt().ok_or("point not on curve")?;
+    let mut y_sqrt = y_squared.sqrt().ok_or_else(|| {
+        KzgError::NotOnCurveError("point not on curve".to_string())
+    })?;
 
     if lexicographically_largest(&y_sqrt) {
         if m_data == m_compressed_smallest {
@@ -207,7 +209,7 @@ pub fn read_g1_point_from_bytes_be(g1_bytes_be: &[u8]) -> Result<G1Affine, &str>
     if !point.is_in_correct_subgroup_assuming_on_curve()
         && is_on_curve_g1(&G1Projective::from(point))
     {
-        return Err("point couldn't be created");
+        return Err(KzgError::NotOnCurveError("point couldn't be created".to_string()));
     }
     Ok(point)
 }
@@ -483,7 +485,7 @@ pub fn evaluate_polynomial_in_evaluation_form(
             ));
     }
 
-    // Step 6: Use the barycentric formula to compute the evaluation
+    // Step 6: Since z not in domain, use the barycentric formula to compute the evaluation
     let sum = polynomial
         .evaluations()
         .iter()
@@ -555,13 +557,6 @@ pub fn calculate_roots_of_unity(length_of_data_after_padding: u64) -> Result<Vec
     .ok_or_else(|| {
         KzgError::GenericError("Failed to convert length_of_data_after_padding to u8".to_string())
     })?;
-
-    // Check if the length of data after padding is valid with respect to the SRS order
-    if log2_of_evals as u64 > MAINNET_SRS_G1_SIZE as u64 {
-        return Err(KzgError::SerializationError(
-            "the length of data after padding is not valid with respect to the SRS".to_string(),
-        ));
-    }
 
     // Find the root of unity corresponding to the calculated log2 value
     let root_of_unity = get_primitive_root_of_unity(log2_of_evals.into())?;
@@ -708,7 +703,6 @@ pub fn validate_blob_data_as_canonical_field_elements(data: &[u8]) -> Result<(),
 /// 1. Point is not the identity (point at infinity)
 /// 2. Point is on the BN254 elliptic curve
 /// 3. Point is in the correct subgroup
-/// 4. Point is not the generator point
 ///
 /// # Arguments
 /// * `point` - Reference to the G1Affine point to validate
