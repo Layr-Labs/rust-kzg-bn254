@@ -75,10 +75,10 @@ pub fn verify_blob_kzg_proof(
     commitment: &G1Affine,
     proof: &G1Affine,
 ) -> Result<bool, KzgError> {
-    // This checks: not identity, on curve, correct subgroup, not generator
+    // This checks: not identity, on curve, correct subgroup
     helpers::validate_g1_point(commitment)?;
 
-    // This checks: not identity, on curve, correct subgroup, not generator
+    // This checks: not identity, on curve, correct subgroup
     helpers::validate_g1_point(proof)?;
 
     // Convert blob to polynomial

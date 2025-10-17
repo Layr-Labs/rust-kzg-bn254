@@ -197,7 +197,7 @@ fn verify_kzg_proof_batch(
         ));
     }
 
-    // The below calls check for: not identity, on curve, correct subgroup, not generator
+    // The below calls check for: not identity, on curve, correct subgroup
     for commitment in commitments.iter() {
         helpers::validate_g1_point(commitment)?;
     }
