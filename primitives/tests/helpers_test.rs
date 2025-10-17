@@ -187,9 +187,8 @@ fn test_pad_payload() {
     let padded_data_gettysburg = pad_payload(GETTYSBURG_ADDRESS_BYTES);
     let unpadded_data_gettysburg = remove_internal_padding(&padded_data_gettysburg).unwrap();
     assert_eq!(unpadded_data_gettysburg.len(), 1488);
-    assert_eq!(
-        GETTYSBURG_ADDRESS_BYTES.len() <= unpadded_data_gettysburg.len(),
-        true
+    assert!(
+        GETTYSBURG_ADDRESS_BYTES.len() <= unpadded_data_gettysburg.len()
     );
 }
 
@@ -291,7 +290,7 @@ fn test_primitive_roots_from_bigint_to_fr() {
     ];
     let fr_s = data
         .iter()
-        .map(|s: &&str| Fr::from_str(*s).unwrap())
+        .map(|s: &&str| Fr::from_str(s).unwrap())
         .collect::<Vec<_>>();
 
     for i in 0..PRIMITIVE_ROOTS_OF_UNITY.len() {

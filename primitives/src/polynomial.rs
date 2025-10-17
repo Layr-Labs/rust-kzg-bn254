@@ -2,6 +2,8 @@ use ark_bn254::Fr;
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 use ark_std::Zero;
 
+use crate::consts::MAINNET_SRS_G1_SIZE;
+use crate::errors::KzgError;
 use crate::{consts::BYTES_PER_FIELD_ELEMENT, errors::PolynomialError, helpers};
 
 extern crate alloc;
@@ -36,15 +38,37 @@ impl PolynomialEvalForm {
     /// of two by appending zeros. This typically wouldn't be used directly,
     /// but instead a [crate::blob::Blob] would be converted to a
     /// [PolynomialEvalForm] using [crate::blob::Blob::to_polynomial_eval_form].
-    pub fn new(evals: Vec<Fr>) -> Self {
+    pub fn new(evals: Vec<Fr>) -> Result<Self, KzgError> {
+        if evals.len() > MAINNET_SRS_G1_SIZE {
+            return Err(KzgError::GenericError(
+                "Input size exceeds maximum polynomial size".to_string(),
+            ));
+        }
+
         let underlying_blob_len_in_bytes = evals.len() * BYTES_PER_FIELD_ELEMENT;
+        let next_power_of_two = evals.len().next_power_of_two();
+        let mut padded_evals = evals;
+        padded_evals.resize(next_power_of_two, Fr::zero());
+
+        Ok(Self {
+            evaluations: padded_evals,
+            len_underlying_blob_bytes: underlying_blob_len_in_bytes,
+        })
+    }
+
+    /// Internal constructor that allows setting the blob length directly.
+    /// Used for conversions between forms to preserve the original blob size.
+    fn new_with_blob_len(evals: Vec<Fr>, len_underlying_blob_bytes: usize) -> Self {
+        // Size validation is not needed here since this is only called during form conversion
+        // from already-validated polynomials. FFT/IFFT operations preserve polynomial length.
+
         let next_power_of_two = evals.len().next_power_of_two();
         let mut padded_evals = evals;
         padded_evals.resize(next_power_of_two, Fr::zero());
 
         Self {
             evaluations: padded_evals,
-            len_underlying_blob_bytes: underlying_blob_len_in_bytes,
+            len_underlying_blob_bytes,
         }
     }
 
@@ -109,7 +133,10 @@ impl PolynomialEvalForm {
                 "Failed to construct domain for IFFT".to_string(),
             ))?
             .ifft(&self.evaluations);
-        Ok(PolynomialCoeffForm::new(coeffs))
+        Ok(PolynomialCoeffForm::new_with_blob_len(
+            coeffs,
+            self.len_underlying_blob_bytes,
+        ))
     }
 }
 
@@ -139,15 +166,37 @@ impl PolynomialCoeffForm {
     /// but instead a [crate::blob::Blob] would be converted to a
     /// [PolynomialCoeffForm] using
     /// [crate::blob::Blob::to_polynomial_coeff_form].
-    pub fn new(coeffs: Vec<Fr>) -> Self {
+    pub fn new(coeffs: Vec<Fr>) -> Result<Self, KzgError> {
+        if coeffs.len() > MAINNET_SRS_G1_SIZE {
+            return Err(KzgError::GenericError(
+                "Input size exceeds maximum polynomial size".to_string(),
+            ));
+        }
+
         let underlying_blob_len_in_bytes = coeffs.len() * BYTES_PER_FIELD_ELEMENT;
+        let next_power_of_two = coeffs.len().next_power_of_two();
+        let mut padded_coeffs = coeffs;
+        padded_coeffs.resize(next_power_of_two, Fr::zero());
+
+        Ok(Self {
+            coeffs: padded_coeffs,
+            len_underlying_blob_bytes: underlying_blob_len_in_bytes,
+        })
+    }
+
+    /// Internal constructor that allows setting the blob length directly.
+    /// Used for conversions between forms to preserve the original blob size.
+    fn new_with_blob_len(coeffs: Vec<Fr>, len_underlying_blob_bytes: usize) -> Self {
+        // Size validation is not needed here since this is only called during form conversion
+        // from already-validated polynomials. FFT/IFFT operations preserve polynomial length.
+
         let next_power_of_two = coeffs.len().next_power_of_two();
         let mut padded_coeffs = coeffs;
         padded_coeffs.resize(next_power_of_two, Fr::zero());
 
         Self {
             coeffs: padded_coeffs,
-            len_underlying_blob_bytes: underlying_blob_len_in_bytes,
+            len_underlying_blob_bytes,
         }
     }
 
@@ -195,6 +244,9 @@ impl PolynomialCoeffForm {
                 "Failed to construct domain for FFT".to_string(),
             ))?
             .fft(&self.coeffs);
-        Ok(PolynomialEvalForm::new(evals))
+        Ok(PolynomialEvalForm::new_with_blob_len(
+            evals,
+            self.len_underlying_blob_bytes,
+        ))
     }
 }
