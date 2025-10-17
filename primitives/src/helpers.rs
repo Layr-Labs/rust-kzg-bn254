@@ -372,7 +372,7 @@ pub fn get_primitive_root_of_unity(power: usize) -> Result<Fr, KzgError> {
 pub fn hash_to_field_element(msg: &[u8]) -> Fr {
     // Perform the hash operation.
     let msg_digest = Sha256::digest(msg);
-    let hash_elements = msg_digest.as_slice();
+    let hash_elements = msg_digest.as_ref();
 
     let fr_element: Fr = Fr::from_be_bytes_mod_order(hash_elements);
 
