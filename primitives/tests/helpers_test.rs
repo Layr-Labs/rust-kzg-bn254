@@ -187,9 +187,7 @@ fn test_pad_payload() {
     let padded_data_gettysburg = pad_payload(GETTYSBURG_ADDRESS_BYTES);
     let unpadded_data_gettysburg = remove_internal_padding(&padded_data_gettysburg).unwrap();
     assert_eq!(unpadded_data_gettysburg.len(), 1488);
-    assert!(
-        GETTYSBURG_ADDRESS_BYTES.len() <= unpadded_data_gettysburg.len()
-    );
+    assert!(GETTYSBURG_ADDRESS_BYTES.len() <= unpadded_data_gettysburg.len());
 }
 
 #[test]

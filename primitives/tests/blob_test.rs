@@ -89,9 +89,7 @@ mod tests {
             let random_blob: Vec<u8> = (0..16252928).map(|_| thread_rng.gen::<u8>()).collect();
             let blob = Blob::from_raw_data(&random_blob);
 
-            assert!(
-                random_blob.len() > (blob.to_raw_data().unwrap().len() - 32)
-            );
+            assert!(random_blob.len() > (blob.to_raw_data().unwrap().len() - 32));
             assert!(random_blob.len() <= blob.to_raw_data().unwrap().len());
         });
     }
