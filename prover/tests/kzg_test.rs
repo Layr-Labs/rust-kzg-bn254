@@ -25,7 +25,7 @@ mod tests {
         let mut coeffs = vec![];
         let mut rng = rand::thread_rng();
         coeffs.resize(5000000, Fr::rand(&mut rng));
-        let polynomial = PolynomialCoeffForm::new(coeffs);
+        let polynomial = PolynomialCoeffForm::new(coeffs).unwrap();
         let result = KZG_INSTANCE.commit_coeff_form(&polynomial, &SRS_INSTANCE);
         assert_eq!(
             result,
@@ -57,7 +57,7 @@ mod tests {
             .collect();
 
         let input = Blob::from_raw_data(&random_blob);
-        let input_poly = input.to_polynomial_eval_form();
+        let input_poly = input.to_polynomial_eval_form().unwrap();
 
         for i in 0..input_poly.len_underlying_blob_field_elements() {
             kzg.calculate_and_store_roots_of_unity(input.len().try_into().unwrap())
