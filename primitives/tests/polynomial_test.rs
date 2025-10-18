@@ -17,7 +17,7 @@ mod tests {
             ]
             .as_slice(),
         );
-        let poly = blob.to_polynomial_coeff_form();
+        let poly = blob.to_polynomial_coeff_form().unwrap();
         assert_eq!(
             &poly.to_bytes_be()[0..blob.data().len()],
             blob.data(),
@@ -35,7 +35,7 @@ mod tests {
         );
 
         let long_blob = Blob::from_raw_data(GETTYSBURG_ADDRESS_BYTES);
-        let long_poly = long_blob.to_polynomial_coeff_form();
+        let long_poly = long_blob.to_polynomial_coeff_form().unwrap();
         // let ga_converted_fr = to_fr_array(&ga_converted);
         assert_eq!(
             long_blob.data(),
@@ -53,7 +53,7 @@ mod tests {
             ]
             .as_slice(),
         );
-        let poly_coeff = blob.to_polynomial_coeff_form();
+        let poly_coeff = blob.to_polynomial_coeff_form().unwrap();
 
         let poly_eval = poly_coeff.to_eval_form().unwrap();
         let poly_coeff_back = poly_eval.to_coeff_form().unwrap();
@@ -67,14 +67,15 @@ mod tests {
     #[test]
     fn test_polynomial_lengths() {
         let poly_coeff =
-            PolynomialCoeffForm::new(vec![Fr::from(1u8), Fr::from(2u8), Fr::from(3u8)]);
+            PolynomialCoeffForm::new(vec![Fr::from(1u8), Fr::from(2u8), Fr::from(3u8)]).unwrap();
         assert_eq!(
             poly_coeff.coeffs().len(),
             4,
             "poly should be padded to the next power of 2"
         );
 
-        let poly_evals = PolynomialEvalForm::new(vec![Fr::from(1u8), Fr::from(2u8), Fr::from(3u8)]);
+        let poly_evals =
+            PolynomialEvalForm::new(vec![Fr::from(1u8), Fr::from(2u8), Fr::from(3u8)]).unwrap();
         assert_eq!(
             poly_evals.evaluations().len(),
             4,
@@ -85,7 +86,7 @@ mod tests {
     #[test]
     fn test_transform_length_stays_same() {
         let poly_coeff =
-            PolynomialCoeffForm::new(vec![Fr::from(1u8), Fr::from(2u8), Fr::from(3u8)]);
+            PolynomialCoeffForm::new(vec![Fr::from(1u8), Fr::from(2u8), Fr::from(3u8)]).unwrap();
         let poly_eval = poly_coeff.to_eval_form().unwrap();
         let poly_coeff_back = poly_eval.to_coeff_form().unwrap();
         assert_eq!(
@@ -98,7 +99,7 @@ mod tests {
     #[test]
     fn test_transform_form_large_blob() {
         let blob = Blob::from_raw_data(GETTYSBURG_ADDRESS_BYTES);
-        let poly_coeff = blob.to_polynomial_coeff_form();
+        let poly_coeff = blob.to_polynomial_coeff_form().unwrap();
 
         let poly_eval = poly_coeff.to_eval_form().unwrap();
         let poly_coeff_back = poly_eval.to_coeff_form().unwrap();
