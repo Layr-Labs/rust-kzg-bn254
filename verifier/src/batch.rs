@@ -1,4 +1,4 @@
-use ark_bn254::{Fr, G1Affine, G1Projective, G2Affine, G2Projective};
+use ark_bn254::{Fr, G1Affine, G2Affine, G2Projective};
 use ark_ec::{AffineRepr, CurveGroup};
 use ark_ff::{BigInteger, PrimeField};
 use ark_serialize::CanonicalSerialize;
@@ -6,7 +6,7 @@ use rust_kzg_bn254_primitives::{
     blob::Blob,
     consts::{BYTES_PER_FIELD_ELEMENT, G2_TAU, RANDOM_CHALLENGE_KZG_BATCH_DOMAIN},
     errors::KzgError,
-    helpers::{self, is_on_curve_g1, usize_to_be_bytes},
+    helpers::{self, usize_to_be_bytes},
 };
 
 extern crate alloc;
@@ -26,24 +26,14 @@ pub fn verify_blob_kzg_proof_batch(
         ));
     }
 
-    // Validate that all commitments are valid points on the G1 curve
-    // Using parallel iterator (par_iter) for better performance on large batches
-    // This prevents invalid curve attacks
-    if commitments.iter().any(|commitment| {
-        !commitment.is_on_curve() || !commitment.is_in_correct_subgroup_assuming_on_curve()
-    }) {
-        return Err(KzgError::NotOnCurveError(
-            "commitment not on curve".to_string(),
-        ));
+    // This checks: on curve and correct subgroup
+    for commitment in commitments.iter() {
+        helpers::validate_g1_point(commitment)?;
     }
 
-    // Validate that all proofs are valid points on the G1 curve
-    // Using parallel iterator for efficiency
-    if proofs
-        .iter()
-        .any(|proof| !proof.is_on_curve() || !proof.is_in_correct_subgroup_assuming_on_curve())
-    {
-        return Err(KzgError::NotOnCurveError("proof not on curve".to_string()));
+    // This checks: on curve and correct subgroup,
+    for proof in proofs.iter() {
+        helpers::validate_g1_point(proof)?;
     }
 
     // Compute evaluation challenges and evaluate polynomials at those points
@@ -120,7 +110,7 @@ fn compute_r_powers(
     let n_bytes: [u8; 8] = usize_to_be_bytes(n);
     data_to_be_hashed[32..40].copy_from_slice(&n_bytes);
 
-    let target_slice = &mut data_to_be_hashed[24..24 + (n * 8)];
+    let target_slice = &mut data_to_be_hashed[40..40 + (n * 8)];
     for (chunk, &length) in target_slice
         .chunks_mut(8)
         .zip(blobs_as_field_elements_length)
@@ -207,26 +197,18 @@ fn verify_kzg_proof_batch(
         ));
     }
 
-    // Check that all commitments are valid points on the G1 curve
-    // This prevents invalid curve attacks
-    if !commitments
-        .iter()
-        .all(|commitment| is_on_curve_g1(&G1Projective::from(*commitment)))
-    {
-        return Err(KzgError::NotOnCurveError(
-            "commitment not on curve".to_string(),
-        ));
+    // The below calls check for: on curve and correct subgroup
+    for commitment in commitments.iter() {
+        helpers::validate_g1_point(commitment)?;
     }
 
-    // Check that all proofs are valid points on the G1 curve
-    if !proofs
-        .iter()
-        .all(|proof| is_on_curve_g1(&G1Projective::from(*proof)))
-    {
-        return Err(KzgError::NotOnCurveError("proof".to_string()));
+    // The below calls check for: on curve and correct subgroup
+    for proof in proofs.iter() {
+        helpers::validate_g1_point(proof)?;
     }
 
     // Verify that the trusted setup point τ*G2 is on the G2 curve
+    // This validates the trusted setup, not user input, so it remains here
     if !helpers::is_on_curve_g2(&G2Projective::from(G2_TAU)) {
         return Err(KzgError::NotOnCurveError("g2 tau".to_string()));
     }
