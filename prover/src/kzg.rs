@@ -291,13 +291,8 @@ impl KZG {
         commitment: &G1Affine,
         srs: &SRS,
     ) -> Result<G1Affine, KzgError> {
-        // Validate that the commitment is a valid point on the G1 curve
-        // This prevents potential invalid curve attacks
-        if !commitment.is_on_curve() || !commitment.is_in_correct_subgroup_assuming_on_curve() {
-            return Err(KzgError::NotOnCurveError(
-                "commitment not on curve".to_string(),
-            ));
-        }
+        // This checks: not identity point, on curve, and in correct subgroup
+        helpers::validate_g1_point(commitment)?;
 
         // Convert the blob to a polynomial in evaluation form
         // This is necessary because KZG proofs work with polynomials
