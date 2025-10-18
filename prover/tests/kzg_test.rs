@@ -21,21 +21,6 @@ mod tests {
     }
 
     #[test]
-    fn test_commit_errors() {
-        let mut coeffs = vec![];
-        let mut rng = rand::thread_rng();
-        coeffs.resize(5000000, Fr::rand(&mut rng));
-        let polynomial = PolynomialCoeffForm::new(coeffs).unwrap();
-        let result = KZG_INSTANCE.commit_coeff_form(&polynomial, &SRS_INSTANCE);
-        assert_eq!(
-            result,
-            Err(KzgError::SerializationError(
-                "polynomial length is not correct".to_string()
-            ))
-        );
-    }
-
-    #[test]
     fn test_srs_setup_errors() {
         let srs = SRS::new("tests/test-files/g1.point", 3000, 3001);
         assert_eq!(

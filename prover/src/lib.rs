@@ -68,7 +68,7 @@
 //!
 //! let rollup_data: &[u8] = "some rollup batcher data".as_bytes();
 //! let blob = Blob::from_raw_data(rollup_data);
-//! let poly = blob.to_polynomial_eval_form();
+//! let poly = blob.to_polynomial_eval_form().unwrap();
 //! let commitment = kzg.commit_eval_form(&poly, &srs).unwrap();
 //! ```
 //!
