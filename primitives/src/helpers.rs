@@ -659,11 +659,10 @@ pub fn compute_challenges_and_evaluate_polynomial(
 }
 
 /// Validates that a G1 point meets all cryptographic requirements.
-///
+/// We allow zero blob, whose commitment is the identity point.
 /// This function checks the following conditions:
-/// 1. Point is not the identity (point at infinity)
-/// 2. Point is on the BN254 elliptic curve
-/// 3. Point is in the correct subgroup
+/// 1. Point is on the BN254 elliptic curve
+/// 2. Point is in the correct subgroup
 ///
 /// # Arguments
 /// * `point` - Reference to the G1Affine point to validate
@@ -696,12 +695,6 @@ pub fn validate_g1_point(point: &G1Affine) -> Result<(), KzgError> {
         ));
     }
 
-    if point == &G1Affine::identity() {
-        return Err(KzgError::NotOnCurveError(
-            "G1 point is point at infinity".to_string(),
-        ));
-    }
-
     if !point.is_in_correct_subgroup_assuming_on_curve() {
         return Err(KzgError::NotOnCurveError(
             "G1 point not in correct subgroup".to_string(),
@@ -717,7 +710,6 @@ pub fn validate_g1_point(point: &G1Affine) -> Result<(), KzgError> {
 /// 1. Point is not the identity (point at infinity)
 /// 2. Point is on the BN254 elliptic curve (twisted curve for G2)
 /// 3. Point is in the correct subgroup
-/// 4. Point is not the generator point
 ///
 /// # Arguments
 /// * `point` - Reference to the G2Affine point to validate
@@ -738,7 +730,7 @@ pub fn validate_g1_point(point: &G1Affine) -> Result<(), KzgError> {
 /// assert!(validate_g2_point(&valid_point).is_ok());
 ///
 /// let identity_point = G2Affine::identity();
-/// assert!(validate_g2_point(&identity_point).is_ok());
+/// assert!(validate_g2_point(&identity_point).is_err());
 ///
 /// let generator_point = G2Affine::generator();
 /// assert!(validate_g2_point(&generator_point).is_err());
