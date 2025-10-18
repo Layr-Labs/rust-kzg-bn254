@@ -14,11 +14,11 @@ pub fn verify_proof(
     z_fr: Fr,
 ) -> Result<bool, KzgError> {
     // Validate commitment point using helper function
-    // This checks: not identity, on curve, correct subgroup, not generator
+    // This checks: on curve and correct subgroup
     helpers::validate_g1_point(&commitment)?;
 
     // Validate proof point using helper function
-    // This checks: not identity, on curve, correct subgroup, not generator
+    // This checks: on curve and correct subgroup
     helpers::validate_g1_point(&proof)?;
 
     // Get τ*G2 from the trusted setup
