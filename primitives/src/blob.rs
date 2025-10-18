@@ -91,6 +91,7 @@ impl From<Vec<u8>> for Blob {
     fn from(blob_data: Vec<u8>) -> Self {
         // Data is properly formatted - construct blob
         // Note: Downstream field element construction will apply modulo reduction as expected
+        // This does NOT check if every 32 bytes contains a valid field element.
         Blob { blob_data }
     }
 }

@@ -63,4 +63,4 @@ pub const G2_TAU: G2Affine = G2Affine::new_unchecked(
     ),
 );
 
-pub const MAINNET_SRS_G1_SIZE: usize = 131072;
+pub const MAINNET_SRS_G1_SIZE: usize = 524288;
