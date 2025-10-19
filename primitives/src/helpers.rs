@@ -723,18 +723,18 @@ pub fn validate_g1_point(point: &G1Affine) -> Result<(), KzgError> {
 /// use ark_bn254::G2Affine;
 /// use ark_ff::UniformRand;
 /// use ark_ec::AffineRepr;
-/// use rust_kzg_bn254_primitives::helpers::validate_g2_point;
+/// use rust_kzg_bn254_primitives::helpers::example_validate_g2_point;
 ///
 /// let mut rng = ark_std::test_rng();
 /// let valid_point = G2Affine::rand(&mut rng);
-/// assert!(validate_g2_point(&valid_point).is_ok());
+/// assert!(example_validate_g2_point(&valid_point).is_ok());
 ///
 /// let identity_point = G2Affine::identity();
-/// assert!(validate_g2_point(&identity_point).is_err());
+/// assert!(example_validate_g2_point(&identity_point).is_err());
 ///
 /// let generator_point = G2Affine::generator();
-/// assert!(validate_g2_point(&generator_point).is_err());
-pub fn validate_g2_point(point: &G2Affine) -> Result<(), KzgError> {
+/// assert!(example_validate_g2_point(&generator_point).is_err());
+pub fn example_validate_g2_point(point: &G2Affine) -> Result<(), KzgError> {
     if !point.is_on_curve() {
         return Err(KzgError::NotOnCurveError(
             "G2 point not on curve".to_string(),

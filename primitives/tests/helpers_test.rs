@@ -16,9 +16,9 @@ use rust_kzg_bn254_primitives::{
     errors::KzgError,
     helpers::{
         blob_to_polynomial, calculate_roots_of_unity, compute_challenge,
-        compute_challenges_and_evaluate_polynomial, get_num_element, is_on_curve_g1,
-        is_on_curve_g2, is_zeroed, pad_payload, remove_internal_padding, to_byte_array,
-        to_fr_array, validate_g1_point, validate_g2_point,
+        compute_challenges_and_evaluate_polynomial, example_validate_g2_point, get_num_element,
+        is_on_curve_g1, is_on_curve_g2, is_zeroed, pad_payload, remove_internal_padding,
+        to_byte_array, to_fr_array, validate_g1_point,
     },
 };
 
@@ -670,7 +670,7 @@ fn test_validate_g2_point_valid_point() {
 
     for _ in 0..10 {
         let valid_point = G2Affine::rand(&mut rng);
-        let result = validate_g2_point(&valid_point);
+        let result = example_validate_g2_point(&valid_point);
         assert!(
             result.is_ok(),
             "Valid random G2 point should pass validation"
@@ -682,7 +682,7 @@ fn test_validate_g2_point_valid_point() {
 fn test_validate_g2_point_identity_point() {
     // Test with identity point (point at infinity)
     let identity_point = G2Affine::identity();
-    let result = validate_g2_point(&identity_point);
+    let result = example_validate_g2_point(&identity_point);
 
     assert!(result.is_err(), "Identity point should not pass validation");
 }
@@ -704,7 +704,7 @@ fn test_validate_g2_point_invalid_curve_point() {
         "Test point should not be on curve"
     );
 
-    let result = validate_g2_point(&invalid_point);
+    let result = example_validate_g2_point(&invalid_point);
     assert!(
         result.is_err(),
         "Invalid curve point should fail validation"
@@ -725,7 +725,7 @@ fn test_validate_g2_point_invalid_curve_point() {
 fn test_validate_g2_point_generator() {
     // Test with the generator point (should be rejected)
     let generator = G2Affine::generator();
-    let result = validate_g2_point(&generator);
+    let result = example_validate_g2_point(&generator);
     assert!(result.is_err(), "Generator point should be rejected");
 
     match result.unwrap_err() {
@@ -766,7 +766,7 @@ fn test_validate_point_functions_consistency() {
             && g2_point.is_on_curve()
             && g2_point.is_in_correct_subgroup_assuming_on_curve()
             && g2_point != G2Affine::generator();
-        let function_check = validate_g2_point(&g2_point).is_ok();
+        let function_check = example_validate_g2_point(&g2_point).is_ok();
 
         assert_eq!(
             manual_check, function_check,
@@ -818,7 +818,7 @@ fn test_validate_point_functions_generator_rejection() {
     );
 
     // But should be rejected by our validation function
-    let g2_result = validate_g2_point(&g2_generator);
+    let g2_result = example_validate_g2_point(&g2_generator);
     assert!(g2_result.is_err(), "G2 generator should be rejected");
 
     match g2_result.unwrap_err() {
