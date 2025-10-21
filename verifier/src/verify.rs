@@ -75,7 +75,7 @@ pub fn verify_blob_kzg_proof(
     }
 
     // Convert blob to polynomial
-    let polynomial = blob.to_polynomial_eval_form();
+    let polynomial = blob.to_polynomial_eval_form()?;
 
     // Compute the evaluation challenge for the blob and commitment
     let evaluation_challenge = helpers::compute_challenge(blob, commitment)?;
