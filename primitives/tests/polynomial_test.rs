@@ -53,7 +53,7 @@ mod tests {
             ]
             .as_slice(),
         );
-        let poly_coeff = blob.to_polynomial_coeff_form();
+        let poly_coeff = blob.to_polynomial_coeff_form().unwrap();
 
         let poly_eval = poly_coeff.unwrap().to_eval_form().unwrap();
         let poly_coeff_back = poly_eval.to_coeff_form().unwrap();
