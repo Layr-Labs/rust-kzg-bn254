@@ -55,7 +55,7 @@ mod tests {
         );
         let poly_coeff = blob.to_polynomial_coeff_form().unwrap();
 
-        let poly_eval = poly_coeff.unwrap().to_eval_form().unwrap();
+        let poly_eval = poly_coeff.to_eval_form().unwrap();
         let poly_coeff_back = poly_eval.to_coeff_form().unwrap();
         assert_eq!(
             &poly_coeff_back.to_bytes_be()[0..blob.data().len()],
