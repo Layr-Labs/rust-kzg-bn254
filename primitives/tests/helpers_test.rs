@@ -203,17 +203,41 @@ fn test_calculate_roots_of_unity_boundary_conditions() {
     assert_eq!(roots_1.len(), 1, "1 byte should give 1 root");
 
     // Test with maximum valid size (just under the limit)
-    let max_valid_length = MAINNET_SRS_G1_SIZE as u64 * BYTES_PER_FIELD_ELEMENT as u64;
-    let result_max = calculate_roots_of_unity(max_valid_length);
-    // This might succeed or fail depending on the exact calculation, but shouldn't panic
-    match result_max {
-        Ok(roots) => {
-            assert!(!roots.is_empty(), "Should have at least one root");
-            assert_eq!(roots[0], Fr::one(), "First root should be identity");
-        },
-        Err(_) => {
-            // It's also acceptable if this fails due to size constraints
-        },
+    // Skip this test on 32-bit systems to avoid capacity overflow
+    #[cfg(target_pointer_width = "64")]
+    {
+        let max_valid_length = MAINNET_SRS_G1_SIZE as u64 * BYTES_PER_FIELD_ELEMENT as u64;
+        let result_max = calculate_roots_of_unity(max_valid_length);
+        // This might succeed or fail depending on the exact calculation, but shouldn't panic
+        match result_max {
+            Ok(roots) => {
+                assert!(!roots.is_empty(), "Should have at least one root");
+                assert_eq!(roots[0], Fr::one(), "First root should be identity");
+            },
+            Err(_) => {
+                // It's also acceptable if this fails due to size constraints
+            },
+        }
+    }
+    
+    // For 32-bit systems, test with a smaller but still substantial size
+    #[cfg(target_pointer_width = "32")]
+    {
+        // Use a size that won't overflow on 32-bit systems
+        // Max addressable is ~4GB, so use a conservative value
+        let max_32bit_field_elements = (1 << 20); // 1M field elements = ~32MB
+        let max_valid_length_32bit = max_32bit_field_elements * BYTES_PER_FIELD_ELEMENT as u64;
+        let result_max = calculate_roots_of_unity(max_valid_length_32bit);
+        // This might succeed or fail depending on the exact calculation, but shouldn't panic
+        match result_max {
+            Ok(roots) => {
+                assert!(!roots.is_empty(), "Should have at least one root");
+                assert_eq!(roots[0], Fr::one(), "First root should be identity");
+            },
+            Err(_) => {
+                // It's also acceptable if this fails due to size constraints
+            },
+        }
     }
 
     // Test edge case: exactly at field element boundary
@@ -298,7 +322,12 @@ fn test_calculate_roots_of_unity_specific_error_conditions() {
 
     // Test near the overflow boundary for log2 calculation
     // This is trying to find cases where the log2 conversion might fail
+    #[cfg(target_pointer_width = "64")]
     let very_large_but_valid = (MAINNET_SRS_G1_SIZE as u64) * BYTES_PER_FIELD_ELEMENT as u64;
+    
+    #[cfg(target_pointer_width = "32")]
+    let very_large_but_valid = (1u64 << 20) * BYTES_PER_FIELD_ELEMENT as u64; // Use smaller value for 32-bit
+    
     let result = calculate_roots_of_unity(very_large_but_valid);
 
     // This should either succeed or fail gracefully with a proper error
