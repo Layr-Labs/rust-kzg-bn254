@@ -219,7 +219,7 @@ fn test_calculate_roots_of_unity_boundary_conditions() {
             },
         }
     }
-    
+
     // For 32-bit systems, test with a smaller but still substantial size
     #[cfg(target_pointer_width = "32")]
     {
@@ -324,10 +324,10 @@ fn test_calculate_roots_of_unity_specific_error_conditions() {
     // This is trying to find cases where the log2 conversion might fail
     #[cfg(target_pointer_width = "64")]
     let very_large_but_valid = (MAINNET_SRS_G1_SIZE as u64) * BYTES_PER_FIELD_ELEMENT as u64;
-    
+
     #[cfg(target_pointer_width = "32")]
     let very_large_but_valid = (1u64 << 20) * BYTES_PER_FIELD_ELEMENT as u64; // Use smaller value for 32-bit
-    
+
     let result = calculate_roots_of_unity(very_large_but_valid);
 
     // This should either succeed or fail gracefully with a proper error
