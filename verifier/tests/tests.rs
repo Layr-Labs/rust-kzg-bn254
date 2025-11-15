@@ -416,42 +416,32 @@ mod tests {
         // Test Case 1: commit_minus_value becomes identity
         // Create a commitment that equals value_fr * G1, so commit_minus_value = identity
         let value_fr = Fr::from(42u64);
-        let commitment = G1Affine::generator() * value_fr; // commitment = value_fr * G1
-        let valid_proof = G1Affine::generator() * Fr::from(100u64); // Some valid proof
-        let z_fr = Fr::from(13u64); // Some evaluation point
+        let commitment = (G1Affine::generator() * value_fr).into_affine(); // commitment = value_fr * G1
 
-        let result = verify_proof(
-            commitment.into_affine(),
-            valid_proof.into_affine(),
-            value_fr,
-            z_fr,
-        );
+        // For a constant polynomial, the valid proof is identity
+        // because Q(X) = (P(X) - P(z))/(X - z) = 0
+        let valid_proof = G1Affine::identity();
+        let z_fr = Fr::from(13u64); // Any evaluation point works for constant polynomial
+
+        let result = verify_proof(commitment, valid_proof, value_fr, z_fr);
         assert!(
-            result.is_ok(),
-            "Should not reject when commitment - value*G1 equals identity"
+            result.is_ok() && result.unwrap(),
+            "Should accept valid constant polynomial case where commitment = value*G1 and proof = identity"
         );
 
-        // Verify the error message is what we expect
-        if let Err(error) = result {
-            match error {
-                rust_kzg_bn254_primitives::errors::KzgError::GenericError(msg) => {
-                    assert!(
-                        msg.contains("Invalid commitment-value relationship"),
-                        "Error message should indicate commitment-value relationship issue"
-                    );
-                },
-                _ => panic!("Expected GenericError for invalid commitment-value relationship"),
-            }
-        }
+        // Test Case 1b: Invalid proof for constant polynomial
+        // Using a non-identity proof when commit_minus_value = identity should fail
+        let invalid_proof = (G1Affine::generator() * Fr::from(100u64)).into_affine();
+        let result_invalid = verify_proof(commitment, invalid_proof, value_fr, z_fr);
+        assert!(
+            result_invalid.is_err() || !result_invalid.unwrap(),
+            "Should reject invalid proof for constant polynomial case"
+        );
 
         // Test Case 2: Verify normal case still works
         let different_value = Fr::from(999u64); // Different from commitment scalar
-        let result = verify_proof(
-            commitment.into_affine(),
-            valid_proof.into_affine(),
-            different_value,
-            z_fr,
-        );
+        let some_proof = (G1Affine::generator() * Fr::from(200u64)).into_affine();
+        let result = verify_proof(commitment, some_proof, different_value, z_fr);
         // This might still fail for other reasons (invalid proof), but should not fail on commitment-value relationship
         if let Err(error) = result {
             match error {
