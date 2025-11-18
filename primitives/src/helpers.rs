@@ -174,7 +174,7 @@ pub fn lexicographically_largest(z: &Fq) -> bool {
 
 pub fn read_g1_point_from_bytes_be(g1_bytes_be: &[u8]) -> Result<G1Affine, KzgError> {
     if g1_bytes_be.len() != SIZE_OF_G1_AFFINE_COMPRESSED {
-        return Err(KzgError::SerializationError(
+        return Err(KzgError::DeserializationError(
             "not enough bytes for g1 point".to_string(),
         ));
     }
@@ -188,7 +188,7 @@ pub fn read_g1_point_from_bytes_be(g1_bytes_be: &[u8]) -> Result<G1Affine, KzgEr
 
     if m_data == m_compressed_infinity {
         if !is_zeroed(g1_bytes_be[0] & !m_mask, g1_bytes_be[1..32].to_vec()) {
-            return Err(KzgError::SerializationError(
+            return Err(KzgError::DeserializationError(
                 "point at infinity not coded properly for g1".to_string(),
             ));
         }
@@ -200,9 +200,12 @@ pub fn read_g1_point_from_bytes_be(g1_bytes_be: &[u8]) -> Result<G1Affine, KzgEr
     x_bytes[0] &= !m_mask;
     let x = Fq::from_be_bytes_mod_order(&x_bytes);
     let y_squared = x * x * x + Fq::from(3);
-    let mut y_sqrt = y_squared
-        .sqrt()
-        .ok_or_else(|| KzgError::NotOnCurveError("point not on curve".to_string()))?;
+    let mut y_sqrt = y_squared.sqrt().ok_or_else(|| {
+        KzgError::NotOnCurveError(format!(
+            "compressed g1 point not on curve: {:?}",
+            g1_bytes_be
+        ))
+    })?;
 
     if lexicographically_largest(&y_sqrt) {
         if m_data == m_compressed_smallest {
