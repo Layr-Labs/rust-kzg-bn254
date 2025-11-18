@@ -49,6 +49,10 @@ pub enum KzgError {
     },
 
     /// Error related to commitment processes with a descriptive message.
+    #[error("g2 generator not accepted error: {0}")]
+    G2GeneratorNotAcceptedError(String),
+
+    /// Error related to commitment processes with a descriptive message.
     #[error("not on curve error: {0}")]
     NotOnCurveError(String),
 

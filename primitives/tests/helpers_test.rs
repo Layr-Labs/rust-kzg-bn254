@@ -806,7 +806,7 @@ fn test_validate_point_functions_consistency() {
 
 #[test]
 fn test_validate_point_functions_generator_rejection() {
-    // Test that both validation functions properly reject their respective generators
+    // Tests that G1 validation function does not reject it's generator but G2 validation function does.
 
     // Test G1 generator rejection
     let g1_generator = G1Affine::generator();
@@ -851,13 +851,13 @@ fn test_validate_point_functions_generator_rejection() {
     assert!(g2_result.is_err(), "G2 generator should be rejected");
 
     match g2_result.unwrap_err() {
-        KzgError::NotOnCurveError(msg) => {
+        KzgError::G2GeneratorNotAcceptedError(msg) => {
             assert_eq!(
                 msg, "G2 point cannot be the generator point",
                 "Should have correct G2 generator error message"
             );
         },
-        _ => panic!("Should return NotOnCurveError for G2 generator"),
+        _ => panic!("Should return G2GeneratorNotAcceptedError for G2 generator"),
     }
 }
 
@@ -895,7 +895,7 @@ fn test_compute_challenge_comprehensive() {
         "compute_challenge should not reject identity point"
     );
 
-    // Test 3: Generator point should be rejected
+    // Test 3: Generator point should not be rejected
     let generator_commitment = G1Affine::generator();
     let result = compute_challenge(&blob, &generator_commitment);
 

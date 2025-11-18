@@ -754,7 +754,7 @@ pub fn example_validate_g2_point(point: &G2Affine) -> Result<(), KzgError> {
     }
 
     if *point == G2Affine::generator() {
-        return Err(KzgError::NotOnCurveError(
+        return Err(KzgError::G2GeneratorNotAcceptedError(
             "G2 point cannot be the generator point".to_string(),
         ));
     }
