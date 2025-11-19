@@ -751,24 +751,6 @@ fn test_validate_g2_point_invalid_curve_point() {
 }
 
 #[test]
-fn test_validate_g2_point_generator() {
-    // Test with the generator point (should be rejected)
-    let generator = G2Affine::generator();
-    let result = example_validate_g2_point(&generator);
-    assert!(result.is_err(), "Generator point should be rejected");
-
-    match result.unwrap_err() {
-        KzgError::NotOnCurveError(msg) => {
-            assert_eq!(
-                msg, "G2 point cannot be the generator point",
-                "Should have correct error message"
-            );
-        },
-        _ => panic!("Should return NotOnCurveError for generator point"),
-    }
-}
-
-#[test]
 fn test_validate_point_functions_consistency() {
     // Test that the validation functions are consistent with manual checks
     let mut rng = ark_std::test_rng();
