@@ -41,12 +41,20 @@ pub enum KzgError {
     #[error("serialization error: {0}")]
     SerializationError(String),
 
+    /// Error related to deserialization with a descriptive message.
+    #[error("deserialization error: {0}")]
+    DeserializationError(String),
+
     /// Error when polynomial degree exceeds SRS capacity
     #[error("polynomial degree {polynomial_len} exceeds SRS capacity {srs_len}")]
     SrsCapacityExceeded {
         polynomial_len: usize,
         srs_len: usize,
     },
+
+    /// Error related to commitment processes with a descriptive message.
+    #[error("g2 generator not accepted error: {0}")]
+    G2GeneratorNotAcceptedError(String),
 
     /// Error related to commitment processes with a descriptive message.
     #[error("not on curve error: {0}")]

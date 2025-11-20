@@ -1,7 +1,7 @@
 use ark_bn254::{Bn254, Fq, Fq2, Fr, G1Affine, G1Projective, G2Affine, G2Projective};
 use ark_ec::AdditiveGroup;
 use ark_ec::{pairing::Pairing, AffineRepr, CurveGroup, VariableBaseMSM};
-use ark_ff::{sbb, BigInt, BigInteger, Field, PrimeField};
+use ark_ff::{sbb, BigInteger, Field, PrimeField};
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use ark_std::format;
 use ark_std::{str::FromStr, vec, vec::Vec, One, Zero};
@@ -29,16 +29,6 @@ pub fn blob_to_polynomial(blob: &[u8]) -> Vec<Fr> {
     to_fr_array(blob)
 }
 
-pub fn set_bytes_canonical_manual(data: &[u8]) -> Fr {
-    let mut arrays: [u64; 4] = Default::default(); // Initialize an array of four [u8; 8] arrays
-
-    for (i, chunk) in data.chunks(8).enumerate() {
-        arrays[i] = u64::from_be_bytes(chunk.try_into().expect("Slice with incorrect length"));
-    }
-    arrays.reverse();
-    Fr::from_bigint(BigInt::new(arrays)).unwrap()
-}
-
 pub fn set_bytes_canonical(data: &[u8]) -> Fr {
     Fr::from_be_bytes_mod_order(data)
 }
@@ -55,6 +45,7 @@ pub fn to_fr_array(data: &[u8]) -> Vec<Fr> {
         let start = i * BYTES_PER_FIELD_ELEMENT;
         let end = (i + 1) * BYTES_PER_FIELD_ELEMENT;
         if end > data.len() {
+            // Handle the last chunk that may be incomplete
             let mut padded = vec![0u8; BYTES_PER_FIELD_ELEMENT];
             padded[..data.len() - start].copy_from_slice(&data[start..]);
             *element = set_bytes_canonical(&padded);
@@ -181,9 +172,11 @@ pub fn lexicographically_largest(z: &Fq) -> bool {
     borrow == 0
 }
 
-pub fn read_g1_point_from_bytes_be(g1_bytes_be: &[u8]) -> Result<G1Affine, &str> {
+pub fn read_g1_point_from_bytes_be(g1_bytes_be: &[u8]) -> Result<G1Affine, KzgError> {
     if g1_bytes_be.len() != SIZE_OF_G1_AFFINE_COMPRESSED {
-        return Err("not enough bytes for g1 point");
+        return Err(KzgError::DeserializationError(
+            "not enough bytes for g1 point".to_string(),
+        ));
     }
 
     let m_mask: u8 = 0b11 << 6;
@@ -195,7 +188,9 @@ pub fn read_g1_point_from_bytes_be(g1_bytes_be: &[u8]) -> Result<G1Affine, &str>
 
     if m_data == m_compressed_infinity {
         if !is_zeroed(g1_bytes_be[0] & !m_mask, g1_bytes_be[1..32].to_vec()) {
-            return Err("point at infinity not coded properly for g1");
+            return Err(KzgError::DeserializationError(
+                "point at infinity not coded properly for g1".to_string(),
+            ));
         }
         return Ok(G1Affine::zero());
     }
@@ -205,7 +200,12 @@ pub fn read_g1_point_from_bytes_be(g1_bytes_be: &[u8]) -> Result<G1Affine, &str>
     x_bytes[0] &= !m_mask;
     let x = Fq::from_be_bytes_mod_order(&x_bytes);
     let y_squared = x * x * x + Fq::from(3);
-    let mut y_sqrt = y_squared.sqrt().ok_or("no item1").unwrap();
+    let mut y_sqrt = y_squared.sqrt().ok_or_else(|| {
+        KzgError::NotOnCurveError(format!(
+            "compressed g1 point not on curve: {:?}",
+            g1_bytes_be
+        ))
+    })?;
 
     if lexicographically_largest(&y_sqrt) {
         if m_data == m_compressed_smallest {
@@ -218,26 +218,30 @@ pub fn read_g1_point_from_bytes_be(g1_bytes_be: &[u8]) -> Result<G1Affine, &str>
     if !point.is_in_correct_subgroup_assuming_on_curve()
         && is_on_curve_g1(&G1Projective::from(point))
     {
-        return Err("point couldn't be created");
+        return Err(KzgError::NotOnCurveError(
+            "point couldn't be created".to_string(),
+        ));
     }
     Ok(point)
 }
 
-fn get_b_twist_curve_coeff() -> Fq2 {
+fn get_b_twist_curve_coeff() -> Result<Fq2, KzgError> {
     let twist_c0 = Fq::from(9);
     let twist_c1 = Fq::from(1);
 
     // this is bTwistCurveCoeff
     let mut twist_curve_coeff = Fq2::new(twist_c0, twist_c1);
-    twist_curve_coeff = *twist_curve_coeff.inverse_in_place().unwrap();
+    twist_curve_coeff = *twist_curve_coeff
+        .inverse_in_place()
+        .ok_or(KzgError::InvalidDenominator)?;
 
     twist_curve_coeff.c0 *= Fq::from(3);
     twist_curve_coeff.c1 *= Fq::from(3);
-    twist_curve_coeff
+    Ok(twist_curve_coeff)
 }
 
 pub fn is_on_curve_g1(g1: &G1Projective) -> bool {
-    let b_curve_coeff: Fq = Fq::from_str("3").unwrap();
+    let b_curve_coeff: Fq = Fq::from_str("3").expect("3 is a valid field element");
 
     let mut left = g1.y;
     left.square_in_place();
@@ -269,7 +273,13 @@ pub fn is_on_curve_g2(g2: &G2Projective) -> bool {
     tmp.square_in_place();
     tmp *= &g2.z;
     tmp *= &g2.z;
-    tmp *= &get_b_twist_curve_coeff();
+
+    let twist_curve_coeff = get_b_twist_curve_coeff();
+    if let Ok(twist_curve_coeff) = twist_curve_coeff {
+        tmp *= &twist_curve_coeff;
+    } else {
+        return false;
+    }
     right += &tmp;
     left == right
 }
@@ -399,6 +409,9 @@ pub fn pairings_verify(a1: G1Affine, a2: G2Affine, b1: G1Affine, b2: G2Affine) -
 /// * `Ok(Fr)` - The resulting field element challenge.
 /// * `Err(KzgError)` - If any step fails.
 pub fn compute_challenge(blob: &Blob, commitment: &G1Affine) -> Result<Fr, KzgError> {
+    // Validate the commitment using the helper function
+    validate_g1_point(commitment)?;
+
     // Convert the blob to a polynomial in evaluation form
     // This is needed to process the blob data for the challenge
     let blob_poly = blob.to_polynomial_eval_form()?;
@@ -490,7 +503,7 @@ pub fn evaluate_polynomial_in_evaluation_form(
             ));
     }
 
-    // Step 6: Use the barycentric formula to compute the evaluation
+    // Step 6: Since z not in domain, use the barycentric formula to compute the evaluation
     let sum = polynomial
         .evaluations()
         .iter()
@@ -499,8 +512,17 @@ pub fn evaluate_polynomial_in_evaluation_form(
             let a = *f_i * domain_i;
             let b = *z - domain_i;
             // Since `z` is not in the domain, `b` should never be zero
-            a / b
+            if b.is_zero() {
+                return Err(KzgError::GenericError(
+                    "Division by zero in barycentric evaluation: z equals domain element"
+                        .to_string(),
+                ));
+            }
+
+            Ok(a / b)
         })
+        .collect::<Result<Vec<_>, _>>()?
+        .into_iter()
         .fold(Fr::zero(), |acc, val| acc + val);
 
     // Step 7: Compute r = z^width - 1
@@ -529,27 +551,29 @@ pub fn evaluate_polynomial_in_evaluation_form(
 /// - Calculates KZG operational parameters for commitment scheme
 /// ```
 pub fn calculate_roots_of_unity(length_of_data_after_padding: u64) -> Result<Vec<Fr>, KzgError> {
+    if length_of_data_after_padding == 0 {
+        return Err(KzgError::GenericError(
+            "Length of data after padding is 0".to_string(),
+        ));
+    }
+
+    if length_of_data_after_padding.div_ceil(BYTES_PER_FIELD_ELEMENT as u64)
+        > MAINNET_SRS_G1_SIZE as u64
+    {
+        return Err(KzgError::GenericError(
+            "the length of data after padding is not valid with respect to the SRS".to_string(),
+        ));
+    }
     // Calculate log2 of the next power of two of the length of data after padding
     let log2_of_evals = log2(
         length_of_data_after_padding
-            .div_ceil(32)
+            .div_ceil(BYTES_PER_FIELD_ELEMENT as u64)
             .next_power_of_two() as f64,
     )
     .to_u8()
     .ok_or_else(|| {
         KzgError::GenericError("Failed to convert length_of_data_after_padding to u8".to_string())
     })?;
-
-    // Check if the length of data after padding is valid with respect to the SRS order
-    if length_of_data_after_padding
-        .div_ceil(BYTES_PER_FIELD_ELEMENT as u64)
-        .next_power_of_two()
-        > MAINNET_SRS_G1_SIZE as u64
-    {
-        return Err(KzgError::SerializationError(
-            "the supplied encoding parameters are not valid with respect to the SRS.".to_string(),
-        ));
-    }
 
     // Find the root of unity corresponding to the calculated log2 value
     let root_of_unity = get_primitive_root_of_unity(log2_of_evals.into())?;
@@ -570,7 +594,12 @@ fn expand_root_of_unity(root_of_unity: &Fr) -> Vec<Fr> {
     roots.push(*root_of_unity); // Add the root of unity
 
     let mut i = 1;
-    while !roots[i].is_one() {
+    // This is the maximum number of iterations to avoid infinite loop
+    // There is only need to support a max of MAINNET_SRS_G1_SIZE worth of data so
+    // the number of iterations is MAINNET_SRS_G1_SIZE + 1 (because the first element is 1)
+    let max_iterations: usize = MAINNET_SRS_G1_SIZE + 1;
+
+    while !roots[i].is_one() && i < max_iterations {
         // Continue until the element cycles back to one
         let this = &roots[i];
         i += 1;
@@ -585,6 +614,13 @@ pub fn compute_challenges_and_evaluate_polynomial(
     blobs: &[Blob],
     commitments: &[G1Affine],
 ) -> Result<(Vec<Fr>, Vec<Fr>), KzgError> {
+    // Check if the blobs and commitments have the same length
+    if blobs.len() != commitments.len() && !blobs.is_empty() {
+        return Err(KzgError::GenericError(
+            "length's of the input are not the same or is empty".to_string(),
+        ));
+    }
+
     // Pre-allocate vectors to store:
     // - evaluation_challenges: Points where polynomials will be evaluated
     // - ys: Results of polynomial evaluations at challenge points
@@ -623,6 +659,110 @@ pub fn compute_challenges_and_evaluate_polynomial(
     // 2. Vector of polynomial evaluations at those points
     // These will be used in the KZG proof verification process
     Ok((evaluation_challenges, ys))
+}
+
+/// Validates that a G1 point meets all cryptographic requirements.
+/// We allow zero blob, whose commitment is the identity point.
+/// This function checks the following conditions:
+/// 1. Point is on the BN254 elliptic curve
+/// 2. Point is in the correct subgroup
+///
+/// # Arguments
+/// * `point` - Reference to the G1Affine point to validate
+///
+/// # Returns
+/// * `Ok(())` if the point passes all validation checks
+/// * `Err(KzgError::NotOnCurveError)` with specific error message if validation fails
+///
+/// # Example
+/// ```
+/// use ark_bn254::G1Affine;
+/// use ark_ff::UniformRand;
+/// use ark_ec::AffineRepr;
+/// use rust_kzg_bn254_primitives::helpers::validate_g1_point;
+///
+/// let mut rng = ark_std::test_rng();
+/// let valid_point = G1Affine::rand(&mut rng);
+/// assert!(validate_g1_point(&valid_point).is_ok());
+///
+/// let identity_point = G1Affine::identity();
+/// assert!(validate_g1_point(&identity_point).is_ok());
+///
+/// let generator_point = G1Affine::generator();
+/// assert!(validate_g1_point(&generator_point).is_ok());
+/// ```
+pub fn validate_g1_point(point: &G1Affine) -> Result<(), KzgError> {
+    if !point.is_on_curve() {
+        return Err(KzgError::NotOnCurveError(
+            "G1 point not on curve".to_string(),
+        ));
+    }
+
+    if !point.is_in_correct_subgroup_assuming_on_curve() {
+        return Err(KzgError::NotOnCurveError(
+            "G1 point not in correct subgroup".to_string(),
+        ));
+    }
+
+    Ok(())
+}
+
+/// Validates that a G2 point meets all cryptographic requirements.
+///
+/// This function checks the following conditions:
+/// 1. Point is not the identity (point at infinity)
+/// 2. Point is on the BN254 elliptic curve (twisted curve for G2)
+/// 3. Point is in the correct subgroup
+///
+/// # Arguments
+/// * `point` - Reference to the G2Affine point to validate
+///
+/// # Returns
+/// * `Ok(())` if the point passes all validation checks
+/// * `Err(KzgError::NotOnCurveError)` with specific error message if validation fails
+///
+/// # Example
+/// ```
+/// use ark_bn254::G2Affine;
+/// use ark_ff::UniformRand;
+/// use ark_ec::AffineRepr;
+/// use rust_kzg_bn254_primitives::helpers::example_validate_g2_point;
+///
+/// let mut rng = ark_std::test_rng();
+/// let valid_point = G2Affine::rand(&mut rng);
+/// assert!(example_validate_g2_point(&valid_point).is_ok());
+///
+/// let identity_point = G2Affine::identity();
+/// assert!(example_validate_g2_point(&identity_point).is_err());
+///
+/// let generator_point = G2Affine::generator();
+/// assert!(example_validate_g2_point(&generator_point).is_err());
+pub fn example_validate_g2_point(point: &G2Affine) -> Result<(), KzgError> {
+    if !point.is_on_curve() {
+        return Err(KzgError::NotOnCurveError(
+            "G2 point not on curve".to_string(),
+        ));
+    }
+
+    if point == &G2Affine::identity() {
+        return Err(KzgError::NotOnCurveError(
+            "G2 point is point at infinity".to_string(),
+        ));
+    }
+
+    if !point.is_in_correct_subgroup_assuming_on_curve() {
+        return Err(KzgError::NotOnCurveError(
+            "G2 point not in correct subgroup".to_string(),
+        ));
+    }
+
+    if *point == G2Affine::generator() {
+        return Err(KzgError::G2GeneratorNotAcceptedError(
+            "G2 point cannot be the generator point".to_string(),
+        ));
+    }
+
+    Ok(())
 }
 
 /// Converts a usize to a byte array in big-endian format always returning 8 bytes.
@@ -729,12 +869,6 @@ pub fn remove_internal_padding(padded_data: &[u8]) -> Result<Vec<u8>, KzgError> 
     for chunk in padded_data.chunks_exact(BYTES_PER_FIELD_ELEMENT) {
         output_data.extend_from_slice(&chunk[1..]);
     }
-
-    // Since we validated alignment above, there should be no remainder
-    debug_assert!(padded_data
-        .chunks_exact(BYTES_PER_FIELD_ELEMENT)
-        .remainder()
-        .is_empty());
 
     Ok(output_data)
 }
