@@ -44,9 +44,9 @@ codegen-units = 16
 rpath = false
 
 [workspace.dependencies]
-rust-kzg-bn254-primitives = { version = "0.1.3", path = "./primitives" }
-rust-kzg-bn254-prover = { version = "0.1.2", path = "./prover" }
-rust-kzg-bn254-verifier = { version = "0.1.3", path = "./verifier" }
+rust-kzg-bn254-primitives = { version = "0.1.4", path = "./primitives" }
+rust-kzg-bn254-prover = { version = "0.1.3", path = "./prover" }
+rust-kzg-bn254-verifier = { version = "0.1.4", path = "./verifier" }
 
 thiserror = { version = "2.0.11", default-features = false }
 sha2 = { version = "0.10.8", default-features = false }
